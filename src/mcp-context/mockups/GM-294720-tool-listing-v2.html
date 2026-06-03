@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tool Listing — Manager Dashboard (GM-294720 v2)</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:    #101a5c;
+  --secondary:  #FE8400;
+  --positive:   #66bb6a;
+  --negative:   #ED3324;
+  --info:       #2982cc;
+  --warning:    #f9b115;
+  --dark:       #636f83;
+  --grey:       #696969;
+  --light-grey: #d4d3d3;
+  --page-bg:    #F5F5F5;
+  --card-bg:    #FFFFFF;
+  --font:       'Source Sans Pro', sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  background: var(--page-bg);
+  color: var(--primary);
+  min-width: 1280px;
+  line-height: 1.4;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  height: 52px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--light-grey);
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+/* Orange G-mark matching actual GreyOrange logo */
+.logo-gmark {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.logo-wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.logo-brand {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--secondary);
+  letter-spacing: 0.2px;
+}
+.logo-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--dark);
+}
+
+.topbar-spacer { flex: 1; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Bell */
+.tb-icon-btn {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dark);
+  position: relative;
+}
+.tb-icon-btn:hover { background: var(--page-bg); }
+.tb-icon-btn .material-icons { font-size: 20px; }
+.notif-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 15px;
+  height: 15px;
+  background: var(--negative);
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid #fff;
+  line-height: 1;
+}
+
+/* Timezone */
+.tz-label {
+  font-size: 12px;
+  color: var(--dark);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* Language selector */
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 30px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--dark);
+}
+.lang-btn:hover { background: var(--page-bg); }
+.lang-btn .material-icons { font-size: 17px; }
+
+/* User menu */
+.user-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 6px 0 4px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--dark);
+  margin-left: 2px;
+}
+.user-btn:hover { background: var(--page-bg); }
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.user-avatar .material-icons { font-size: 18px; }
+
+/* ── PRIMARY NAV TABS ── */
+.primary-nav {
+  height: 42px;
+  background: var(--primary);
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+.nav-tab {
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.72);
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-bottom: 3px solid transparent;
+  transition: color 0.12s;
+  position: relative;
+  top: 0;
+}
+.nav-tab:hover { color: rgba(255,255,255,0.92); }
+.nav-tab.active {
+  color: #fff;
+  border-bottom: 3px solid var(--secondary);
+}
+.nav-more {
+  margin-left: auto;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+.nav-more .material-icons { font-size: 20px; }
+
+/* ── SUB-TABS ── */
+.sub-nav {
+  height: 38px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--light-grey);
+  display: flex;
+  align-items: stretch;
+  padding: 0 4px;
+}
+.sub-tab {
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dark);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  background: transparent;
+  font-family: var(--font);
+  transition: color 0.1s;
+}
+.sub-tab:hover { color: var(--primary); }
+.sub-tab.active {
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 3px solid var(--secondary);
+}
+
+/* ── SECTION BANNER ── */
+.section-banner {
+  height: 38px;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 0;
+  flex-shrink: 0;
+}
+.banner-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+.banner-sep {
+  color: rgba(255,255,255,0.35);
+  margin: 0 10px;
+  font-size: 13px;
+}
+.banner-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}
+.banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.banner-stat .lbl { color: rgba(255,255,255,0.7); }
+.banner-stat .val { font-weight: 600; color: #fff; }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  background: var(--card-bg);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--light-grey);
+}
+.filter-spacer { flex: 1; }
+
+/* Filter button — matches actual "≡ Filter" button with text */
+.filter-toggle-btn {
+  height: 30px;
+  border: 1px solid var(--light-grey);
+  background: var(--card-bg);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--dark);
+}
+.filter-toggle-btn:hover { border-color: var(--dark); }
+.filter-toggle-btn .material-icons { font-size: 16px; }
+
+/* Search input */
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-wrap .material-icons {
+  position: absolute;
+  left: 7px;
+  font-size: 15px;
+  color: var(--dark);
+  pointer-events: none;
+}
+.search-input {
+  height: 30px;
+  border: 1px solid var(--light-grey);
+  border-radius: 4px;
+  padding: 0 8px 0 26px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--primary);
+  width: 196px;
+  outline: none;
+  background: var(--card-bg);
+}
+.search-input:focus { border-color: var(--info); }
+.search-input::placeholder { color: var(--grey); }
+
+/* Dropdown selects */
+.f-select {
+  height: 30px;
+  border: 1px solid var(--light-grey);
+  border-radius: 4px;
+  padding: 0 24px 0 8px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24'%3E%3Cpath fill='%23636f83' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 6px center;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+  min-width: 126px;
+}
+.f-select:focus { border-color: var(--info); }
+
+/* Action buttons on right */
+.icon-action-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--light-grey);
+  background: var(--card-bg);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--dark);
+}
+.icon-action-btn:hover { border-color: var(--dark); }
+.icon-action-btn .material-icons { font-size: 17px; }
+
+/* Split export button */
+.split-wrap { display: flex; gap: 0; }
+.split-main {
+  height: 30px;
+  background: var(--secondary);
+  color: #fff;
+  border: none;
+  border-radius: 4px 0 0 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.split-main:hover { background: #e57500; }
+.split-caret {
+  height: 30px;
+  width: 26px;
+  background: var(--secondary);
+  color: #fff;
+  border: none;
+  border-left: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.split-caret:hover { background: #e57500; }
+.split-caret .material-icons { font-size: 16px; }
+
+/* ── TABLE ── */
+.table-wrap {
+  background: var(--card-bg);
+  margin: 0;
+  border-top: none;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+colgroup col.c-chk  { width: 38px; }
+colgroup col.c-id   { width: 90px; }
+colgroup col.c-name { width: 185px; }
+colgroup col.c-type { width: 96px; }
+colgroup col.c-zone { width: 86px; }
+colgroup col.c-mode { width: 126px; }
+colgroup col.c-user { width: 96px; }
+colgroup col.c-ts   { width: 155px; }
+colgroup col.c-act  { width: auto; }
+
+thead tr {
+  background: #F5F5F5;
+  border-bottom: 1px solid var(--light-grey);
+}
+
+th {
+  padding: 0 10px;
+  height: 36px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark);
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  border-right: none;
+}
+th:first-child { text-align: center; padding: 0 8px; }
+.th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+/* Sort icon — matches real product triangles */
+.sort-ico {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  opacity: 0.35;
+  vertical-align: middle;
+}
+.sort-ico span {
+  font-size: 0;
+  width: 0;
+  height: 0;
+  display: block;
+}
+.sort-ico .up {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid var(--dark);
+}
+.sort-ico .dn {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--dark);
+}
+th:hover .sort-ico { opacity: 0.7; }
+th.sorted .sort-ico { opacity: 1; }
+th.sorted .sort-ico .up { border-bottom-color: var(--primary); }
+
+tbody tr {
+  border-bottom: 1px solid var(--light-grey);
+  transition: background 0.08s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafafa; }
+
+td {
+  padding: 0 10px;
+  height: 40px;
+  font-size: 13px;
+  color: var(--primary);
+  vertical-align: middle;
+}
+td:first-child { text-align: center; padding: 0 8px; }
+
+input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.cell-id {
+  color: var(--info);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 400;
+}
+.cell-id:hover { text-decoration: underline; }
+
+/* Status / Mode chips */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+.chip.sq { border-radius: 3px; }
+.c-available    { background: var(--positive); }
+.c-assigned     { background: var(--info); }
+.c-offline      { background: var(--dark); }
+.c-maintenance  { background: var(--warning); }
+.c-charging     { background: var(--warning); }
+.c-markedlost   { background: var(--negative); }
+.c-decommissioned { background: var(--dark); }
+
+.muted { color: var(--dark); }
+.user-id { color: var(--info); }
+
+/* Action icon buttons — matches actual product square outline buttons */
+.act-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.act-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--light-grey);
+  border-radius: 3px;
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--dark);
+  transition: border-color 0.1s, color 0.1s;
+}
+.act-btn:hover { border-color: var(--primary); color: var(--primary); }
+.act-btn .material-icons { font-size: 14px; }
+.act-btn.swap { color: var(--secondary); border-color: rgba(254,132,0,0.45); }
+.act-btn.swap:hover { border-color: var(--secondary); background: #fff7ed; }
+.act-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Terminal row */
+tr.terminal { opacity: 0.65; }
+
+/* ── PAGINATION ── */
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 14px;
+  gap: 10px;
+  border-top: 1px solid var(--light-grey);
+  background: var(--card-bg);
+  font-size: 13px;
+  color: var(--dark);
+}
+.rpp-wrap { display: flex; align-items: center; gap: 5px; }
+.rpp-sel {
+  height: 26px;
+  border: 1px solid var(--light-grey);
+  border-radius: 3px;
+  padding: 0 18px 0 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--primary);
+  background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24'%3E%3Cpath fill='%23636f83' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 3px center;
+  appearance: none;
+  outline: none;
+}
+.pg-btns { display: flex; align-items: center; gap: 3px; }
+.pg-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--light-grey);
+  border-radius: 3px;
+  background: var(--card-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--dark);
+  transition: all 0.1s;
+}
+.pg-btn:hover:not(.cur) { border-color: var(--dark); color: var(--primary); }
+.pg-btn.cur { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pg-btn .material-icons { font-size: 16px; }
+.pg-ellipsis { color: var(--dark); font-size: 13px; padding: 0 2px; }
+.pg-count { font-size: 12px; color: var(--dark); }
+
+/* ── MODAL BACKDROP ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16,26,92,0.38);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── MODAL CARD — matches actual product Add User modal ── */
+.modal-card {
+  background: var(--card-bg);
+  border-radius: 4px;
+  width: 470px;
+  max-width: 94vw;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.24);
+  overflow: hidden;
+}
+
+.modal-hdr {
+  background: var(--primary);
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+}
+.modal-hdr-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+.modal-close-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.modal-close-btn:hover { background: rgba(255,255,255,0.28); }
+.modal-close-btn .material-icons { font-size: 16px; }
+
+.modal-body {
+  padding: 20px 20px 16px;
+}
+
+/* Current mode row */
+.cur-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  background: var(--page-bg);
+  border-radius: 4px;
+  border-left: 3px solid var(--positive);
+}
+.cur-mode-lbl {
+  font-size: 12px;
+  color: var(--dark);
+  min-width: 100px;
+}
+.cur-tool-ref {
+  font-size: 12px;
+  color: var(--dark);
+  margin-left: auto;
+  opacity: 0.75;
+}
+
+/* Field label */
+.field-lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+/* Radio group */
+.radio-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 14px;
+  border: 1px solid var(--light-grey);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--light-grey);
+  transition: background 0.08s;
+  position: relative;
+}
+.radio-row:last-child { border-bottom: none; }
+.radio-row:hover { background: #fafafa; }
+.radio-row input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.radio-row-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--primary);
+}
+.radio-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+.radio-chip.sq { border-radius: 3px; }
+
+/* Info note */
+.info-note {
+  font-size: 12px;
+  color: var(--grey);
+  font-style: italic;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.info-note .material-icons { font-size: 14px; color: var(--info); margin-top: 1px; flex-shrink: 0; }
+
+/* Remarks */
+.remarks-lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 5px;
+}
+.remarks-sub {
+  font-weight: 400;
+  color: var(--grey);
+  font-size: 12px;
+}
+.remarks-area {
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid var(--light-grey);
+  border-radius: 4px;
+  padding: 7px 9px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--primary);
+  resize: vertical;
+  outline: none;
+  background: var(--card-bg);
+}
+.remarks-area:focus { border-color: var(--info); }
+.remarks-area::placeholder { color: var(--grey); font-style: normal; }
+
+/* Modal footer — matches actual CANCEL + PROCEED pattern */
+.modal-ftr {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--light-grey);
+}
+.btn-cancel {
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--light-grey);
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark);
+  padding: 0 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.btn-cancel:hover { border-color: var(--dark); }
+.btn-confirm {
+  height: 32px;
+  background: var(--secondary);
+  border: none;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  padding: 0 16px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.btn-confirm:hover { background: #e57500; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     TOP BAR  (matches actual product)
+     ════════════════════════════════════════════ -->
+<header class="top-bar">
+  <a class="logo-area">
+    <!-- Actual GreyOrange G-mark as inline SVG -->
+    <svg class="logo-gmark" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="13" cy="13" r="13" fill="#FE8400"/>
+      <path d="M18.5 10.5H14v2h3v2.5c0 0-1 1.5-4 1.5s-4.5-2-4.5-3.5S10 9 13 9c1.6 0 2.8.6 3.5 1.2l1.5-1.5C16.8 7.6 15.1 7 13 7c-3.9 0-7 2.8-7 6.5S9.1 20 13 20c4 0 5.5-2.5 5.5-4.5V10.5z" fill="white"/>
+    </svg>
+    <div class="logo-wordmark">
+      <span class="logo-brand">GreyOrange</span>
+      <span class="logo-sub">Manager Dashboard</span>
+    </div>
+  </a>
+
+  <div class="topbar-spacer"></div>
+
+  <div class="topbar-right">
+    <button class="tb-icon-btn" title="Notifications">
+      <span class="material-icons">notifications</span>
+      <span class="notif-badge">3</span>
+    </button>
+
+    <span class="tz-label">Time Zone - Asia/Kolkata</span>
+
+    <button class="lang-btn">
+      <span class="material-icons">language</span>
+      English (US)
+      <span class="material-icons" style="font-size:16px">arrow_drop_down</span>
+    </button>
+
+    <button class="user-btn">
+      <div class="user-avatar">
+        <span class="material-icons">person</span>
+      </div>
+      admin
+      <span class="material-icons" style="font-size:17px">arrow_drop_down</span>
+    </button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════
+     PRIMARY NAV TABS
+     ════════════════════════════════════════════ -->
+<nav class="primary-nav">
+  <button class="nav-tab">ANALYTICS</button>
+  <button class="nav-tab">OUTBOUND</button>
+  <button class="nav-tab">INBOUND</button>
+  <button class="nav-tab">AUDIT</button>
+  <button class="nav-tab">PROCESS EXCEPTIONS</button>
+  <button class="nav-tab">INVENTORY</button>
+  <button class="nav-tab">SYSTEM</button>
+  <button class="nav-tab active">RESOURCES</button>
+  <button class="nav-tab">SHIFT PLANNING</button>
+  <button class="nav-tab">REPORTS</button>
+  <button class="nav-tab">NOTIFICATION</button>
+  <button class="nav-more"><span class="material-icons">chevron_right</span></button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     SUB-TABS
+     ════════════════════════════════════════════ -->
+<nav class="sub-nav">
+  <button class="sub-tab">Users List</button>
+  <button class="sub-tab">Roles &amp; Permissions</button>
+  <button class="sub-tab">Tool Types</button>
+  <button class="sub-tab">Handling Units</button>
+  <button class="sub-tab">Pallet Types</button>
+  <button class="sub-tab active">Tool Listing</button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     SECTION BANNER  (matches station-management banner style)
+     ════════════════════════════════════════════ -->
+<div class="section-banner">
+  <span class="banner-title">Tool Listing</span>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="lbl">Total:</span>
+    <span class="val">128</span>
+  </div>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="banner-dot" style="background:var(--positive)"></span>
+    <span class="lbl">Available:</span>
+    <span class="val">45</span>
+  </div>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="banner-dot" style="background:var(--info)"></span>
+    <span class="lbl">Assigned:</span>
+    <span class="val">32</span>
+  </div>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="banner-dot" style="background:var(--dark)"></span>
+    <span class="lbl">Offline:</span>
+    <span class="val">18</span>
+  </div>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="banner-dot" style="background:var(--warning)"></span>
+    <span class="lbl">In Maintenance:</span>
+    <span class="val">12</span>
+  </div>
+
+  <span class="banner-sep">|</span>
+  <div class="banner-stat">
+    <span class="banner-dot" style="background:var(--negative)"></span>
+    <span class="lbl">Marked Lost:</span>
+    <span class="val">4</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     FILTER BAR  (matches actual product filter row)
+     ════════════════════════════════════════════ -->
+<div class="filter-bar">
+  <!-- Filter toggle — matches actual "≡ Filter" button with text label -->
+  <button class="filter-toggle-btn">
+    <span class="material-icons">filter_list</span>
+    Filter
+  </button>
+
+  <div class="search-wrap">
+    <span class="material-icons">search</span>
+    <input class="search-input" type="text" placeholder="Search by Tool ID" />
+  </div>
+
+  <select class="f-select">
+    <option>All Statuses</option>
+    <option>Available</option>
+    <option>Assigned</option>
+    <option>Offline</option>
+    <option>In Maintenance</option>
+    <option>Charging</option>
+    <option>Marked Lost</option>
+    <option>Decommissioned</option>
+  </select>
+
+  <select class="f-select" style="min-width:110px">
+    <option>Tool Type</option>
+    <option>Ranger</option>
+    <option>Charger</option>
+  </select>
+
+  <select class="f-select" style="min-width:96px">
+    <option>Zone</option>
+    <option>Zone A</option>
+    <option>Zone B</option>
+    <option>Zone C</option>
+    <option>Zone D</option>
+  </select>
+
+  <div class="filter-spacer"></div>
+
+  <div class="split-wrap">
+    <button class="split-main">Export Data</button>
+    <button class="split-caret"><span class="material-icons">arrow_drop_down</span></button>
+  </div>
+
+  <button class="icon-action-btn" title="Refresh">
+    <span class="material-icons">sync</span>
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     DATA TABLE  (matches station-management table style)
+     ════════════════════════════════════════════ -->
+<div class="table-wrap">
+  <table>
+    <colgroup>
+      <col class="c-chk"/>
+      <col class="c-id"/>
+      <col class="c-name"/>
+      <col class="c-type"/>
+      <col class="c-zone"/>
+      <col class="c-mode"/>
+      <col class="c-user"/>
+      <col class="c-ts"/>
+      <col class="c-act"/>
+    </colgroup>
+    <thead>
+      <tr>
+        <th><input type="checkbox" /></th>
+        <th class="sorted">
+          <div class="th-inner">
+            Tool ID
+            <span class="sort-ico"><span class="up"></span><span class="dn" style="opacity:0.3"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Tool Name
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Tool Type
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Zone
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Mode
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            User ID
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Last Updated
+            <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+          </div>
+        </th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Available -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0042</a></td>
+        <td>Ranger R5 - Unit 42</td>
+        <td>Ranger</td>
+        <td>Zone A</td>
+        <td><span class="chip c-available">Available</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-03 09:12</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Assigned — User ID populated -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0091</a></td>
+        <td>Charger Unit 09</td>
+        <td>Charger</td>
+        <td>Zone B</td>
+        <td><span class="chip c-assigned">Assigned</span></td>
+        <td class="user-id">USR-1042</td>
+        <td class="muted">2026-06-03 08:45</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Offline -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0017</a></td>
+        <td>Ranger R5 - Unit 17</td>
+        <td>Ranger</td>
+        <td>Zone C</td>
+        <td><span class="chip c-offline">Offline</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-02 18:30</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- In Maintenance -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0055</a></td>
+        <td>Ranger R5 - Unit 55</td>
+        <td>Ranger</td>
+        <td>Zone A</td>
+        <td><span class="chip c-maintenance">In Maintenance</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-02 14:00</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Charging -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0003</a></td>
+        <td>Charger Unit 03</td>
+        <td>Charger</td>
+        <td>Zone B</td>
+        <td><span class="chip c-charging">Charging</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-03 07:00</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Marked Lost -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0078</a></td>
+        <td>Ranger R5 - Unit 78</td>
+        <td>Ranger</td>
+        <td>Zone D</td>
+        <td><span class="chip c-markedlost">Marked Lost</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-01 11:20</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Decommissioned — terminal state, no Change Mode -->
+      <tr class="terminal">
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0099</a></td>
+        <td>Ranger R5 - Unit 99</td>
+        <td>Ranger</td>
+        <td>Zone C</td>
+        <td><span class="chip c-decommissioned sq">Decommissioned</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2025-12-01 00:00</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn disabled" title="Terminal state — no mode change">
+              <span class="material-icons">block</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <!-- Assigned — second row -->
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td><a class="cell-id">TL-0011</a></td>
+        <td>Charger Unit 11</td>
+        <td>Charger</td>
+        <td>Zone A</td>
+        <td><span class="chip c-assigned">Assigned</span></td>
+        <td class="user-id">USR-0875</td>
+        <td class="muted">2026-06-03 10:01</td>
+        <td>
+          <div class="act-btns">
+            <button class="act-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="act-btn swap" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Pagination — matches actual "Results per page: 50 ▾  < 1 2 3 … >" -->
+  <div class="pagination-row">
+    <div class="rpp-wrap">
+      <span>Results per page:</span>
+      <select class="rpp-sel">
+        <option>10</option>
+        <option>20</option>
+        <option selected>50</option>
+        <option>100</option>
+      </select>
+    </div>
+    <div class="pg-btns">
+      <button class="pg-btn"><span class="material-icons">chevron_left</span></button>
+      <button class="pg-btn cur">1</button>
+      <button class="pg-btn">2</button>
+      <button class="pg-btn">3</button>
+      <span class="pg-ellipsis">…</span>
+      <button class="pg-btn">26</button>
+      <button class="pg-btn"><span class="material-icons">chevron_right</span></button>
+    </div>
+    <span class="pg-count">1–8 of 128</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CHANGE MODE MODAL
+     Open for TL-0042 (AVAILABLE)
+     Valid transitions: In Maintenance, Charging, Marked Lost, Offline, Decommissioned
+     ════════════════════════════════════════════ -->
+<div class="modal-backdrop">
+  <div class="modal-card" role="dialog" aria-modal="true">
+
+    <!-- Header — dark navy, matches Add User modal -->
+    <div class="modal-hdr">
+      <span class="modal-hdr-title">Change Mode — TL-0042</span>
+      <button class="modal-close-btn" title="Close">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="modal-body">
+
+      <!-- Current mode summary -->
+      <div class="cur-mode-row">
+        <span class="cur-mode-lbl">Current Mode</span>
+        <span class="chip c-available">Available</span>
+        <span class="cur-tool-ref">Ranger R5 - Unit 42</span>
+      </div>
+
+      <!-- New mode selection -->
+      <div class="field-lbl">Select New Mode</div>
+      <div class="radio-grp">
+        <label class="radio-row">
+          <input type="radio" name="mode" value="maintenance" />
+          <span class="radio-row-label">In Maintenance</span>
+          <span class="radio-chip" style="background:var(--warning)">In Maintenance</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="charging" />
+          <span class="radio-row-label">Charging</span>
+          <span class="radio-chip" style="background:var(--warning)">Charging</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="marked_lost" />
+          <span class="radio-row-label">Marked Lost</span>
+          <span class="radio-chip" style="background:var(--negative)">Marked Lost</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="offline" />
+          <span class="radio-row-label">Offline</span>
+          <span class="radio-chip" style="background:var(--dark)">Offline</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="decommissioned" />
+          <span class="radio-row-label">Decommissioned</span>
+          <span class="radio-chip sq" style="background:var(--dark)">Decommissioned</span>
+        </label>
+      </div>
+
+      <!-- Info note -->
+      <div class="info-note">
+        <span class="material-icons">info</span>
+        Assigning a tool to a user is done via the Assignment workflow.
+      </div>
+
+      <!-- Remarks -->
+      <div class="remarks-lbl">Remarks <span class="remarks-sub">(optional)</span></div>
+      <textarea class="remarks-area" placeholder="Add remarks (optional)"></textarea>
+    </div>
+
+    <!-- Footer — CANCEL + PROCEED pattern from actual product -->
+    <div class="modal-ftr">
+      <button class="btn-cancel">Cancel</button>
+      <button class="btn-confirm">Confirm Change</button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

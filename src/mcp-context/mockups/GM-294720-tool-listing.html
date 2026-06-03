@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tool Listing — Manager Dashboard (GM-294720)</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:    #101a5c;
+    --secondary:  #FE8400;
+    --positive:   #66bb6a;
+    --negative:   #ED3324;
+    --info:       #2982cc;
+    --warning:    #f9b115;
+    --dark:       #636f83;
+    --grey:       #696969;
+    --light-grey: #d4d3d3;
+    --page-bg:    #F5F5F5;
+    --card-bg:    #FFFFFF;
+    --text-on-dark: #FFFFFF;
+    --font: 'Source Sans Pro', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    font-size: 13px;
+    background: var(--page-bg);
+    color: var(--primary);
+    min-width: 1280px;
+  }
+
+  /* ─── TOP BAR ─── */
+  .top-bar {
+    height: 56px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--light-grey);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .top-bar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: var(--secondary);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+  }
+  .logo-text { line-height: 1.2; }
+  .logo-title { font-size: 14px; font-weight: 700; color: var(--secondary); }
+  .logo-version { font-size: 11px; color: var(--dark); }
+
+  .top-bar-spacer { flex: 1; }
+
+  .top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tz-text {
+    font-size: 12px;
+    color: var(--dark);
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--dark);
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--page-bg); }
+  .icon-btn .material-icons { font-size: 20px; }
+  .badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    background: var(--negative);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+  }
+  .user-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+    color: var(--dark);
+    font-family: var(--font);
+    font-size: 13px;
+  }
+  .user-btn:hover { background: var(--page-bg); }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ─── PRIMARY NAV TABS ─── */
+  .primary-nav {
+    height: 44px;
+    background: var(--primary);
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .primary-nav::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    letter-spacing: 0.4px;
+    transition: color 0.15s;
+    text-transform: uppercase;
+    border: none;
+    background: transparent;
+    font-family: var(--font);
+  }
+  .nav-tab:hover { color: #fff; }
+  .nav-tab.active {
+    color: #fff;
+    border-bottom: 3px solid var(--secondary);
+  }
+
+  /* ─── SUB-TABS ─── */
+  .sub-nav {
+    height: 40px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--light-grey);
+    display: flex;
+    align-items: stretch;
+    padding: 0 8px;
+  }
+  .sub-tab {
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--dark);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    border: none;
+    background: transparent;
+    font-family: var(--font);
+  }
+  .sub-tab:hover { color: var(--primary); }
+  .sub-tab.active {
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 3px solid var(--secondary);
+  }
+
+  /* ─── SECTION BANNER ─── */
+  .section-banner {
+    height: 40px;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 0;
+  }
+  .banner-item {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+  }
+  .banner-sep {
+    color: rgba(255,255,255,0.4);
+    margin: 0 12px;
+    font-weight: 400;
+  }
+  .banner-label { font-weight: 400; opacity: 0.8; margin-right: 4px; }
+  .banner-val { font-weight: 700; }
+
+  /* ─── FILTER BAR ─── */
+  .filter-bar {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--light-grey);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .filter-spacer { flex: 1; }
+
+  .outlined-btn {
+    height: 32px;
+    min-width: 32px;
+    border: 1px solid var(--light-grey);
+    background: var(--card-bg);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--dark);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 0 10px;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .outlined-btn:hover { border-color: var(--dark); }
+  .outlined-btn .material-icons { font-size: 18px; }
+  .outlined-btn.icon-only { padding: 0; width: 32px; }
+
+  .search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .search-input-wrap .material-icons {
+    position: absolute;
+    left: 8px;
+    font-size: 16px;
+    color: var(--dark);
+    pointer-events: none;
+  }
+  .search-input {
+    height: 32px;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    padding: 0 10px 0 30px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--primary);
+    width: 200px;
+    outline: none;
+    background: var(--card-bg);
+  }
+  .search-input:focus { border-color: var(--info); }
+  .search-input::placeholder { color: var(--grey); font-style: normal; }
+
+  .filter-select {
+    height: 32px;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    padding: 0 28px 0 10px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--primary);
+    background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23636f83' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 8px center;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+  .filter-select:focus { border-color: var(--info); }
+
+  .primary-btn {
+    height: 32px;
+    background: var(--secondary);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .primary-btn:hover { background: #e07700; }
+  .primary-btn .material-icons { font-size: 16px; }
+
+  /* Export split btn */
+  .split-btn-wrap { display: flex; }
+  .split-main {
+    height: 32px;
+    background: var(--secondary);
+    color: #fff;
+    border: none;
+    border-radius: 4px 0 0 4px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .split-main:hover { background: #e07700; }
+  .split-caret {
+    height: 32px;
+    width: 28px;
+    background: var(--secondary);
+    color: #fff;
+    border: none;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .split-caret:hover { background: #e07700; }
+  .split-caret .material-icons { font-size: 18px; }
+
+  /* ─── TABLE CONTAINER ─── */
+  .table-container {
+    margin: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  /* Column widths */
+  col.col-check  { width: 40px; }
+  col.col-id     { width: 96px; }
+  col.col-name   { width: 200px; }
+  col.col-type   { width: 100px; }
+  col.col-zone   { width: 90px; }
+  col.col-mode   { width: 130px; }
+  col.col-user   { width: 100px; }
+  col.col-ts     { width: 160px; }
+  col.col-action { width: auto; }
+
+  thead tr {
+    background: var(--page-bg);
+    border-bottom: 1px solid var(--light-grey);
+  }
+  th {
+    padding: 0 12px;
+    height: 38px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dark);
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+  }
+  th:hover .sort-icon { opacity: 1; }
+  th.center { text-align: center; }
+  .th-inner {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sort-icon {
+    font-size: 14px;
+    opacity: 0.4;
+    color: var(--dark);
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1;
+    gap: 0;
+  }
+  .sort-icon .material-icons { font-size: 14px; margin: -3px 0; }
+  .sort-active .sort-icon { opacity: 1; color: var(--primary); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--light-grey);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #fafafa; }
+
+  td {
+    padding: 0 12px;
+    height: 44px;
+    font-size: 13px;
+    color: var(--primary);
+    text-align: left;
+    vertical-align: middle;
+  }
+  td.center { text-align: center; }
+
+  input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  .tool-id-link {
+    color: var(--info);
+    text-decoration: none;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .tool-id-link:hover { text-decoration: underline; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .chip.square { border-radius: 3px; }
+  .chip.available     { background: var(--positive); }
+  .chip.assigned      { background: var(--info); }
+  .chip.offline       { background: var(--dark); }
+  .chip.maintenance   { background: var(--warning); color: #fff; }
+  .chip.charging      { background: var(--warning); color: #fff; }
+  .chip.marked-lost   { background: var(--negative); }
+  .chip.decommissioned { background: var(--dark); }
+
+  .muted { color: var(--dark); }
+
+  .action-btns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+  .tbl-icon-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--primary);
+    transition: border-color 0.1s, color 0.1s;
+  }
+  .tbl-icon-btn:hover { border-color: var(--primary); }
+  .tbl-icon-btn .material-icons { font-size: 16px; }
+  .tbl-icon-btn.mode-btn { color: var(--secondary); border-color: var(--secondary); }
+  .tbl-icon-btn.mode-btn:hover { background: #fff7ed; }
+
+  /* ─── PAGINATION ─── */
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px 16px;
+    gap: 12px;
+    border-top: 1px solid var(--light-grey);
+    background: var(--card-bg);
+    font-size: 13px;
+    color: var(--dark);
+  }
+  .rpp-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .rpp-select {
+    height: 28px;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    padding: 0 20px 0 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--primary);
+    background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23636f83' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 4px center;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+  }
+  .page-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .page-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    background: var(--card-bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dark);
+    font-family: var(--font);
+    font-size: 13px;
+  }
+  .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .page-btn:hover:not(.active) { border-color: var(--dark); }
+  .page-btn .material-icons { font-size: 18px; }
+
+  /* ─── MODAL BACKDROP ─── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── MODAL CARD ─── */
+  .modal-card {
+    background: var(--card-bg);
+    border-radius: 4px;
+    width: 480px;
+    max-width: 92vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    overflow: hidden;
+  }
+
+  .modal-header {
+    background: var(--primary);
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(255,255,255,0.12);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.22); }
+  .modal-close .material-icons { font-size: 18px; }
+
+  .modal-body {
+    padding: 24px;
+  }
+
+  .current-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--dark);
+  }
+  .current-mode-label {
+    font-weight: 600;
+    color: var(--primary);
+    min-width: 110px;
+  }
+
+  .field-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 10px;
+  }
+
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .radio-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--primary);
+  }
+  .radio-item input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+  .radio-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    margin-left: 4px;
+  }
+
+  .info-note {
+    font-size: 12px;
+    color: var(--dark);
+    font-style: italic;
+    margin-bottom: 18px;
+    padding: 8px 12px;
+    background: var(--page-bg);
+    border-radius: 4px;
+    border-left: 3px solid var(--light-grey);
+  }
+
+  .remarks-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+  .remarks-textarea {
+    width: 100%;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--primary);
+    resize: vertical;
+    min-height: 72px;
+    outline: none;
+    background: var(--card-bg);
+  }
+  .remarks-textarea:focus { border-color: var(--info); }
+  .remarks-textarea::placeholder { color: var(--grey); font-style: normal; }
+
+  .modal-footer {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--light-grey);
+  }
+  .cancel-btn {
+    height: 34px;
+    background: transparent;
+    border: 1px solid var(--light-grey);
+    border-radius: 4px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dark);
+    padding: 0 16px;
+    cursor: pointer;
+  }
+  .cancel-btn:hover { border-color: var(--dark); }
+  .confirm-btn {
+    height: 34px;
+    background: var(--secondary);
+    border: none;
+    border-radius: 4px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    padding: 0 18px;
+    cursor: pointer;
+  }
+  .confirm-btn:hover { background: #e07700; }
+
+  /* ─── TOOLTIP ─── */
+  [title] { cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     TOP BAR
+     ════════════════════════════════════════════ -->
+<header class="top-bar">
+  <div class="top-bar-logo">
+    <div class="logo-mark">G</div>
+    <div class="logo-text">
+      <div class="logo-title">Manager Dashboard</div>
+      <div class="logo-version">v3.2.1</div>
+    </div>
+  </div>
+
+  <div class="top-bar-spacer"></div>
+
+  <div class="top-bar-actions">
+    <button class="icon-btn" title="Notifications">
+      <span class="material-icons">notifications</span>
+      <span class="badge">3</span>
+    </button>
+    <span class="tz-text">Time Zone - Asia/Kolkata</span>
+    <button class="icon-btn" title="Language">
+      <span class="material-icons">language</span>
+    </button>
+    <button class="user-btn">
+      <div class="avatar">DS</div>
+      <span>admin</span>
+      <span class="material-icons" style="font-size:18px;color:var(--dark)">arrow_drop_down</span>
+    </button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════
+     PRIMARY NAV TABS
+     ════════════════════════════════════════════ -->
+<nav class="primary-nav">
+  <button class="nav-tab">ANALYTICS</button>
+  <button class="nav-tab">OUTBOUND</button>
+  <button class="nav-tab">INBOUND</button>
+  <button class="nav-tab">AUDIT</button>
+  <button class="nav-tab">PROCESS EXCEPTIONS</button>
+  <button class="nav-tab">INVENTORY</button>
+  <button class="nav-tab">SYSTEM</button>
+  <button class="nav-tab active">RESOURCES</button>
+  <button class="nav-tab">SHIFT PLANNING</button>
+  <button class="nav-tab">REPORTS</button>
+  <button class="nav-tab">NOTIFICATION</button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     SUB-TABS
+     ════════════════════════════════════════════ -->
+<nav class="sub-nav">
+  <button class="sub-tab">Users List</button>
+  <button class="sub-tab">Billing Control</button>
+  <button class="sub-tab">Roles &amp; Permissions</button>
+  <button class="sub-tab">Tool Types</button>
+  <button class="sub-tab">Handling Units</button>
+  <button class="sub-tab">Pallet Types</button>
+  <button class="sub-tab active">Tool Listing</button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     SECTION BANNER
+     ════════════════════════════════════════════ -->
+<div class="section-banner">
+  <div class="banner-item">Tool Listing</div>
+  <span class="banner-sep">|</span>
+  <div class="banner-item"><span class="banner-label">Total:</span><span class="banner-val">128</span></div>
+  <span class="banner-sep">|</span>
+  <div class="banner-item"><span class="banner-label">Available:</span><span class="banner-val">45</span></div>
+  <span class="banner-sep">|</span>
+  <div class="banner-item"><span class="banner-label">Assigned:</span><span class="banner-val">32</span></div>
+  <span class="banner-sep">|</span>
+  <div class="banner-item"><span class="banner-label">Offline:</span><span class="banner-val">18</span></div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     FILTER BAR
+     ════════════════════════════════════════════ -->
+<div class="filter-bar">
+  <!-- Left side -->
+  <button class="outlined-btn icon-only" title="Filters">
+    <span class="material-icons">filter_list</span>
+  </button>
+
+  <div class="search-input-wrap">
+    <span class="material-icons">search</span>
+    <input class="search-input" type="text" placeholder="Search by Tool ID" />
+  </div>
+
+  <select class="filter-select">
+    <option>All Statuses</option>
+    <option>Available</option>
+    <option>Assigned</option>
+    <option>Offline</option>
+    <option>In Maintenance</option>
+    <option>Charging</option>
+    <option>Marked Lost</option>
+    <option>Decommissioned</option>
+  </select>
+
+  <select class="filter-select">
+    <option>Tool Type</option>
+    <option>Ranger</option>
+    <option>Charger</option>
+  </select>
+
+  <select class="filter-select">
+    <option>Zone</option>
+    <option>Zone A</option>
+    <option>Zone B</option>
+    <option>Zone C</option>
+    <option>Zone D</option>
+  </select>
+
+  <div class="filter-spacer"></div>
+
+  <!-- Right side -->
+  <div class="split-btn-wrap">
+    <button class="split-main">Export Data</button>
+    <button class="split-caret"><span class="material-icons">arrow_drop_down</span></button>
+  </div>
+
+  <button class="outlined-btn icon-only" title="Refresh">
+    <span class="material-icons">sync</span>
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     DATA TABLE
+     ════════════════════════════════════════════ -->
+<div class="table-container">
+  <table>
+    <colgroup>
+      <col class="col-check" />
+      <col class="col-id" />
+      <col class="col-name" />
+      <col class="col-type" />
+      <col class="col-zone" />
+      <col class="col-mode" />
+      <col class="col-user" />
+      <col class="col-ts" />
+      <col class="col-action" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="center"><input type="checkbox" /></th>
+        <th class="sort-active">
+          <div class="th-inner">
+            Tool ID
+            <span class="sort-icon"><span class="material-icons">arrow_upward</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Tool Name
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Tool Type
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Zone
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Mode
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            User ID
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>
+          <div class="th-inner">
+            Last Updated
+            <span class="sort-icon"><span class="material-icons">unfold_more</span></span>
+          </div>
+        </th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Row 1: Available -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0042</a></td>
+        <td>Ranger R5 - Unit 42</td>
+        <td>Ranger</td>
+        <td>Zone A</td>
+        <td><span class="chip available">Available</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-03 09:12</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 2: Assigned -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0091</a></td>
+        <td>Charger Unit 09</td>
+        <td>Charger</td>
+        <td>Zone B</td>
+        <td><span class="chip assigned">Assigned</span></td>
+        <td style="color:var(--info)">USR-1042</td>
+        <td class="muted">2026-06-03 08:45</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 3: Offline -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0017</a></td>
+        <td>Ranger R5 - Unit 17</td>
+        <td>Ranger</td>
+        <td>Zone C</td>
+        <td><span class="chip offline">Offline</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-02 18:30</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 4: In Maintenance -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0055</a></td>
+        <td>Ranger R5 - Unit 55</td>
+        <td>Ranger</td>
+        <td>Zone A</td>
+        <td><span class="chip maintenance">In Maintenance</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-02 14:00</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 5: Charging -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0003</a></td>
+        <td>Charger Unit 03</td>
+        <td>Charger</td>
+        <td>Zone B</td>
+        <td><span class="chip charging">Charging</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-03 07:00</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 6: Marked Lost -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0078</a></td>
+        <td>Ranger R5 - Unit 78</td>
+        <td>Ranger</td>
+        <td>Zone D</td>
+        <td><span class="chip marked-lost">Marked Lost</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2026-06-01 11:20</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 7: Decommissioned — no Change Mode (terminal) -->
+      <tr style="opacity:0.72">
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0099</a></td>
+        <td>Ranger R5 - Unit 99</td>
+        <td>Ranger</td>
+        <td>Zone C</td>
+        <td><span class="chip decommissioned square">Decommissioned</span></td>
+        <td class="muted">--</td>
+        <td class="muted">2025-12-01 00:00</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <!-- No Change Mode for terminal state -->
+            <button class="tbl-icon-btn" title="Terminal state — no mode change allowed" style="opacity:0.3;cursor:not-allowed" disabled>
+              <span class="material-icons">block</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      <!-- Row 8: Assigned -->
+      <tr>
+        <td class="center"><input type="checkbox" /></td>
+        <td><a class="tool-id-link">TL-0011</a></td>
+        <td>Charger Unit 11</td>
+        <td>Charger</td>
+        <td>Zone A</td>
+        <td><span class="chip assigned">Assigned</span></td>
+        <td style="color:var(--info)">USR-0875</td>
+        <td class="muted">2026-06-03 10:01</td>
+        <td>
+          <div class="action-btns">
+            <button class="tbl-icon-btn" title="Edit"><span class="material-icons">edit</span></button>
+            <button class="tbl-icon-btn mode-btn" title="Change Mode"><span class="material-icons">swap_horiz</span></button>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  <div class="pagination-bar">
+    <div class="rpp-wrap">
+      <span>Results per page:</span>
+      <select class="rpp-select">
+        <option>10</option>
+        <option>20</option>
+        <option selected>50</option>
+        <option>100</option>
+      </select>
+    </div>
+    <div class="page-nav">
+      <button class="page-btn"><span class="material-icons">chevron_left</span></button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn"><span class="material-icons">chevron_right</span></button>
+    </div>
+    <span>Showing 1–8 of 128</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CHANGE MODE MODAL (shown open — TL-0042, status: AVAILABLE)
+     Allowed transitions: IN_MAINTENANCE, CHARGING, MARKED_LOST, OFFLINE, DECOMMISSIONED
+     ════════════════════════════════════════════ -->
+<div class="modal-backdrop">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Change Mode — TL-0042</span>
+      <button class="modal-close" title="Close">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="modal-body">
+
+      <!-- Current mode row -->
+      <div class="current-mode-row">
+        <span class="current-mode-label">Current Mode:</span>
+        <span class="chip available">Available</span>
+        <span style="margin-left:4px;color:var(--dark);font-size:12px">(Ranger R5 - Unit 42)</span>
+      </div>
+
+      <!-- New mode selection -->
+      <div class="field-label">Select New Mode</div>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" name="new-mode" value="in_maintenance" />
+          <span>In Maintenance</span>
+          <span class="radio-chip" style="background:var(--warning)">In Maintenance</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="new-mode" value="charging" />
+          <span>Charging</span>
+          <span class="radio-chip" style="background:var(--warning)">Charging</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="new-mode" value="marked_lost" />
+          <span>Marked Lost</span>
+          <span class="radio-chip" style="background:var(--negative)">Marked Lost</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="new-mode" value="offline" />
+          <span>Offline</span>
+          <span class="radio-chip" style="background:var(--dark)">Offline</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="new-mode" value="decommissioned" />
+          <span>Decommissioned</span>
+          <span class="radio-chip" style="background:var(--dark);border-radius:3px">Decommissioned</span>
+        </label>
+      </div>
+
+      <!-- Info note -->
+      <div class="info-note">
+        Assigning a tool to a user is done via the Assignment workflow.
+      </div>
+
+      <!-- Remarks -->
+      <div class="remarks-label">Remarks <span style="font-weight:400;color:var(--grey)">(optional)</span></div>
+      <textarea class="remarks-textarea" placeholder="Add remarks (optional)"></textarea>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button class="cancel-btn">CANCEL</button>
+      <button class="confirm-btn">CONFIRM CHANGE</button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

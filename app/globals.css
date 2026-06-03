@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Variables ─────────────────────────────────────────────────── */
+:root {
+  --amber:        #D97706;
+  --amber-dim:    rgba(217, 119, 6, 0.12);
+  --amber-glow:   rgba(217, 119, 6, 0.07);
+  --bg-void:      #F8F6F3;
+  --bg-panel:     #FFFFFF;
+  --bg-elevated:  #EEECE8;
+  --border:       #E2DDD8;
+  --border-lit:   #D0CCC6;
+  --text-primary: #1A1510;
+  --text-mid:     #3A3530;
+  --text-dim:     #6A6560;
+  --text-muted:   #8A8680;
+  --green:        #059669;
+  --cyan:         #0891B2;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: 'Barlow', sans-serif;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes scanner-sweep {
+  0%   { transform: translateY(-60px); }
+  100% { transform: translateY(600px); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes signal-bar {
+  0%, 100% { opacity: 0.15; transform: scaleY(0.6); }
+  50%       { opacity: 1;    transform: scaleY(1); }
+}
+
+@keyframes status-ping {
+  0%        { transform: scale(1); opacity: 0.75; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* ── Background Grid (Gateway) ─────────────────────────────────────── */
+
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(217, 119, 6, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(217, 119, 6, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ── Corner Marks ──────────────────────────────────────────────────── */
+
+.corner-mark {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: rgba(217, 119, 6, 0.40);
+  border-style: solid;
+}
+.corner-mark.tl { top: 28px; left: 28px; border-width: 1.5px 0 0 1.5px; }
+.corner-mark.tr { top: 28px; right: 28px; border-width: 1.5px 1.5px 0 0; }
+.corner-mark.bl { bottom: 28px; left: 28px; border-width: 0 0 1.5px 1.5px; }
+.corner-mark.br { bottom: 28px; right: 28px; border-width: 0 1.5px 1.5px 0; }
+
+/* ── Scanner Animation ─────────────────────────────────────────────── */
+
+.scanner-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(217, 119, 6, 0.09) 40%,
+    rgba(217, 119, 6, 0.12) 50%,
+    rgba(217, 119, 6, 0.09) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: scanner-sweep 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── Message Animation ─────────────────────────────────────────────── */
+
+.msg-appear {
+  animation: fade-in-up 0.25s ease-out both;
+}
+
+/* ── Loading Signal Bars ───────────────────────────────────────────── */
+
+.signal-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+}
+.signal-bars span {
+  display: inline-block;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--amber);
+  transform-origin: bottom;
+  animation: signal-bar 0.9s ease-in-out infinite;
+}
+.signal-bars span:nth-child(1) { height: 6px;  animation-delay: 0s; }
+.signal-bars span:nth-child(2) { height: 10px; animation-delay: 0.12s; }
+.signal-bars span:nth-child(3) { height: 14px; animation-delay: 0.24s; }
+.signal-bars span:nth-child(4) { height: 10px; animation-delay: 0.36s; }
+.signal-bars span:nth-child(5) { height: 6px;  animation-delay: 0.48s; }
+
+/* ── Textarea Placeholder ──────────────────────────────────────────── */
+
+.chat-textarea::placeholder {
+  color: #6E6560;
+  font-family: 'Barlow', sans-serif;
+}
+
+/* ── Streaming cursor ──────────────────────────────────────────────────── */
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.streaming-cursor {
+  animation: cursor-blink 0.75s ease-in-out infinite;
+  border-radius: 1px;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
