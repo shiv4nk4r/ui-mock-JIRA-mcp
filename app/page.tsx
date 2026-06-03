@@ -803,42 +803,25 @@ export default function Home() {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#F8F6F3" }}>
 
       {/* Header */}
-      <header className="flex-none relative flex items-center justify-between px-5 py-2.5 border-b" style={{ background: "#FFFFFF", borderColor: "#E2DDD8" }}>
-        <div className="absolute left-0 top-0 bottom-0 w-0.5" style={{ background: "#D97706" }} />
-        <div className="flex items-center gap-3 pl-3">
-          <span className="text-xl tracking-widest" style={{ ...F.display, color: "#D97706" }}>PM·ORCH</span>
-          <span style={{ color: "#D0CCC6", fontSize: "10px" }}>◆</span>
-          <span className="text-xs tracking-[0.22em] uppercase" style={{ ...F.condensed, color: "#6A6560" }}>Active Session</span>
-        </div>
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <span className="text-xs font-semibold px-3 py-1 border" style={{ ...F.mono, color: "#D97706", borderColor: "rgba(217,119,6,0.25)", background: "rgba(217,119,6,0.08)", letterSpacing: "0.1em" }}>{ticketData?.id}</span>
-          {ticketData?.metadata?.status && statusChip(ticketData.metadata.status)}
-        </div>
+      <header className="flex-none flex items-center justify-between px-5 py-3 border-b" style={{ background: "#FFFFFF", borderColor: "#E2DDD8" }}>
         <div className="flex items-center gap-4">
+          <span className="text-sm font-semibold px-3 py-1 border" style={{ ...F.mono, color: "#D97706", borderColor: "rgba(217,119,6,0.25)", background: "rgba(217,119,6,0.08)", letterSpacing: "0.05em" }}>{ticketData?.id}</span>
           {providerConfig && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 border tracking-wider uppercase" style={{ ...F.condensed, fontSize: "9px", letterSpacing: "0.18em", color: "#D97706", borderColor: "rgba(245,158,11,0.4)", background: "rgba(217,119,6,0.10)" }}>{providerConfig.providerLabel}</span>
-              <div className="relative">
-                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="appearance-none pr-6 pl-2.5 py-1 text-xs border outline-none cursor-pointer" style={{ ...F.mono, fontSize: "11px", background: "#FFFFFF", color: "#3A3530", borderColor: "#C8C4BE", borderRadius: "2px" }}>
-                  {providerConfig.models.map((m) => <option key={m.id} value={m.id} style={{ background: "#EEECE8" }}>{m.label}</option>)}
-                </select>
-                <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6E6560", fontSize: "8px" }}>▾</span>
-              </div>
+            <div className="relative">
+              <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="appearance-none pr-6 pl-2.5 py-1 text-xs border outline-none cursor-pointer" style={{ ...F.mono, fontSize: "11px", background: "#FFFFFF", color: "#3A3530", borderColor: "#C8C4BE", borderRadius: "2px" }}>
+                {providerConfig.models.map((m) => <option key={m.id} value={m.id} style={{ background: "#EEECE8" }}>{m.label}</option>)}
+              </select>
+              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6E6560", fontSize: "8px" }}>▾</span>
             </div>
           )}
+        </div>
+        <div className="flex items-center gap-3">
           {totalCost > 0 && (
-            <button onClick={() => setActiveTab("usage")} className="flex items-center gap-1.5 px-2.5 py-1 border transition-colors" style={{ borderColor: "rgba(217,119,6,0.3)", background: "rgba(217,119,6,0.06)", borderRadius: 2 }} title="View full usage breakdown">
-              <span style={{ ...F.condensed, fontSize: 9, color: "#A8A4A0", letterSpacing: "0.1em" }}>COST</span>
+            <button onClick={() => setActiveTab("usage")} className="flex items-center gap-1 px-2.5 py-1 border transition-colors" style={{ borderColor: "rgba(217,119,6,0.3)", background: "rgba(217,119,6,0.06)", borderRadius: 2 }} title="View full usage breakdown">
               <span style={{ ...F.mono, fontSize: 11, color: "#D97706", fontWeight: 600 }}>${totalCost.toFixed(5)}</span>
-              <span style={{ ...F.condensed, fontSize: 9, color: "#C4C0BA" }}>{(totalTokens / 1000).toFixed(1)}k tok</span>
             </button>
           )}
-          {savedAt && <span className="text-xs tracking-[0.15em] uppercase" style={{ ...F.condensed, color: "#16A34A", fontSize: "9px", opacity: 0.7 }} title={`Last saved ${savedAt.toLocaleTimeString()}`}>✦ saved {savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
           <button onClick={clearSession} className="text-xs tracking-[0.15em] uppercase px-2 py-0.5 border transition-colors duration-150 hover:border-red-400 hover:text-red-400" style={{ ...F.condensed, fontSize: "9px", color: "#6E6560", borderColor: "#D0CCC6", background: "transparent" }} title="Clear session and start fresh">New Session</button>
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" style={{ animation: "status-ping 2s cubic-bezier(0,0,0.2,1) infinite" }} /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" /></span>
-            <span className="text-xs tracking-[0.2em] uppercase" style={{ ...F.condensed, color: "#6A6560", fontSize: "10px" }}>Live</span>
-          </div>
         </div>
       </header>
 
