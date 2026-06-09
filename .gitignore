@@ -1,3 +1,6 @@
+# Parser cache (rebuild with: npx tsx src/parser/test-parser.ts --full)
+.cache/
+
 # Dependencies
 node_modules/
 /.pnp
