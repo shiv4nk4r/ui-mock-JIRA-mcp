@@ -11,6 +11,28 @@ import {
 
 export const dynamic = "force-dynamic";
 
+// Path to the manager-dashboard source repo indexed by the MCP server.
+const MD_REPO_ROOT = process.env.MD_REPO_ROOT ?? "/Users/manish.c/workplace/manager-dashboard";
+
+// MCP tool names exposed by src/md-mcp-server.ts (server name = "md").
+const MD_MCP_TOOLS = [
+  // Filesystem tools — fast, always available
+  "mcp__md__list-routes",
+  "mcp__md__find-components",
+  "mcp__md__read-source-file",
+  "mcp__md__list-graphql",
+  "mcp__md__find-usages",
+  "mcp__md__list-store-modules",
+  "mcp__md__list-resolvers",
+  // Parser/graph tools — AST-level, requires index
+  "mcp__md__rebuild-code-index",
+  "mcp__md__search-code-symbols",
+  "mcp__md__get-file-structure",
+  "mcp__md__find-callers",
+  "mcp__md__get-vue-component",
+  "mcp__md__get-resolver-info",
+] as const;
+
 // ── Token pricing (USD per 1 M tokens: [input, output]) ───────────────────────
 const TOKEN_PRICING: Record<string, [number, number]> = {
   "claude-haiku-4-5":          [0.80,   4.00],
@@ -169,7 +191,8 @@ function buildSystemPrompt(
   enableVisualSkill: boolean,
   archContext    = "",
   designContext  = "",
-  sitemapContext = ""
+  sitemapContext = "",
+  hasMcpCodeTools = false
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -199,6 +222,39 @@ function buildSystemPrompt(
       "=== NAVIGATION SITEMAP (from site-map.md via MCP) ===",
       sitemapContext,
       "=== END SITEMAP ==="
+    );
+  }
+
+  if (hasMcpCodeTools) {
+    sections.push(
+      "=== LIVE CODEBASE TOOLS (manager-dashboard MCP server) ===",
+      "You have MCP tools to query the actual manager-dashboard source code. Use them BEFORE generating the mockup so it aligns with real components and data.",
+      "",
+      "Available tools:",
+      "  Filesystem (fast, always ready):",
+      "  • list-routes          — Full Vue Router route tree (exact hash paths and page components)",
+      "  • find-components      — Search .vue files by name or domain (returns file paths)",
+      "  • read-source-file     — Read any file in the repo (Vue SFC, GraphQL query, store module)",
+      "  • list-graphql         — List GraphQL query/mutation files for a domain",
+      "  • find-usages          — Find files that import a component or query constant",
+      "  • list-store-modules   — Vuex store structure for a domain",
+      "  • list-resolvers       — BFF resolver files for a domain",
+      "  AST/graph (structured, requires index — 'Index not ready' means still building):",
+      "  • get-vue-component    — Full API surface: props, data, computed, methods, apollo queries, mixins",
+      "  • search-code-symbols  — Fuzzy name search across all functions, classes, components, resolvers",
+      "  • get-file-structure   — All symbols in a file + its import/importedBy edges",
+      "  • find-callers         — Which functions call a given function (call graph traversal)",
+      "  • get-resolver-info    — BFF GraphQL resolver details (operation type, params, async)",
+      "  • rebuild-code-index   — Force a full re-index (call if index is stale or missing)",
+      "",
+      "REQUIRED steps before generating the mockup:",
+      "1. Call list-routes to get the exact navigation paths for the affected domain.",
+      "2. Call find-components with the ticket's domain (e.g. 'outbound') to discover existing components.",
+      "3. Call get-vue-component on the most relevant component to see props, apollo queries, methods.",
+      "4. Call list-graphql for the domain to know which data is already available from the BFF.",
+      "5. If get-vue-component returns 'Index not ready', fall back to read-source-file instead.",
+      "Use these findings to produce a mockup that matches the real codebase patterns exactly.",
+      "=== END CODEBASE TOOLS ==="
     );
   }
 
@@ -431,7 +487,8 @@ function streamClaudeCode(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
       const logger = new SessionLogger(ticketId, "claude-code", model);
-      const tmpFile = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
+      const tmpFile      = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
+      const mcpConfigFile = join(tmpdir(), `md-mcp-config-${Date.now()}.json`);
       const designOutputDir = join(homedir(), "claude-ui-designs");
 
       try {
@@ -449,8 +506,8 @@ function streamClaudeCode(
           systemPrompt = buildRefinementSystemPrompt(designContext);
           userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
         } else {
-          // Initial generation: full context + visual skill instructions
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext);
+          // Initial generation: full context + visual skill instructions + MCP code tools
+          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           if (enableVisualSkill) {
@@ -468,20 +525,38 @@ function streamClaudeCode(
 
         writeFileSync(tmpFile, systemPrompt, "utf8");
 
+        // ── Write MCP config for the manager-dashboard code server ───────
+        const mcpConfig = {
+          mcpServers: {
+            md: {
+              command: "npx",
+              args: ["tsx", join(process.cwd(), "src/md-mcp-server.ts")],
+              env: { MD_REPO_ROOT },
+            },
+          },
+        };
+        writeFileSync(mcpConfigFile, JSON.stringify(mcpConfig), "utf8");
+
         // ── Step 2: model inference ──────────────────────────────────────
         logger.beginStep();
         const thinkingStart = Date.now();
         send({ thinking: `Analysing ticket with model ${model}…` });
 
+        const allowedTools = [
+          "Write", "Read",
+          ...MD_MCP_TOOLS,
+        ].join(",");
+
         const spawnArgs = [
           "--print",
           "--output-format", "stream-json",
           "--verbose",
-          "--model", "claude-haiku-4-5",
-          // "--model", model,
+          // "--model", "claude-haiku-4-5",
+          "--model", model,
           "--system-prompt-file", tmpFile,
-          "--max-budget-usd", "2",
-          "--allowedTools", "Write,Read",
+          "--mcp-config", mcpConfigFile,
+          // "--max-budget-usd", "2",
+          "--allowedTools", allowedTools,
         ];
 
         const proc = spawn("claude", spawnArgs, { stdio: ["pipe", "pipe", "pipe"] });
@@ -606,6 +681,7 @@ function streamClaudeCode(
       } finally {
         controller.close();
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
+        try { unlinkSync(mcpConfigFile); } catch { /* best-effort cleanup */ }
       }
     },
   });
