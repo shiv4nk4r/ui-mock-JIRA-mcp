@@ -643,6 +643,147 @@ server.tool(
   }
 );
 
+// ── Tool 14: find-related-context ────────────────────────────────────────────
+// Given keywords extracted from a JIRA ticket, discovers the most relevant Vue
+// components by scoring filename + content matches, then returns their API
+// surface (when index is ready) AND truncated source — all in one call.
+//
+// This is the primary "give me context for this feature" entry point.
+// Saves Claude 3–5 round-trips (find-components + get-vue-component per file).
+
+server.tool(
+  "find-related-context",
+  {
+    keywords: z.array(z.string()).min(1).max(8).describe(
+      "2–6 keywords from the JIRA ticket. Include the domain (e.g. 'outbound'), " +
+      "the feature area (e.g. 'order', 'listing', 'exception'), and any page or " +
+      "component name fragments (e.g. 'filter', 'detail', 'suborder'). " +
+      "Used for both filename and content matching."
+    ),
+    maxComponents: z.number().int().min(1).max(8).optional().describe(
+      "Max components to return (default 5). Increase to 8 for complex multi-component features."
+    ),
+  },
+  async ({ keywords, maxComponents = 5 }) => {
+    // Step 1 — score every .vue file by keyword hits in filename + content
+    const scored = new Map<string, number>(); // abs path → score
+
+    const addScore = (absPath: string, pts: number) => {
+      scored.set(absPath, (scored.get(absPath) ?? 0) + pts);
+    };
+
+    // Gather all .vue files from pages + components
+    const searchDirs = [
+      path.join(MDUI, "pages"),
+      path.join(MDUI, "components"),
+    ];
+
+    const allVueFiles: string[] = [];
+    for (const dir of searchDirs) {
+      if (fs.existsSync(dir)) {
+        const files = await fg("**/*.vue", { cwd: dir, absolute: true });
+        allVueFiles.push(...files);
+      }
+    }
+
+    for (const keyword of keywords) {
+      const kl = keyword.toLowerCase();
+
+      // Filename path match: 3 pts (strong signal — path encodes domain + feature)
+      for (const f of allVueFiles) {
+        if (relPath(f).toLowerCase().includes(kl)) {
+          addScore(f, 3);
+        }
+      }
+
+      // Content grep match: 1 pt per file that references the keyword
+      for (const f of grepFiles(keyword, MDUI, ["*.vue"])) {
+        addScore(path.isAbsolute(f) ? f : path.join(REPO_ROOT, f), 1);
+      }
+    }
+
+    // Sort by score desc, take top N unique paths
+    const ranked = [...scored.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, maxComponents)
+      .map(([absPath]) => absPath)
+      .filter((p) => fs.existsSync(p));
+
+    if (ranked.length === 0) {
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `No related components found for keywords: [${keywords.join(", ")}]`,
+            "",
+            "Try broader keywords (e.g. just the domain name like 'outbound'), or use",
+            "find-components / read-source-file directly.",
+          ].join("\n"),
+        }],
+      };
+    }
+
+    // Step 2 — for each file: emit API surface (graph) + truncated source
+    const SNIPPET_CHARS = 4_000;
+    const sections: string[] = [
+      `## Related components for: [${keywords.join(", ")}]`,
+      `Returning ${ranked.length} component(s) sorted by relevance score:\n`,
+    ];
+
+    for (const absPath of ranked) {
+      const relFilePath = relPath(absPath);
+      const baseName    = path.basename(absPath, ".vue");
+      sections.push(`---\n### ${path.basename(absPath)}  ·  ${relFilePath}`);
+
+      // API surface via graph node (if index is ready)
+      if (indexReady) {
+        const nodes = graph
+          .searchByName(baseName, 10)
+          .filter((n) =>
+            (n.kind === "vue-component" || n.kind === "file") &&
+            n.filePath === absPath
+          );
+        if (nodes.length > 0) {
+          const cmp = nodes[0];
+          const m   = cmp.metadata;
+          const field = (label: string, val: unknown): string | null => {
+            const arr = Array.isArray(val) ? (val as string[]) : [];
+            return arr.length ? `  ${label}: ${arr.join(", ")}` : null;
+          };
+          const apiLines = [
+            field("props",      m.props),
+            field("data keys",  m.dataKeys),
+            field("computed",   m.computed),
+            field("methods",    m.methods),
+            field("apollo",     m.apolloQueries),
+            field("components", m.components),
+            field("mixins",     m.mixins),
+            field("emits",      m.emits),
+          ].filter(Boolean) as string[];
+          if (apiLines.length) {
+            sections.push("**API Surface (from AST index):**", ...apiLines, "");
+          }
+        }
+      }
+
+      // Truncated source
+      let source: string;
+      try {
+        const raw = fs.readFileSync(absPath, "utf-8");
+        source = raw.length > SNIPPET_CHARS
+          ? raw.slice(0, SNIPPET_CHARS) +
+            `\n\n... [truncated at ${SNIPPET_CHARS} chars — full length ${raw.length}. Use read-source-file("${relFilePath}") to read the rest]`
+          : raw;
+      } catch {
+        source = "[Error: could not read file]";
+      }
+      sections.push("**Source:**", "```vue", source, "```\n");
+    }
+
+    return { content: [{ type: "text", text: sections.join("\n") }] };
+  }
+);
+
 // ── Kick off background indexing ──────────────────────────────────────────────
 ensureIndexed();
 

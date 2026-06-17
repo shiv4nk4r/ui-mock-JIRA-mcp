@@ -61,13 +61,13 @@
 | Section banner title | 14px | 600 | 17px | `#FFFFFF` |
 | Page title (login) | 28px | 700 | 34px | `#FFFFFF` |
 | Sub-heading / card label | 13px | 600 | 16px | `#101a5c` |
-| Body / table cell | 13px | 400 | 17px | `#101a5c` |
+| Body / table cell | 14px | 400 | 17px | `#4D5055` |
 | Table header | 13px | 600 | 16px | `#636f83` |
 | Caption / secondary | 12px | 400 | 15px | `#636f83` |
 | Stat value (large) | 20px | 700 | 24px | `#101a5c` |
 | Placeholder text | 13px | 400 | 17px | `#696969` italic |
 | Error text | 12px | 400 | 15px | `#ED3324` |
-| Link / clickable ID | 13px | 400 | 17px | `#2982cc` underline on hover |
+| Link / clickable ID | 14px | 400 | 17px | `#2982cc` underline on hover |
 
 ### Rules
 - Never exceed 700 font weight.
@@ -212,7 +212,8 @@
 - **Background:** `#FFFFFF` — `class="bg-white"`
 - **Border-bottom:** 1px solid `#d4d3d3`
 - **Text:** 13px, 400 weight, `#636f83`, sentence case
-- **Active sub-tab:** 13px, 600 weight, `#101a5c`, with `3px` solid `#FE8400` bottom border — `indicator-color="secondary"`
+- **Active sub-tab:** 13px, 600 weight, `#101a5c`, with `2px` solid `#ff9800` bottom border
+- **Indicator trick:** Set `indicator-color="white"` on `q-tabs` to hide the default Quasar indicator, then apply the active border via CSS: `.sub-tab-bar .q-tab--active { border-bottom: solid 2px #ff9800; }`
 - **No background highlight** on active sub-tab — only the underline changes
 - **Spacing:** 24px horizontal padding per tab item — `q-tab` default padding
 
@@ -220,7 +221,7 @@
 <q-tabs
   v-model="activeSubTab"
   class="bg-white text-dark sub-tab-bar"
-  indicator-color="secondary"
+  indicator-color="white"
   dense
   align="left"
   narrow-indicator
@@ -229,6 +230,13 @@
   <q-tab name="tagchange" label="Tag Change" />
   <!-- ... -->
 </q-tabs>
+```
+
+```css
+/* Sub-tab active indicator override */
+.sub-tab-bar .q-tab--active {
+  border-bottom: solid 2px #ff9800;
+}
 ```
 
 ---
@@ -323,13 +331,13 @@
 
 **Quasar components:** `q-input`, `q-select`, `q-radio`, `q-checkbox`. Never use raw `<input>`, `<select>`, `<textarea>`.
 
-### Text Input
+### Text Input (standard form)
 **`q-input outlined dense`**
-- **Height:** 36px — `dense` prop
+- **Height:** 40px — `dense` prop + CSS `.custom-input { height: 40px }`
 - **Border:** 1px solid `#d4d3d3` — `outlined` prop
 - **Border-radius:** 4px — Quasar `outlined` default
 - **Background:** `#FFFFFF`
-- **Text:** 13px, `#101a5c`
+- **Text:** 14px, `#4D5055`
 - **Placeholder:** via `placeholder` prop, `#696969`
 - **Focus border:** `#2982cc` — override with CSS or `color="info"`
 - **Error border:** `#ED3324` — Quasar applies automatically when `error` prop is true
@@ -346,22 +354,29 @@
 />
 ```
 
+### Compact Filter Bar Input
+**`.smaller-input`** — used inside filter bars, not full-form dialogs
+- **Height:** 35px — custom class `.smaller-input { height: 35px; }`
+- **Border:** 1px solid `#E7E7E7`
+- Applied as extra class on `q-input outlined dense`
+
 ### Search Input
-**`q-input outlined dense` with prepend slot**
+**`q-input outlined dense` with prepend slot + class `smaller-input`**
 
 ```vue
-<q-input outlined dense placeholder="Search by Name" v-model="search">
+<q-input outlined dense placeholder="Search by Name" v-model="search" class="smaller-input">
   <template #prepend>
     <q-icon name="search" color="dark" size="18px" />
   </template>
 </q-input>
 ```
 
-### Dropdown / Select
-**`q-select outlined dense`**
-- Same height/border as text input — `outlined dense` props
+### Dropdown / Select (Filter Bar)
+**`q-select outlined dense` with class `custom-dropdown`**
+- **Height:** 35px — `.custom-dropdown { height: 35px; min-width: 130px; }`
+- **Border:** 1px solid `#E7E7E7`
 - Trailing caret: Quasar renders automatically
-- Options list: white bg, `#101a5c` text, `#F5F5F5` hover — Quasar default
+- Options list: white bg, `#4D5055` text, `#F5F5F5` hover — Quasar default
 - Use `emit-value map-options` when binding to primitive values
 
 ```vue
@@ -370,6 +385,7 @@
   :options="statusOptions"
   outlined
   dense
+  class="custom-dropdown"
   label="Status"
   emit-value
   map-options
@@ -416,11 +432,22 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Table CSS Classes
+
+Two custom table classes are defined in `app.scss`. Always use one of them on `q-table`:
+
+| Class | Header bg | Body text color | Notes |
+|---|---|---|---|
+| `.md-table` | `#f5f5f5` | `#4D5055` | Standard listing tables |
+| `.md-v2-table` | `#F6F6F6` | `#4D5055` | V2 listing pages (outbound/inbound v2 routes) |
+
+The Quasar utility `.text-custom-grey` (`color: #4D5055`) is the standard color for all table body cell text. Use it wherever body text needs explicit styling.
+
 ### Table Styling
 - **Quasar props:** `flat` (no shadow), `bordered` (outer border only), `dense`, `separator="horizontal"`
 - **Background:** `#FFFFFF`
-- **Header row:** Background `#F5F5F5`, text `#636f83`, 13px 600 weight — override via `thead tr th` CSS
-- **Body rows:** Background `#FFFFFF`, text `#101a5c`, 13px 400 weight
+- **Header row:** Background `#F6F6F6` (v2) / `#f5f5f5` (v1), text `#636f83`, 13px 600 weight — override via `thead tr th` CSS
+- **Body rows:** Background `#FFFFFF`, text `#4D5055` (`.text-custom-grey`), 14px 400 weight
 - **Row divider:** 1px solid `#d4d3d3` — `separator="horizontal"` prop
 - **Row hover:** Background `#F5F5F5` — Quasar default `q-tr:hover`
 - **Checkbox column:** 40px wide, leftmost — use `selection="multiple"` prop on `q-table`
@@ -437,6 +464,7 @@
   bordered
   dense
   separator="horizontal"
+  class="md-v2-table"
   :rows-per-page-options="[10, 20, 50, 100]"
 >
   <!-- Custom cell for actions -->
@@ -456,7 +484,7 @@
 
   <!-- Null values -->
   <template #body-cell-reason="{ value }">
-    <q-td>{{ value || '--' }}</q-td>
+    <q-td class="text-custom-grey">{{ value || '--' }}</q-td>
   </template>
 </q-table>
 ```
@@ -475,14 +503,96 @@ const columns = [
 - **Status chips** (inline in cell): `q-chip` — see Section 14
 - **Null / empty values:** Rendered as `--`
 - **Truncation:** Wrap in `<div class="ellipsis" style="max-width:200px">` + `q-tooltip` for full value
-- **Sub-rows / expandable:** "Show More" as `q-btn flat dense no-caps color="info" label="Show More"`
+- **Body text color:** always `#4D5055` — use `class="text-custom-grey"` on `q-td`
+
+### Parent-Child Expandable Rows
+
+Used in Outbound Order Listing, Inbound, and Exception Listing pages. The parent row has an expand toggle; the child row appears below it, spanning all columns with a nested `q-table`.
+
+**Background colors defined in `app.scss`:**
+- Parent row (expanded state): `background-color: #FFF6ED` — via class `.row-expanded` on `q-tr`
+- Child cell (the full-width nested panel): `background-color: #FFFCF8` — via class `.expanded-td` on `q-td`
+
+**Template pattern:**
+```vue
+<template v-slot:body="props">
+  <!-- Parent row -->
+  <q-tr :props="props" :class="{'row-expanded': props.expand}">
+    <!-- Expand toggle cell -->
+    <q-td>
+      <q-btn flat round dense size="xs"
+        @click="props.expand = !props.expand">
+        <q-icon
+          :name="props.expand ? 'keyboard_arrow_down' : 'keyboard_arrow_right'"
+          :color="props.expand ? 'secondary' : ''"
+        />
+      </q-btn>
+    </q-td>
+    <!-- Data cells -->
+    <q-td v-for="col in props.cols" :key="col.name" :props="props" class="text-custom-grey">
+      {{ col.value }}
+    </q-td>
+  </q-tr>
+
+  <!-- Child row — always rendered, shown/hidden with v-show -->
+  <q-tr v-show="props.expand" :props="props">
+    <q-td colspan="100" class="expanded-td">
+      <!-- Nested detail component or sub-table -->
+      <order-list-detail :order="props.row" />
+    </q-td>
+  </q-tr>
+</template>
+```
+
+**Expand icon rule:**
+- Collapsed: `keyboard_arrow_right`, no color (inherits grey)
+- Expanded: `keyboard_arrow_down`, `color="secondary"` (orange `#FE8400`)
+
+**Nested sub-table (SubOrderList pattern):**
+```vue
+<q-table
+  class="no-shadow md-v2-table fit expanded-table"
+  style="border-left: solid 1px rgba(0,0,0,0.12);"
+  flat dense bordered
+  :rows="childRows"
+  :columns="childColumns"
+>
+  <!-- same expand pattern if further nesting needed -->
+</q-table>
+```
+
+**CSS (defined in `app.scss` — do not redefine, just use the classes):**
+```css
+.row-expanded .q-td { background-color: #FFF6ED; }
+.expanded-td { background-color: #FFFCF8; }
+```
 
 ### Pagination
-**Quasar component:** `q-table` built-in pagination OR standalone `q-pagination`
 
-- `q-table` handles pagination via `:pagination.sync` and `:rows-per-page-options`
-- For standalone: `q-pagination v-model="page" :max="totalPages"`
-- Format: `Results per page: [50 ▾]   [<]  1  [>]` — Quasar `q-table` renders this automatically in the bottom slot
+**Quasar component:** `q-pagination` with class `.custom-pagination`
+
+```css
+/* Defined in app.scss */
+.custom-pagination {
+  height: 30px;
+  font-size: 12px;
+  color: #4D5055;
+  border: 1px solid #E7E7E7;
+}
+```
+
+```vue
+<q-pagination
+  v-model="pagination.page"
+  :max="totalPages"
+  boundary-numbers
+  class="custom-pagination"
+/>
+```
+
+- Always place pagination at bottom-right of the table card
+- Format: `[<]  1  2  3  …  N  [>]`
+- Height 30px, 12px font, `#4D5055` text, border `#E7E7E7`
 
 ### Load More Pattern (alternative to pagination)
 - Centered `q-btn` below table: `color="secondary" label="Load More" unelevated`
@@ -500,20 +610,24 @@ Appears between SectionBanner and DataTable. Always full-width.
 [ ≡ ] [ 🔍 Search by ... ] [ Dropdown ▾ ] [ Dropdown ▾ ]   ...   [ Save Filter ▾ ] [ Export Data ▾ ] [ ↺ ]
 ```
 
-- **Left side:** `q-btn(icon="menu", outline, square, dense)` + `q-input(outlined, dense, search)` + `q-select(outlined, dense)` × N
+- **Left side:** `q-btn(icon="menu", outline, square, dense)` + `q-input(outlined, dense, class="smaller-input")` + `q-select(outlined, dense, class="custom-dropdown")` × N
 - **Right side:** `q-btn-dropdown(split, color="secondary")` for Save Filter + Export Data + `q-btn(icon="sync", outline, square, dense)` for Refresh
 - **Spacing:** `q-gutter-sm` (8px) between all elements — use Quasar's gutter system
 - **Filter icon button `≡`:** `q-btn icon="menu" outline square dense color="dark"`
 - **Refresh button `↺`:** `q-btn icon="sync" outline square dense color="dark"`
+- **Input height:** 35px — always use `.smaller-input` class on all filter bar inputs
+- **Dropdown width:** 130px minimum — always use `.custom-dropdown` class on all filter bar selects
 
 ```vue
 <div class="row items-center q-gutter-sm q-pa-md">
   <!-- Left -->
   <q-btn icon="menu" outline square dense color="dark" />
-  <q-input v-model="search" outlined dense placeholder="Search by Id" style="min-width:180px">
+  <q-input v-model="search" outlined dense placeholder="Search by Id"
+    class="smaller-input" style="min-width:180px">
     <template #prepend><q-icon name="search" color="dark" size="18px" /></template>
   </q-input>
-  <q-select v-model="orderType" :options="orderTypes" outlined dense label="Order Type" style="min-width:140px" emit-value map-options />
+  <q-select v-model="orderType" :options="orderTypes" outlined dense label="Order Type"
+    class="custom-dropdown" emit-value map-options />
 
   <q-space />
 
@@ -588,29 +702,54 @@ Use `q-expansion-item` OR control visibility with `v-if` + a toggle button in th
 **Quasar components:** `q-chip` (filled), `q-badge` (count badge), `q-linear-progress` (inline progress bar)
 All status indicators are inline, in table cells or on cards.
 
-| Status | Quasar Component | `color` prop | Style |
+**IMPORTANT:** Status chips use PASTEL custom hex backgrounds — NOT the full-saturation Quasar color tokens. Text is `#4D5055` (not white) on pastel backgrounds. Only use the Quasar `color` prop tokens for badges and high-priority destructive chips.
+
+| Status | Background | Text | Notes |
 |---|---|---|---|
-| Completed | `q-chip dense` | `positive` | filled, white text |
-| Open | `q-chip dense` | `positive` | filled, white text |
-| In Progress / Processing | `q-chip dense` | `info` | filled, white text |
-| Created | `q-chip dense` | `info` | filled, white text |
-| Pending | `q-chip dense` | `warning` | filled, white text |
-| Breached | `q-chip dense` | `negative` | filled, white text |
-| Cancelled / Closed | `q-chip dense` | `dark` | filled, white text |
-| Critical (priority) | `q-chip dense` | `negative` | filled, white text |
-| Normal (priority) | plain `<span>` | — | no chip, `#101a5c` text |
-| Error / Failed | `q-chip dense` | `negative` | filled, white text |
+| Completed / Active / Open | `#ebf5e8` | `#4D5055` | Soft green |
+| In Progress / Processing | `#e8f4fb` | `#4D5055` | Soft blue |
+| Created | `#e8f4fb` | `#4D5055` | Soft blue |
+| Pending / On Hold | `#fef9e7` | `#4D5055` | Soft yellow |
+| Breached / SLA Breach | `#fdecea` | `#4D5055` | Soft red |
+| Cancelled / Closed / Inactive | `#f0f0f0` | `#4D5055` | Soft grey |
+| Offline / Error / Failed | `#ffd8d7` | `#4D5055` | Stronger pastel red |
+| Critical (priority) | `#ED3324` | `#FFFFFF` | Use Quasar `color="negative"` — high-contrast only for critical |
+| Normal (priority) | plain `<span>` | `#4D5055` | No chip |
 
 ### Chip Style Rules
 - Always use `dense` prop to achieve 20px height
-- Always use `text-color="white"` with filled chips
+- Use **inline style** for the pastel background + `#4D5055` text — do NOT use Quasar `color` prop for pastel chips
 - `square` prop for square-cornered chips (priority labels), default pill for status chips
-- Never use `outline` variant for status chips — always filled
+- Never use `outline` variant for status chips — always filled pastel
 
 ```vue
-<q-chip dense color="positive" text-color="white">Completed</q-chip>
-<q-chip dense color="info"     text-color="white">Created</q-chip>
+<!-- Pastel chips — use inline style, NOT Quasar color prop -->
+<q-chip dense style="background:#ebf5e8; color:#4D5055;">Completed</q-chip>
+<q-chip dense style="background:#e8f4fb; color:#4D5055;">Created</q-chip>
+<q-chip dense style="background:#ffd8d7; color:#4D5055;">Offline</q-chip>
+
+<!-- High-contrast only for critical/destructive -->
 <q-chip dense color="negative" text-color="white" square>Critical</q-chip>
+```
+
+**Status color helper (Vue computed / method):**
+```javascript
+statusChipStyle(status) {
+  const map = {
+    'Completed':   'background:#ebf5e8; color:#4D5055;',
+    'Active':      'background:#ebf5e8; color:#4D5055;',
+    'Open':        'background:#ebf5e8; color:#4D5055;',
+    'In Progress': 'background:#e8f4fb; color:#4D5055;',
+    'Created':     'background:#e8f4fb; color:#4D5055;',
+    'Pending':     'background:#fef9e7; color:#4D5055;',
+    'Breached':    'background:#fdecea; color:#4D5055;',
+    'Cancelled':   'background:#f0f0f0; color:#4D5055;',
+    'Closed':      'background:#f0f0f0; color:#4D5055;',
+    'Offline':     'background:#ffd8d7; color:#4D5055;',
+    'Failed':      'background:#ffd8d7; color:#4D5055;',
+  }
+  return map[status] ?? 'background:#f0f0f0; color:#4D5055;'
+}
 ```
 
 ### Notification Count Badge
@@ -959,21 +1098,28 @@ Pattern used in System → Hardware Status and similar monitoring pages.
 
 ```
 Colors:    Navy #101a5c | Orange #FE8400 | Green #66bb6a | Red #ED3324
-           Blue #2982cc | Yellow #f9b115 | Grey #636f83  | White #FFFFFF
+           Blue #2982cc | Yellow #f9b115 | Grey #636f83  | Body #4D5055
 
-Fonts:     SourceSansPro (body) | DINNextLTPro (hero/login only)
-Font size: 12px caption | 13px body | 14px banner | 20px stat value
+Fonts:     SourceSansPro (body, self-hosted OTF) | DINNextLTPro (hero/login only, self-hosted OTF)
+Font size: 12px caption | 14px body/table | 14px banner | 20px stat value
+Body text: #4D5055 (tables, inputs) via .text-custom-grey
 
 Nav:       TopBar (56px) → PrimaryNav (44px, #101a5c) → SubNav (40px, white)
 Banner:    Full-width, 40px, #101a5c bg, white text, pipe-separated stats
+Sub-tab:   indicator-color="white" + CSS .sub-tab-bar .q-tab--active { border-bottom: 2px solid #ff9800 }
 
 Buttons:   Primary = #FE8400 | Secondary = white+border | Danger = #ED3324
-Inputs:    36px height | #d4d3d3 border | 4px radius | #2982cc focus
+Inputs:    Filter bar: 35px (.smaller-input, border #E7E7E7) | Form: 40px (.custom-input)
+Dropdowns: Filter bar: 35px × 130px min (.custom-dropdown, border #E7E7E7)
 
-Tables:    White bg | #F5F5F5 header | #d4d3d3 row dividers | left-aligned
+Tables:    md-v2-table class | #F6F6F6 header | #4D5055 body text | #d4d3d3 dividers | left-aligned
+ExpandRow: parent row-expanded bg #FFF6ED | child expanded-td bg #FFFCF8
+Expand icon: collapsed=keyboard_arrow_right | expanded=keyboard_arrow_down color=secondary
+Pagination: .custom-pagination (30px, 12px, #4D5055, border #E7E7E7)
+
+Status:    Pastel chips: Completed=#ebf5e8 | Created=#e8f4fb | Offline=#ffd8d7 | text #4D5055
+           Critical only: color="negative" text-color="white"
 Modals:    Navy header | white body | CANCEL + PROCEED (right-aligned)
-
-Status:    Completed=#66bb6a | Created=#2982cc | Warning=#f9b115 | Error=#ED3324
 Charts:    Bar/Line/Donut via Chart.js | Color order: navy→green→orange→blue
 ```
 
@@ -991,7 +1137,7 @@ Charts:    Bar/Line/Donut via Chart.js | Color order: navy→green→orange→bl
 | **Top header bar** | `q-header` | `bordered` |
 | **Toolbar row** | `q-toolbar` + `q-toolbar-title` | Standard Quasar toolbar |
 | **Primary nav tabs** | `q-tabs` + `q-tab` | `class="bg-primary text-white"`, `indicator-color="secondary"`, `mobile-arrows`, `dense`, `align="left"` |
-| **Sub-tabs** | `q-tabs` + `q-tab` | `class="bg-white text-dark"`, `indicator-color="secondary"`, `dense`, `align="left"`, `narrow-indicator` |
+| **Sub-tabs** | `q-tabs` + `q-tab` | `class="bg-white text-dark sub-tab-bar"`, `indicator-color="white"`, `dense`, `align="left"`, `narrow-indicator` — active border via CSS `.sub-tab-bar .q-tab--active { border-bottom: 2px solid #ff9800 }` |
 | **Page content area** | `q-page-container` + `q-page` | `q-page` sets min-height |
 | **Section banner** | Custom `div.section-banner` | `bg-primary text-white` — NOT a Quasar component, just a styled div |
 | **Card / surface** | `q-card` | `flat bordered` — never use shadow variant |
@@ -1015,7 +1161,7 @@ Charts:    Bar/Line/Donut via Chart.js | Color order: navy→green→orange→bl
 | **Toggle** | `q-toggle` | `color="secondary"` |
 | **Data table** | `q-table` | `flat`, `bordered`, `dense`, `separator="horizontal"`, `selection="multiple"`, `:rows-per-page-options` |
 | **Pagination** | `q-pagination` | `v-model`, `:max`, `boundary-numbers` |
-| **Status chip** | `q-chip` | `dense`, `color="positive|info|negative|warning|dark"`, `text-color="white"` |
+| **Status chip** | `q-chip` | `dense`, inline `style="background:#ebf5e8; color:#4D5055;"` for pastel states — see Section 14 for full map. Only use `color="negative" text-color="white"` for Critical. |
 | **Notification badge** | `q-badge` | `color="negative"`, `floating` |
 | **Progress bar (inline)** | `q-linear-progress` | `color="secondary|positive"`, `track-color="grey-3"`, `style="height:3px"` |
 | **Circular progress** | `q-circular-progress` | `color="secondary"`, `track-color="grey-3"` |
@@ -1052,6 +1198,7 @@ Charts:    Bar/Line/Donut via Chart.js | Color order: navy→green→orange→bl
 | `text-dark` | Color `#636f83` |
 | `text-grey` | Color `#696969` |
 | `text-white` | Color `#FFFFFF` |
+| `text-custom-grey` | Color `#4D5055` — **standard table body/cell text color** |
 | `text-info` | Color `#2982cc` |
 | `text-negative` | Color `#ED3324` |
 | `text-weight-bold` | font-weight: 700 |
@@ -1078,6 +1225,20 @@ Charts:    Bar/Line/Donut via Chart.js | Color order: navy→green→orange→bl
 | `fit` | width+height: 100% |
 | `cursor-pointer` | cursor: pointer |
 | `hidden` | display: none |
+
+### Custom App Classes (defined in `app.scss` — NOT Quasar built-ins)
+
+| Class | Effect |
+|---|---|
+| `md-table` | Table: header bg `#f5f5f5`, body text `#4D5055` — standard listing |
+| `md-v2-table` | Table: header bg `#F6F6F6`, body text `#4D5055` — V2 listing pages |
+| `text-custom-grey` | `color: #4D5055` — standard table cell / body text |
+| `smaller-input` | Height 35px — use on all filter bar `q-input` / `q-select` elements |
+| `custom-dropdown` | Height 35px, min-width 130px — use on filter bar `q-select` elements |
+| `custom-pagination` | Height 30px, 12px font, `#4D5055` text, border `#E7E7E7` — use on `q-pagination` |
+| `row-expanded` | Parent row background `#FFF6ED` when expand is open — bind with `:class="{'row-expanded': props.expand}"` |
+| `expanded-td` | Child cell background `#FFFCF8` — apply to the `q-td colspan="100"` in expand child row |
+| `expanded-table` | Applied to nested sub-table inside expand row |
 
 ---
 

@@ -742,6 +742,33 @@ export default function Home() {
               </div>
             </div>
 
+            {providerConfig && (
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold tracking-[0.25em] uppercase" style={{ ...F.condensed, color: "#6A6560" }}>Model</label>
+                <div className="relative">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={isFetching}
+                    className="w-full appearance-none pl-3 pr-8 py-2.5 border-b-2 bg-transparent outline-none cursor-pointer disabled:opacity-50 transition-colors duration-200"
+                    style={{ ...F.mono, fontSize: "12px", color: "#1A1510", borderColor: "#D0CCC6", caretColor: "#D97706" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "#D97706")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "#D0CCC6")}
+                  >
+                    {providerConfig.models.map((m) => (
+                      <option key={m.id} value={m.id} style={{ background: "#F8F6F3" }}>{m.label}</option>
+                    ))}
+                  </select>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#D97706", fontSize: "10px" }}>▾</span>
+                </div>
+                {providerConfig.models.find((m) => m.id === selectedModel)?.description && (
+                  <p className="text-xs" style={{ ...F.condensed, color: "#A8A4A0", letterSpacing: "0.08em" }}>
+                    {providerConfig.models.find((m) => m.id === selectedModel)!.description}
+                  </p>
+                )}
+              </div>
+            )}
+
             {fetchError && (
               <div className="flex items-start gap-2 text-xs px-3 py-2.5 border" style={{ background: "rgba(239,68,68,0.04)", borderColor: "rgba(239,68,68,0.18)", color: "#F87171", ...F.condensed, letterSpacing: "0.04em" }}>
                 <span className="flex-none font-bold mt-px">✕</span><span>{fetchError}</span>
@@ -804,15 +831,12 @@ export default function Home() {
 
       {/* Header */}
       <header className="flex-none flex items-center justify-between px-5 py-3 border-b" style={{ background: "#FFFFFF", borderColor: "#E2DDD8" }}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-sm font-semibold px-3 py-1 border" style={{ ...F.mono, color: "#D97706", borderColor: "rgba(217,119,6,0.25)", background: "rgba(217,119,6,0.08)", letterSpacing: "0.05em" }}>{ticketData?.id}</span>
-          {providerConfig && (
-            <div className="relative">
-              <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="appearance-none pr-6 pl-2.5 py-1 text-xs border outline-none cursor-pointer" style={{ ...F.mono, fontSize: "11px", background: "#FFFFFF", color: "#3A3530", borderColor: "#C8C4BE", borderRadius: "2px" }}>
-                {providerConfig.models.map((m) => <option key={m.id} value={m.id} style={{ background: "#EEECE8" }}>{m.label}</option>)}
-              </select>
-              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6E6560", fontSize: "8px" }}>▾</span>
-            </div>
+          {selectedModel && (
+            <span style={{ ...F.condensed, fontSize: 10, color: "#8A8680", letterSpacing: "0.1em" }}>
+              {providerConfig?.models.find((m) => m.id === selectedModel)?.label ?? selectedModel}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-3">

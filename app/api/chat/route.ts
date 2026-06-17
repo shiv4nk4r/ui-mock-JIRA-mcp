@@ -31,6 +31,8 @@ const MD_MCP_TOOLS = [
   "mcp__md__find-callers",
   "mcp__md__get-vue-component",
   "mcp__md__get-resolver-info",
+  // Compound context tool — preferred first call for every ticket
+  "mcp__md__find-related-context",
 ] as const;
 
 // ── Token pricing (USD per 1 M tokens: [input, output]) ───────────────────────
@@ -228,32 +230,68 @@ function buildSystemPrompt(
   if (hasMcpCodeTools) {
     sections.push(
       "=== LIVE CODEBASE TOOLS (manager-dashboard MCP server) ===",
-      "You have MCP tools to query the actual manager-dashboard source code. Use them BEFORE generating the mockup so it aligns with real components and data.",
       "",
-      "Available tools:",
-      "  Filesystem (fast, always ready):",
-      "  • list-routes          — Full Vue Router route tree (exact hash paths and page components)",
-      "  • find-components      — Search .vue files by name or domain (returns file paths)",
-      "  • read-source-file     — Read any file in the repo (Vue SFC, GraphQL query, store module)",
-      "  • list-graphql         — List GraphQL query/mutation files for a domain",
-      "  • find-usages          — Find files that import a component or query constant",
-      "  • list-store-modules   — Vuex store structure for a domain",
-      "  • list-resolvers       — BFF resolver files for a domain",
-      "  AST/graph (structured, requires index — 'Index not ready' means still building):",
-      "  • get-vue-component    — Full API surface: props, data, computed, methods, apollo queries, mixins",
-      "  • search-code-symbols  — Fuzzy name search across all functions, classes, components, resolvers",
-      "  • get-file-structure   — All symbols in a file + its import/importedBy edges",
-      "  • find-callers         — Which functions call a given function (call graph traversal)",
-      "  • get-resolver-info    — BFF GraphQL resolver details (operation type, params, async)",
-      "  • rebuild-code-index   — Force a full re-index (call if index is stale or missing)",
+      `REPO LOCATION: ${MD_REPO_ROOT}/`,
+      "  mdui/src/   → Vue 2 + Quasar frontend (pages/, components/, graphql/, store/, router/)",
+      "  mdbff/src/  → Apollo GraphQL BFF (resolvers/, typeDefs/, models/)",
       "",
-      "REQUIRED steps before generating the mockup:",
-      "1. Call list-routes to get the exact navigation paths for the affected domain.",
-      "2. Call find-components with the ticket's domain (e.g. 'outbound') to discover existing components.",
-      "3. Call get-vue-component on the most relevant component to see props, apollo queries, methods.",
-      "4. Call list-graphql for the domain to know which data is already available from the BFF.",
-      "5. If get-vue-component returns 'Index not ready', fall back to read-source-file instead.",
-      "Use these findings to produce a mockup that matches the real codebase patterns exactly.",
+      "IMPORTANT — DO NOT use the Read tool on the repo path. Use mcp__md__* tools instead.",
+      "The Read tool is ONLY for product screenshot images in the current working directory.",
+      `If MCP tools are unavailable, you may fall back to Read('${MD_REPO_ROOT}/mdui/src/...').`,
+      "",
+      "─── TOOL CATALOGUE ───────────────────────────────────────────────────────",
+      "",
+      "  PRIMARY — call this FIRST, before any thinking or planning:",
+      "  • find-related-context — Takes keywords from the ticket → scores every .vue file by",
+      "      filename + content match → returns top-N with API surface + source code.",
+      "      ONE call replaces 3–5 individual lookups. Call it immediately.",
+      "",
+      "  FILESYSTEM (fast, always available):",
+      "  • list-routes          — Full Vue Router route tree (exact hash paths + page components)",
+      "  • find-components      — Search .vue filenames by name fragment or domain",
+      "  • read-source-file     — Full source of any file (Vue SFC, GraphQL, store, resolver)",
+      "  • list-graphql         — List GraphQL query/mutation/subscription files by domain",
+      "  • find-usages          — Files that import a component or query constant",
+      "  • list-store-modules   — Vuex store module structure for a domain",
+      "  • list-resolvers       — BFF GraphQL resolver files by domain",
+      "",
+      "  AST / GRAPH (structured — needs index; 'Index not ready' = still building):",
+      "  • get-vue-component    — Props, data keys, computed, methods, apollo queries, mixins",
+      "  • search-code-symbols  — Fuzzy name search: functions, components, resolvers",
+      "  • get-file-structure   — All symbols in a file + import/importedBy graph edges",
+      "  • find-callers         — Call graph: which functions call a given function",
+      "  • get-resolver-info    — BFF resolver: operation type, params, async flag",
+      "  • rebuild-code-index   — Force full re-index (use if index is stale or missing)",
+      "",
+      "─── REQUIRED WORKFLOW ────────────────────────────────────────────────────",
+      "",
+      "STEP 1 — FIRST ACTION (mandatory, no exceptions):",
+      "  Call mcp__md__find-related-context BEFORE any reasoning or planning.",
+      "  From the ticket summary, extract 3–6 keywords:",
+      "    domain (e.g. 'outbound', 'inbound', 'inventory', 'audit')",
+      "    feature (e.g. 'order', 'exception', 'listing', 'filter', 'detail')",
+      "  Call the tool with those keywords immediately.",
+      "",
+      "STEP 2 — Study returned components:",
+      "    • Column definitions → reproduce those EXACT columns, nothing else",
+      "    • Filter classes     → .custom-dropdown / .smaller-input if present",
+      "    • Expand rows        → row-expanded + expanded-td if present",
+      "    • Apollo queries     → use those exact field names in the table",
+      "    • Status strings     → use the actual values from the real component",
+      "",
+      "STEP 3 — Read truncated files in full:",
+      "  Any file whose source was cut off → call read-source-file(path).",
+      "",
+      "STEP 4 — Confirm GraphQL field names:",
+      "  list-graphql(domain) → read-source-file on the query → note exact field names.",
+      "",
+      "STEP 5 — Generate mockup:",
+      "  Only now write HTML. Every structural decision must come from steps 1–4.",
+      "",
+      "FALLBACK (if MCP unavailable):",
+      `  Use Read('${MD_REPO_ROOT}/mdui/src/pages/<domain>/...') to find the page component.`,
+      "  Then proceed with the same pattern.",
+      "",
       "=== END CODEBASE TOOLS ==="
     );
   }
@@ -270,20 +308,26 @@ function buildSystemPrompt(
       "...complete HTML...",
       "RAW_HTML_COMPONENT_END",
       "",
-      "MOCKUP RULES (derive all values from design.md above):",
-      "- Colors: ONLY the exact tokens — primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324, info #2982cc, warning #f9b115",
-      "- Font: Source Sans Pro via Google Fonts CDN. Body 13px.",
-      "- Top bar: white bg, 52px sticky, GreyOrange G-mark SVG (orange) + 'GreyOrange' / 'Manager Dashboard' wordmarks",
-      "- Primary nav: #101a5c bg, 42px, orange 2px bottom-border on active tab",
-      "- Sub-tabs: white bg, 38px, orange underline on active",
-      "- Section banner: #101a5c bg, white text, colored dot + label + count per stat",
-      "- Filter bar: '≡ Filter' with text label (not icon-only)",
-      "- Table rows: 40px height, sort indicators = CSS triangles (▲▼), NOT Material Icons",
+      "MOCKUP RULES (all values from design.md — NEVER invent):",
+      "- Colors: ONLY — primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324,",
+      "    info #2982cc, warning #f9b115, body-text #4D5055",
+      "- Font: Source Sans Pro — self-hosted (use Google Fonts CDN fallback in standalone HTML). Body 14px.",
+      "- Top bar: white bg, 56px sticky, GreyOrange G-mark SVG (orange) + 'Manager Dashboard' wordmarks",
+      "- Primary nav: #101a5c bg, 44px, orange 3px bottom-border on active tab",
+      "- Sub-tabs: white bg, 40px, orange 2px bottom-border on active (NOT a background change)",
+      "- Section banner: #101a5c bg, 40px, white text, pipe-separated stats",
+      "- Filter bar inputs: 35px height, border #E7E7E7 (NOT #d4d3d3), min-width 130px for dropdowns",
+      "- Table header: #F6F6F6 bg, text #636f83. Table body text: #4D5055",
+      "- Table rows: sort indicators = CSS triangles (▲▼), NOT Unicode arrows or Material Icons",
+      "- Expand rows: parent bg #FFF6ED when expanded; child cell bg #FFFCF8; arrow = ▶ collapsed / ▼ expanded (orange)",
+      "- Status chips: PASTEL backgrounds (e.g. Completed=#ebf5e8, Created=#e8f4fb, Offline=#ffd8d7) with #4D5055 text",
+      "    EXCEPTION: Critical/destructive only → background #ED3324 with white text",
       "- Action buttons: 26×26px, 3px border-radius, outline style",
+      "- Pagination: 30px height, 12px font, #4D5055 text, border #E7E7E7; format < 1 2 3 … N >",
       "- Modals: #101a5c header, white body, backdrop rgba(16,26,92,0.38), radio options as bordered rows",
-      "- Pagination: < 1 2 3 … N > with ellipsis",
       "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only",
-      "- Implement EVERY status chip, state-transition rule, and field-visibility rule from the Jira ticket",
+      "- Implement EVERY status, state-transition, field-visibility, and column from the Jira ticket",
+      "- CRITICAL: If find-related-context returned real column definitions, use THOSE exact columns — not invented ones",
       "- If product screenshots are provided, match the exact visual patterns you observe in them"
     );
   }
@@ -323,6 +367,32 @@ interface JiraTicket {
   linkedIssues?: Array<{ id: string; summary: string; type: string; status: string }>;
   attachments?:  Array<{ filename: string; mimeType: string; size: number; content?: string }>;
   linkedUrls?:   Array<{ url: string; type: string; tool?: string; title?: string; content: string }>;
+}
+
+// Extracts MCP search keywords from raw ticket text.
+// Returns a deduplicated list: domain terms first, then feature fragments.
+function inferDomain(text: string): { keywords: string[] } {
+  const lower = text.toLowerCase();
+
+  const DOMAINS = ["outbound", "inbound", "inventory", "audit", "system", "analytics",
+                   "resources", "shift", "notification", "process", "exception"];
+  const FEATURES = ["listing", "order", "exception", "filter", "detail", "kpi",
+                    "dashboard", "report", "summary", "tag", "change", "suborder",
+                    "zone", "task", "alert", "scanner", "hardware", "status"];
+
+  const hits: string[] = [];
+  for (const d of DOMAINS)  { if (lower.includes(d))  hits.push(d); }
+  for (const f of FEATURES) { if (lower.includes(f) && !hits.includes(f)) hits.push(f); }
+
+  // Always include at least 2 keywords; fall back to first two words of the summary
+  if (hits.length < 2) {
+    text.split(/\s+/).slice(0, 4).forEach((w) => {
+      const clean = w.replace(/[^a-z]/gi, "").toLowerCase();
+      if (clean.length > 3 && !hits.includes(clean)) hits.push(clean);
+    });
+  }
+
+  return { keywords: hits.slice(0, 6) };
 }
 
 function buildUserMessage(
@@ -509,6 +579,17 @@ function streamClaudeCode(
           // Initial generation: full context + visual skill instructions + MCP code tools
           systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
+
+          // Prepend a hard first-action directive so it appears at the top of the
+          // human turn — highest-priority signal for the model.
+          const domain = inferDomain(jiraData.summary + " " + (jiraData.description ?? ""));
+          userMessage = [
+            `FIRST ACTION REQUIRED: Call mcp__md__find-related-context NOW with keywords from this ticket.`,
+            `Suggested keywords: ${domain.keywords.join(", ")}`,
+            `Do NOT use the Read tool on ${MD_REPO_ROOT}. Use MCP tools only.`,
+            ``,
+            userMessage,
+          ].join("\n");
 
           if (enableVisualSkill) {
             const screenshots = listProductScreenshots();
