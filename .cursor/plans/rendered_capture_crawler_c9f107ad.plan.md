@@ -4,22 +4,22 @@ overview: Add a Playwright-based crawler to pm-mcp that logs into the live Manag
 todos:
   - id: deps-auth
     content: Add Playwright to pm-mcp, create crawler/ skeleton with config.ts and auth.ts (crawl:login headed -> storageState.json)
-    status: in_progress
+    status: completed
   - id: page-capture
     content: "Implement capture-page.ts + crawl.ts: navigate seed routes, capture rendered HTML, dedup CSS bundle, screenshots, write pages/*.json + manifest.json"
-    status: pending
+    status: completed
   - id: modal-capture
     content: "Implement capture-interactions.ts: trigger buttons/menus, capture q-dialog/q-menu/q-drawer subtrees with destructive-action guardrails"
-    status: pending
+    status: completed
   - id: component-lib
     content: "Implement extract-components.ts (+ optional sanitize.ts): slice component subtrees, map to source via component-catalog, dedupe"
-    status: pending
+    status: completed
   - id: mcp-tools
     content: Add MCP tools in build-server.ts (list/get-captured-pages, list/get-rendered-component) and serve css/screenshots statically from index.ts
-    status: pending
+    status: completed
   - id: pipeline-wire
     content: Add mcp-client.ts bridge fns and extend buildSystemPrompt in chat/route.ts to use captured rendered components + CSS bundle
-    status: pending
+    status: completed
 isProject: false
 ---
 

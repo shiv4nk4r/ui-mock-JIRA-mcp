@@ -7,6 +7,8 @@ import {
   fetchContextResources,
   fetchBrandIconCatalog,
   fetchComponentCatalog,
+  fetchCapturedPageCatalog,
+  fetchRenderedComponentCatalog,
   validateUiReferences,
   listProductScreenshots,
   screenshotPath,
@@ -237,7 +239,8 @@ function buildSystemPrompt(
   designContext  = "",
   sitemapContext = "",
   brandIconsContext = "",
-  componentCatalogContext = ""
+  componentCatalogContext = "",
+  renderedCaptureContext = ""
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -276,7 +279,13 @@ function buildSystemPrompt(
       "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
       "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
       "",
-      "COMPONENT REUSE POLICY — STRICT (highest priority):",
+      "RENDERED CAPTURE POLICY — HIGHEST FIDELITY (use first when available):",
+      "- Real RENDERED pages/components captured from the live app may be available (see catalog below). These are the actual computed DOM + CSS — the closest possible match to production.",
+      "- Workflow: call list-captured-pages to find a matching page, then get-captured-page(route) for the real rendered HTML, OR list-rendered-components(keyword) + get-rendered-component(id) for a specific table/modal/card.",
+      "- Each tool returns an absolute CSS bundle URL. Link it in the mockup <head> as <link rel=\"stylesheet\" href=\"<url>\"> and reuse the rendered HTML structure/classes verbatim so it renders exactly like the real app.",
+      "- When a captured reference exists, prefer adapting it over hand-writing layout/CSS. Fall back to component source + design tokens only when no capture matches.",
+      "",
+      "COMPONENT REUSE POLICY — STRICT:",
       "- A large library of real Vue components already exists (see catalog below). For ANY UI element, FIRST reuse an existing component's structure and CSS.",
       "- Workflow: call list-reusable-components(keywords) to find matches, then get-component-source(name) to get the REAL template markup + scoped CSS, and translate that exact structure/classes into the HTML mockup.",
       "- Reuse existing Quasar components (q-table, q-btn, q-card, …) and existing SCSS classes/tokens. Do NOT invent new component structures or class systems when one already exists.",
@@ -318,6 +327,15 @@ function buildSystemPrompt(
         componentCatalogContext,
         "Call get-component-source on any of these to obtain the real markup + CSS to reuse.",
         "=== END EXISTING COMPONENTS ==="
+      );
+    }
+
+    if (renderedCaptureContext) {
+      sections.push(
+        "=== REAL RENDERED CAPTURES (live-app DOM + CSS via MCP crawler) ===",
+        renderedCaptureContext,
+        "Call get-captured-page(route) / get-rendered-component(id) for the real rendered HTML + CSS bundle URL.",
+        "=== END RENDERED CAPTURES ==="
       );
     }
 
@@ -586,6 +604,7 @@ function streamClaudeCode(
   sitemapContext: string,
   brandIconsContext: string,
   componentCatalogContext: string,
+  renderedCaptureContext: string,
   attachedFiles?: UserAttachedFile[],
   isRefinement = false,
   currentHtml?: string,
@@ -632,7 +651,8 @@ function streamClaudeCode(
             designContext,
             sitemapContext,
             brandIconsContext,
-            componentCatalogContext
+            componentCatalogContext,
+            renderedCaptureContext
           );
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
@@ -871,7 +891,7 @@ export async function POST(request: Request) {
   } = body;
 
   let archContext = "", designContext = "", sitemapContext = "";
-  let brandIconsContext = "", componentCatalogContext = "";
+  let brandIconsContext = "", componentCatalogContext = "", renderedCaptureContext = "";
   let mcpContextError = "";
   try {
     const ctx = await fetchContextResources();
@@ -888,10 +908,17 @@ export async function POST(request: Request) {
   }
 
   if (enableVisualSkill) {
-    [brandIconsContext, componentCatalogContext] = await Promise.all([
+    const [icons, components, capturedPages, renderedComponents] = await Promise.all([
       fetchBrandIconCatalog(),
       fetchComponentCatalog(jiraData?.summary),
+      fetchCapturedPageCatalog(),
+      fetchRenderedComponentCatalog(jiraData?.summary),
     ]);
+    brandIconsContext = icons;
+    componentCatalogContext = components;
+    renderedCaptureContext = [capturedPages, renderedComponents]
+      .filter((s) => s && !/^No (captured|rendered)/.test(s.trim()))
+      .join("\n\n");
   }
 
   if (mcpContextError && !isRefinement) {
@@ -909,6 +936,6 @@ export async function POST(request: Request) {
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext, brandIconsContext,
-    componentCatalogContext, attachedFiles, isRefinement, currentHtml,
+    componentCatalogContext, renderedCaptureContext, attachedFiles, isRefinement, currentHtml,
   );
 }

@@ -27,6 +27,13 @@ import {
   validateComponentRefs,
 } from "./component-catalog";
 import { readSfcSource } from "./sfc-source";
+import {
+  formatCapturedPages,
+  formatRenderedComponents,
+  getCapturedPageText,
+  getRenderedComponentText,
+  resolveCaptureLabel,
+} from "./capture-catalog";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTEXT_DIR = path.join(__dirname, "context");
@@ -1025,6 +1032,67 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
           },
         ],
       };
+    }
+  );
+
+  // ── Rendered capture tools (from the offline crawler) ───────────────────────
+
+  const noCaptureMsg =
+    "No rendered captures available yet. Build them with: npm run crawl:login -w pm-mcp (once) then npm run crawl -w pm-mcp.";
+
+  server.tool(
+    "list-captured-pages",
+    "List REAL rendered pages captured from the live Manager Dashboard (rendered HTML + CSS + screenshots). Use these as pixel-faithful references for mockups. Returns routes; call get-captured-page for the rendered DOM + CSS bundle URL.",
+    async () => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: formatCapturedPages(label) }] };
+    }
+  );
+
+  server.tool(
+    "get-captured-page",
+    "Return the REAL rendered HTML of a captured page plus the absolute CSS bundle URL to link in a mockup. This is the actual computed DOM from the live app — reuse its structure instead of hand-writing layout.",
+    {
+      route: z
+        .string()
+        .describe("Route path as listed by list-captured-pages, e.g. /outbound or /"),
+    },
+    async ({ route }) => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: getCapturedPageText(label, route) }] };
+    }
+  );
+
+  server.tool(
+    "list-rendered-components",
+    "List REAL rendered component snapshots (q-table, q-dialog, q-card, modals, …) sliced from the live app. Filter by keyword. Call get-rendered-component for the exact rendered HTML to reuse against the captured CSS bundle.",
+    {
+      query: z
+        .string()
+        .optional()
+        .describe("Keyword: component key (q-table), kind (modal), source path, or route"),
+    },
+    async ({ query }) => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: formatRenderedComponents(label, query) }] };
+    }
+  );
+
+  server.tool(
+    "get-rendered-component",
+    "Return the REAL rendered HTML subtree for a captured component/modal plus the CSS bundle URL. Drop this verbatim into a mockup (linking the CSS bundle) for pixel-faithful fidelity.",
+    {
+      id: z
+        .string()
+        .describe("Component id from list-rendered-components, or a component key like q-table"),
+    },
+    async ({ id }) => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: getRenderedComponentText(label, id) }] };
     }
   );
 

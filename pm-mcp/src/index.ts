@@ -11,6 +11,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { buildMcpServer } from "./build-server";
+import { CAPTURES_URL_PREFIX } from "./capture-catalog";
+import { CAPTURES_ROOT } from "./crawler/capture-store";
 import {
   defaultFilesystemDirs,
   initFilesystemAccess,
@@ -35,6 +37,15 @@ const sessions: Record<string, SessionEntry> = {};
 
 const app = express();
 app.use(express.json({ limit: "4mb" }));
+
+// Serve crawler captures (CSS bundles + screenshots) so mockups in an iframe
+// srcDoc can reference them by absolute URL.
+app.use(
+  CAPTURES_URL_PREFIX,
+  express.static(CAPTURES_ROOT, {
+    setHeaders: (res) => res.setHeader("Access-Control-Allow-Origin", "*"),
+  })
+);
 
 let filesystemRootsCache: string[] = [];
 

@@ -131,6 +131,38 @@ export async function fetchComponentCatalog(query?: string, limit = 60): Promise
   }
 }
 
+/** Real rendered pages captured from the live app by the crawler. */
+export async function fetchCapturedPageCatalog(): Promise<string> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "list-captured-pages",
+      arguments: {},
+    });
+    return toolText(result);
+  } catch {
+    return "";
+  } finally {
+    await close();
+  }
+}
+
+/** Real rendered component/modal snapshots captured from the live app. */
+export async function fetchRenderedComponentCatalog(query?: string): Promise<string> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "list-rendered-components",
+      arguments: query ? { query } : {},
+    });
+    return toolText(result);
+  } catch {
+    return "";
+  } finally {
+    await close();
+  }
+}
+
 export interface UiReferenceValidation {
   valid: boolean;
   unknownComponents: Array<{ ref: string; suggestions?: string[] }>;
