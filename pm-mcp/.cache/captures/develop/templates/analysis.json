@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-18T08:37:16.880Z",
+  "generatedAt": "2026-06-18T08:56:50.990Z",
   "label": "develop",
-  "pageCount": 31,
+  "pageCount": 34,
   "archetypes": {
     "listing-table": {
       "routes": [
@@ -19,14 +19,17 @@
         "/inventory/stale-inventories",
         "/inventory/storage-utilisation",
         "/notification/listing",
+        "/outbound",
         "/outbound/capacity-planning",
         "/outbound/containers",
         "/outbound/handling-unit",
         "/outbound/orders",
         "/outbound/ordersV2",
         "/outbound/ra-orders",
+        "/outbound/reserved-orders",
         "/outbound/reserved-ordersV2",
         "/reports/operations-log",
+        "/",
         "/system/station-management",
         "/system/zones",
         "/users/v2Listing"
@@ -145,12 +148,17 @@
       "sampleRoute": "/notification/listing"
     },
     {
+      "hash": "a38e8efbc911",
+      "routeCount": 1,
+      "sampleRoute": "/outbound"
+    },
+    {
       "hash": "8c1faa87a5b4",
       "routeCount": 1,
       "sampleRoute": "/outbound/capacity-planning"
     },
     {
-      "hash": "3829021224bd",
+      "hash": "13c23b38a4d0",
       "routeCount": 1,
       "sampleRoute": "/outbound/containers"
     },
@@ -160,14 +168,24 @@
       "sampleRoute": "/outbound/handling-unit"
     },
     {
-      "hash": "854af4da5e4f",
-      "routeCount": 2,
+      "hash": "a18f15a3baa9",
+      "routeCount": 1,
       "sampleRoute": "/outbound/orders"
     },
     {
+      "hash": "59f0feb874cc",
+      "routeCount": 1,
+      "sampleRoute": "/outbound/ordersV2"
+    },
+    {
       "hash": "ec02d1d21ba5",
-      "routeCount": 2,
+      "routeCount": 1,
       "sampleRoute": "/outbound/ra-orders"
+    },
+    {
+      "hash": "4c6dc2b93f2c",
+      "routeCount": 2,
+      "sampleRoute": "/outbound/reserved-orders"
     },
     {
       "hash": "92b70a0aed67",
@@ -178,6 +196,11 @@
       "hash": "6a2b5c22faef",
       "routeCount": 1,
       "sampleRoute": "/reports/operations-log"
+    },
+    {
+      "hash": "26cc52adee72",
+      "routeCount": 1,
+      "sampleRoute": "/"
     },
     {
       "hash": "d0768ed881a1",

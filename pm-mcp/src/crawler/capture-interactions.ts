@@ -17,11 +17,15 @@ const TRIGGER_SELECTORS = [
   "[role='button']",
   ".q-item.q-item--clickable",
   ".q-fab",
+  ".q-tab",
+  "button[aria-haspopup='true']",
+  ".q-field__append",
+  ".q-select",
 ];
 
 const OVERLAY_SELECTORS = ".q-dialog, .q-menu, .q-drawer";
 
-const MAX_CLICKS_PER_PAGE = 10;
+const DEFAULT_MAX_CLICKS = 25;
 
 export interface ModalSnapshot {
   componentKey: string;
@@ -97,10 +101,11 @@ export async function captureInteractions(
   const startUrl = page.url();
 
   const handles = await page.$$(TRIGGER_SELECTORS.join(", "));
+  const maxClicks = config.maxModalClicks ?? DEFAULT_MAX_CLICKS;
   let clicks = 0;
 
   for (const handle of handles) {
-    if (clicks >= MAX_CLICKS_PER_PAGE) break;
+    if (clicks >= maxClicks) break;
     try {
       if (!(await handle.isVisible().catch(() => false))) continue;
       const label = ((await handle.innerText().catch(() => "")) || "")
@@ -114,7 +119,9 @@ export async function captureInteractions(
 
       clicks++;
       await handle.click({ timeout: 2000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page
+        .waitForSelector(OVERLAY_SELECTORS, { timeout: config.modalSettleMs, state: "visible" })
+        .catch(() => page.waitForTimeout(config.modalSettleMs));
 
       // Bail out (and recover) if the click navigated away.
       if (page.url() !== startUrl) {

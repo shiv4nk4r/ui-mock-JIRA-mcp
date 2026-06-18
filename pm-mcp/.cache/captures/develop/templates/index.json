@@ -1,6 +1,6 @@
 {
   "label": "develop",
-  "generatedAt": "2026-06-18T08:37:16.880Z",
+  "generatedAt": "2026-06-18T08:56:50.990Z",
   "templates": [
     {
       "route": "/audit/audit",
@@ -207,6 +207,21 @@
       "cssBundleId": "affcb7bdc426"
     },
     {
+      "route": "/outbound",
+      "slug": "outbound",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-drawer",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 68843,
+      "cssBundleId": "08553a329df9"
+    },
+    {
       "route": "/outbound/capacity-planning",
       "slug": "outbound__capacity-planning",
       "archetype": "listing-table",
@@ -229,11 +244,10 @@
         "q-table",
         "q-card",
         "q-tabs",
-        "q-toolbar",
-        "q-expansion-item"
+        "q-toolbar"
       ],
-      "strippedByteSize": 63106,
-      "cssBundleId": "21211a651913"
+      "strippedByteSize": 27156,
+      "cssBundleId": "08553a329df9"
     },
     {
       "route": "/outbound/handling-unit",
@@ -256,14 +270,13 @@
       "archetype": "listing-table",
       "detectedComponents": [
         "q-table",
-        "q-drawer",
         "q-card",
         "q-tabs",
         "q-toolbar",
-        "q-table__top"
+        "q-expansion-item"
       ],
-      "strippedByteSize": 68667,
-      "cssBundleId": "21211a651913"
+      "strippedByteSize": 61901,
+      "cssBundleId": "08553a329df9"
     },
     {
       "route": "/outbound/ordersV2",
@@ -277,8 +290,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 52898,
-      "cssBundleId": "21211a651913"
+      "strippedByteSize": 66320,
+      "cssBundleId": "08553a329df9"
     },
     {
       "route": "/outbound/ra-orders",
@@ -296,19 +309,32 @@
       "cssBundleId": "21211a651913"
     },
     {
+      "route": "/outbound/reserved-orders",
+      "slug": "outbound__reserved-orders",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-expansion-item"
+      ],
+      "strippedByteSize": 59024,
+      "cssBundleId": "08553a329df9"
+    },
+    {
       "route": "/outbound/reserved-ordersV2",
       "slug": "outbound__reserved-ordersV2",
       "archetype": "listing-table",
       "detectedComponents": [
         "q-table",
-        "q-drawer",
         "q-card",
         "q-tabs",
         "q-toolbar",
-        "q-table__top"
+        "q-expansion-item"
       ],
-      "strippedByteSize": 67128,
-      "cssBundleId": "21211a651913"
+      "strippedByteSize": 59013,
+      "cssBundleId": "08553a329df9"
     },
     {
       "route": "/overview/v2",
@@ -335,6 +361,21 @@
       ],
       "strippedByteSize": 28076,
       "cssBundleId": "904e63caddec"
+    },
+    {
+      "route": "/",
+      "slug": "root",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-drawer",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 67998,
+      "cssBundleId": "0503d5719ae3"
     },
     {
       "route": "/system/hardware-status",

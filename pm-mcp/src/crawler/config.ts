@@ -64,7 +64,13 @@ export interface CrawlConfig {
   maxPages: number;
   headless: boolean;
   navTimeoutMs: number;
+  /** Max wait for networkidle after navigation (dashboards rarely go fully idle). */
+  networkIdleMs: number;
   settleMs: number;
+  /** Short pause after clicking a modal/menu trigger (separate from page settle). */
+  modalSettleMs: number;
+  /** Max wait for table rows; 0 disables. */
+  tableWaitMs: number;
   captureModals: boolean;
   captureComponents: boolean;
   componentScreenshots: boolean;
@@ -82,6 +88,8 @@ export interface CrawlConfig {
   submitSelector?: string;
   /** Run post-crawl template analyzer after pages are captured. */
   analyzeTemplates: boolean;
+  /** Max safe trigger clicks per page for modal/menu capture. */
+  maxModalClicks: number;
 }
 
 function envBool(name: string, fallback: boolean): boolean {
@@ -123,7 +131,10 @@ export function loadCrawlConfig(): CrawlConfig {
     maxPages: envNum("CRAWL_MAX_PAGES", 40),
     headless: envBool("CRAWL_HEADLESS", true),
     navTimeoutMs: envNum("CRAWL_NAV_TIMEOUT_MS", 30_000),
-    settleMs: envNum("CRAWL_SETTLE_MS", 1_200),
+    networkIdleMs: envNum("CRAWL_NETWORK_IDLE_MS", 2_500),
+    settleMs: envNum("CRAWL_SETTLE_MS", 400),
+    modalSettleMs: envNum("CRAWL_MODAL_SETTLE_MS", 200),
+    tableWaitMs: envNum("CRAWL_TABLE_WAIT_MS", 3_000),
     captureModals: envBool("CRAWL_CAPTURE_MODALS", true),
     captureComponents: envBool("CRAWL_CAPTURE_COMPONENTS", true),
     componentScreenshots: envBool("CRAWL_COMPONENT_SHOTS", false),
@@ -140,6 +151,7 @@ export function loadCrawlConfig(): CrawlConfig {
     passwordSelector: process.env.CRAWL_PASSWORD_SELECTOR,
     submitSelector: process.env.CRAWL_SUBMIT_SELECTOR,
     analyzeTemplates: envBool("CRAWL_ANALYZE_TEMPLATES", true),
+    maxModalClicks: envNum("CRAWL_MAX_MODAL_CLICKS", 15),
   };
 }
 
@@ -148,10 +160,21 @@ export function loadCrawlConfig(): CrawlConfig {
  * path strings (skips params like :id). Used as additional seeds when present.
  */
 export function discoverRoutesFromRepo(): string[] {
-  const repoRoot = process.env.REPO_ROOT;
-  if (!repoRoot) return [];
-  const routerDir = path.join(repoRoot, "mdui", "src", "router");
-  if (!fs.existsSync(routerDir)) return [];
+  const repoCandidates = [
+    process.env.REPO_ROOT,
+    path.join(PM_MCP_ROOT, "..", ".."),
+    path.join(PM_MCP_ROOT, ".repos", "manager-dashboard"),
+  ].filter(Boolean) as string[];
+
+  let routerDir = "";
+  for (const repoRoot of repoCandidates) {
+    const candidate = path.join(repoRoot, "mdui", "src", "router");
+    if (fs.existsSync(candidate)) {
+      routerDir = candidate;
+      break;
+    }
+  }
+  if (!routerDir) return [];
 
   const found = new Set<string>();
   const walk = (dir: string) => {
@@ -168,7 +191,9 @@ export function discoverRoutesFromRepo(): string[] {
       while ((m = re.exec(src))) {
         const p = m[1];
         if (!p || p === "*" || p.includes(":") || p.startsWith("http")) continue;
-        found.add(p.startsWith("/") ? p : `/${p}`);
+        const route = p.startsWith("/") ? p.replace(/\/+$/, "") || "/" : `/${p}`.replace(/\/+$/, "") || "/";
+        if (["/login", "/v2/login", "/eula", "/maintenance-page"].includes(route)) continue;
+        found.add(route);
       }
     }
   };

@@ -57,6 +57,7 @@ function routeOf(url: string, baseUrl: string): string {
 function buildSeeds(config: CrawlConfig): string[] {
   const fromRepo = discoverRoutesFromRepo();
   const routes = new Set<string>([...config.routes, ...fromRepo]);
+  console.log(`[crawl] ${routes.size} seed route(s) (${fromRepo.length} from router, ${config.routes.length} from env)`);
   return [...routes].map((r) => {
     const route = r.startsWith("/") ? r : `/${r}`;
     return `${config.baseUrl}${route}`;

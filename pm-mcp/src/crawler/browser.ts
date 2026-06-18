@@ -9,6 +9,7 @@ import { chromium } from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 
 import type { CrawlConfig } from "./config";
+import { waitForPageReady } from "./wait-for-page";
 
 export interface BrowserSession {
   browser: Browser;
@@ -55,18 +56,7 @@ export async function gotoAndSettle(
   config: CrawlConfig
 ): Promise<void> {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: config.navTimeoutMs });
-  await page.waitForLoadState("networkidle", { timeout: config.navTimeoutMs }).catch(() => {});
-  // Quasar apps mount into #q-app; wait for it to have content when present.
-  await page
-    .waitForFunction(
-      () => {
-        const root = document.querySelector("#q-app") ?? document.body;
-        return !!root && root.childElementCount > 0;
-      },
-      { timeout: Math.min(config.navTimeoutMs, 10_000) }
-    )
-    .catch(() => {});
-  await page.waitForTimeout(config.settleMs);
+  await waitForPageReady(page, config);
 }
 
 /**
@@ -96,17 +86,7 @@ export async function spaNavigate(
 
   if (!issued) return false;
 
-  await page.waitForLoadState("networkidle", { timeout: config.navTimeoutMs }).catch(() => {});
-  await page
-    .waitForFunction(
-      () => {
-        const root = document.querySelector("#q-app") ?? document.body;
-        return !!root && root.childElementCount > 0;
-      },
-      { timeout: Math.min(config.navTimeoutMs, 10_000) }
-    )
-    .catch(() => {});
-  await page.waitForTimeout(config.settleMs);
+  await waitForPageReady(page, config);
   return true;
 }
 

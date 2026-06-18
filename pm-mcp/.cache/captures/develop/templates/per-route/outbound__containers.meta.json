@@ -6,12 +6,11 @@
     "q-table",
     "q-card",
     "q-tabs",
-    "q-toolbar",
-    "q-expansion-item"
+    "q-toolbar"
   ],
-  "strippedByteSize": 63106,
-  "shellByteSize": 20826,
-  "subNavByteSize": 12774,
-  "mainContentByteSize": 41166,
-  "cssBundleId": "21211a651913"
+  "strippedByteSize": 27156,
+  "shellByteSize": 21000,
+  "subNavByteSize": 12945,
+  "mainContentByteSize": 5042,
+  "cssBundleId": "08553a329df9"
 }

@@ -1,7 +1,7 @@
 {
   "id": "q-drawer__fa5a47876e",
   "componentKey": "q-drawer",
-  "route": "/outbound/ordersV2",
+  "route": "/",
   "renderedHtml": "<aside class=\"q-drawer q-drawer--right q-drawer--bordered q-layout--prevent-focus q-drawer--standard fixed\" style=\"width: 550px; transform: translateX(550px);\"><div class=\"q-drawer__content fit scroll\"></div></aside>",
   "kind": "component",
   "signature": "aside.fixed.q-drawer.q-drawer--bordered.q-drawer--right.q-drawer--standard.q-layout--prevent-focus>div.fit.q-drawer__content.scroll"
