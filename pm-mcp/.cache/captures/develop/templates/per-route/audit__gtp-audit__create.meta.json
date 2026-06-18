@@ -1,17 +1,17 @@
 {
   "route": "/audit/gtp-audit/create",
   "slug": "audit__gtp-audit__create",
-  "archetype": "listing-table",
+  "archetype": "dashboard-tabs",
   "detectedComponents": [
-    "q-table",
     "q-card",
     "q-tabs",
     "q-toolbar",
-    "q-expansion-item"
+    "q-stepper",
+    "q-tab-panels"
   ],
-  "strippedByteSize": 39527,
-  "shellByteSize": 19108,
-  "subNavByteSize": 12774,
-  "mainContentByteSize": 19305,
-  "cssBundleId": "affcb7bdc426"
+  "strippedByteSize": 38320,
+  "shellByteSize": 18728,
+  "subNavByteSize": 12422,
+  "mainContentByteSize": 18007,
+  "cssBundleId": "6b570eef0903"
 }

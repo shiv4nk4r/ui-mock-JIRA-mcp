@@ -1,0 +1,16 @@
+{
+  "route": "/reports",
+  "slug": "reports",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 27610,
+  "shellByteSize": 18783,
+  "subNavByteSize": 12422,
+  "mainContentByteSize": 7713,
+  "cssBundleId": "5866392ca849"
+}

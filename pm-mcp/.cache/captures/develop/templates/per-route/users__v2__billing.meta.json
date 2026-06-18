@@ -1,0 +1,16 @@
+{
+  "route": "/users/v2/billing",
+  "slug": "users__v2__billing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 25884,
+  "shellByteSize": 21354,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 2916,
+  "cssBundleId": "5866392ca849"
+}

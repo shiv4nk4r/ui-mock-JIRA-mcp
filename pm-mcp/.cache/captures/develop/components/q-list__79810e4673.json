@@ -1,0 +1,8 @@
+{
+  "id": "q-list__79810e4673",
+  "componentKey": "q-list",
+  "route": "/alerts",
+  "renderedHtml": "<div data-v-57129cb2=\"\" class=\"q-list q-list--bordered q-list--separator\"></div>",
+  "kind": "component",
+  "signature": "div.q-list.q-list--bordered.q-list--separator"
+}

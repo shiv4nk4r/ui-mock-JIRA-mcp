@@ -1,0 +1,17 @@
+{
+  "route": "/users/pallet-types",
+  "slug": "users__pallet-types",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 29461,
+  "shellByteSize": 21608,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 6084,
+  "cssBundleId": "bc77e2948b77"
+}

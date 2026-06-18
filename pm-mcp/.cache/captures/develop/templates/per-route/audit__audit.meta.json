@@ -9,9 +9,9 @@
     "q-toolbar",
     "q-expansion-item"
   ],
-  "strippedByteSize": 38192,
-  "shellByteSize": 19153,
-  "subNavByteSize": 12774,
-  "mainContentByteSize": 17350,
-  "cssBundleId": "affcb7bdc426"
+  "strippedByteSize": 42063,
+  "shellByteSize": 18773,
+  "subNavByteSize": 12422,
+  "mainContentByteSize": 21705,
+  "cssBundleId": "73d3a6a2d95b"
 }

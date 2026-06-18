@@ -1,0 +1,11 @@
+{
+  "route": "/system/pps",
+  "slug": "system__pps",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3737,
+  "shellByteSize": 3737,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "5866392ca849"
+}

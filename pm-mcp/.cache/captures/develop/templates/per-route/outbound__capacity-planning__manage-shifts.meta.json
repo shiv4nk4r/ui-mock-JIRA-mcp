@@ -1,0 +1,17 @@
+{
+  "route": "/outbound/capacity-planning/manage-shifts",
+  "slug": "outbound__capacity-planning__manage-shifts",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 27612,
+  "shellByteSize": 20378,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 4500,
+  "cssBundleId": "6d0718ba0b96"
+}

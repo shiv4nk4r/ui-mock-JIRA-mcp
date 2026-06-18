@@ -1,16 +1,15 @@
 {
   "route": "/outbound/containers",
   "slug": "outbound__containers",
-  "archetype": "listing-table",
+  "archetype": "other",
   "detectedComponents": [
-    "q-table",
     "q-card",
     "q-tabs",
     "q-toolbar"
   ],
-  "strippedByteSize": 27156,
-  "shellByteSize": 21000,
-  "subNavByteSize": 12945,
-  "mainContentByteSize": 5042,
-  "cssBundleId": "08553a329df9"
+  "strippedByteSize": 21640,
+  "shellByteSize": 20406,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 120,
+  "cssBundleId": "60142f21fd77"
 }

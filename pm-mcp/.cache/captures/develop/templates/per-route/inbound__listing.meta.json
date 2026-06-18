@@ -8,9 +8,9 @@
     "q-tabs",
     "q-toolbar"
   ],
-  "strippedByteSize": 40042,
-  "shellByteSize": 19160,
-  "subNavByteSize": 12774,
-  "mainContentByteSize": 19768,
-  "cssBundleId": "c270a5101f5c"
+  "strippedByteSize": 40491,
+  "shellByteSize": 18780,
+  "subNavByteSize": 12379,
+  "mainContentByteSize": 19814,
+  "cssBundleId": "400c61a8dc0f"
 }

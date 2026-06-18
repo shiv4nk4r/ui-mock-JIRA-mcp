@@ -1,0 +1,8 @@
+{
+  "id": "q-card__e54ba7367e",
+  "componentKey": "q-card",
+  "route": "/alerts",
+  "renderedHtml": "<div data-v-57129cb2=\"\" class=\"q-card q-card--flat no-shadow\"><div data-v-57129cb2=\"\" class=\"row items-center bg-primary text-white q-pa-sm q-card__section q-card__section--vert\"><div data-v-57129cb2=\"\">\n        Notifications | Total: <span data-v-57129cb2=\"\" class=\"text-weight-bold\"> 0 </span></div></div><div data-v-57129cb2=\"\" class=\"q-list q-list--bordered q-list--separator\"></div><div data-v-57129cb2=\"\" class=\"row justify-center q-my-xs full-width\"><button tabindex=\"-1\" type=\"button\" class=\"q-btn q-btn-item non-selectable no-outline q-px-md q-btn--unelevated q-btn--rectangle bg-secondary text-white disabled q-btn--no-uppercase q-btn--wrap\" disabled=\"disabled\" aria-disabled=\"true\"><span class=\"q-focus-helper\"></span><span class=\"q-btn__wrapper col row q-anchor--skip\" style=\"padding: 8px; min-width: 0px; min-height: 0px;\"><span class=\"q-btn__content text-center col items-center q-anchor--skip justify-center row\"><span class=\"block\">Load More</span></span></span></button></div></div>",
+  "kind": "component",
+  "signature": "div.no-shadow.q-card.q-card--flat>div.bg-primary.items-center.q-card__section.q-card__section--vert.q-pa-sm.row.text-white>div>div.q-list.q-list--bordered.q-list--separator>div.full-width.justify-center.q-my-xs.row>button.bg-secondary.disabled.no-outline.non-selectable.q-btn.q-btn--no-uppercase.q-btn--rectangle.q-btn--unelevated.q-btn--wrap.q-btn-item.q-px-md.text-white"
+}

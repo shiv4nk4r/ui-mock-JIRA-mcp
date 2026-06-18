@@ -1,8 +1,8 @@
 {
   "id": "q-table__958a03d1be",
   "componentKey": "q-table",
-  "route": "/outbound/containers",
-  "renderedHtml": "<table class=\"q-table\"><thead><tr style=\"background-color: rgb(245, 245, 245);\"><th class=\"text-left\">Container Id</th><th class=\"text-left\">Order Id(s)</th><th class=\"text-left\">Order Type</th><th class=\"text-left\">Total Orderlines</th><th class=\"text-left\">Station Info</th><th class=\"text-left\">Actions</th></tr></thead><tbody></tbody></table>",
+  "route": "/outbound/ra-orders",
+  "renderedHtml": "<table class=\"q-table\"><thead><tr style=\"background-color: rgb(245, 245, 245);\"><th class=\"text-left\">Mission ID</th><th class=\"text-left\">Creation Time</th><th class=\"text-left\">Ranger ID</th><th class=\"text-left\">Status</th><th class=\"text-left\">Order ID</th><th class=\"text-left\">Mission Type</th><th class=\"text-left\">Action</th></tr></thead><tbody></tbody></table>",
   "kind": "component",
   "signature": "table.q-table>thead>tr>tbody"
 }

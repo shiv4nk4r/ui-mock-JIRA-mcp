@@ -1,0 +1,17 @@
+{
+  "route": "/audit",
+  "slug": "audit",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-expansion-item"
+  ],
+  "strippedByteSize": 43135,
+  "shellByteSize": 18773,
+  "subNavByteSize": 12422,
+  "mainContentByteSize": 22276,
+  "cssBundleId": "73d3a6a2d95b"
+}

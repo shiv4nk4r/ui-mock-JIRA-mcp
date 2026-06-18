@@ -1,7 +1,34 @@
 {
   "label": "develop",
-  "generatedAt": "2026-06-18T08:56:50.990Z",
+  "generatedAt": "2026-06-18T09:03:16.620Z",
   "templates": [
+    {
+      "route": "/alerts",
+      "slug": "alerts",
+      "archetype": "other",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-list"
+      ],
+      "strippedByteSize": 21136,
+      "cssBundleId": "bc77e2948b77"
+    },
+    {
+      "route": "/audit",
+      "slug": "audit",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-expansion-item"
+      ],
+      "strippedByteSize": 43135,
+      "cssBundleId": "73d3a6a2d95b"
+    },
     {
       "route": "/audit/audit",
       "slug": "audit__audit",
@@ -13,22 +40,52 @@
         "q-toolbar",
         "q-expansion-item"
       ],
-      "strippedByteSize": 38192,
-      "cssBundleId": "affcb7bdc426"
+      "strippedByteSize": 42063,
+      "cssBundleId": "73d3a6a2d95b"
+    },
+    {
+      "route": "/audit/audit/duplicate",
+      "slug": "audit__audit__duplicate",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3619,
+      "cssBundleId": "6b570eef0903"
     },
     {
       "route": "/audit/gtp-audit/create",
       "slug": "audit__gtp-audit__create",
-      "archetype": "listing-table",
+      "archetype": "dashboard-tabs",
       "detectedComponents": [
-        "q-table",
         "q-card",
         "q-tabs",
         "q-toolbar",
-        "q-expansion-item"
+        "q-stepper",
+        "q-tab-panels"
       ],
-      "strippedByteSize": 39527,
-      "cssBundleId": "affcb7bdc426"
+      "strippedByteSize": 38320,
+      "cssBundleId": "6b570eef0903"
+    },
+    {
+      "route": "/audit/item-search",
+      "slug": "audit__item-search",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3768,
+      "cssBundleId": "6b570eef0903"
+    },
+    {
+      "route": "/audit/reserve-audit/create",
+      "slug": "audit__reserve-audit__create",
+      "archetype": "dashboard-tabs",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-stepper",
+        "q-tab-panels"
+      ],
+      "strippedByteSize": 38058,
+      "cssBundleId": "6b570eef0903"
     },
     {
       "route": "/audit/reserved-audit",
@@ -41,8 +98,8 @@
         "q-toolbar",
         "q-expansion-item"
       ],
-      "strippedByteSize": 35837,
-      "cssBundleId": "affcb7bdc426"
+      "strippedByteSize": 36513,
+      "cssBundleId": "6b570eef0903"
     },
     {
       "route": "/downloads",
@@ -54,8 +111,22 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 21717,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 21982,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/exception",
+      "slug": "exception",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 29083,
+      "cssBundleId": "7a397a2db205"
     },
     {
       "route": "/exception/listing",
@@ -68,8 +139,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 37618,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 37290,
+      "cssBundleId": "7a397a2db205"
     },
     {
       "route": "/exception/reserved-listing",
@@ -82,8 +153,21 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 36897,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 29041,
+      "cssBundleId": "7a397a2db205"
+    },
+    {
+      "route": "/inbound",
+      "slug": "inbound",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 40445,
+      "cssBundleId": "400c61a8dc0f"
     },
     {
       "route": "/inbound/listing",
@@ -95,8 +179,8 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 40042,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 40491,
+      "cssBundleId": "400c61a8dc0f"
     },
     {
       "route": "/inbound/transfer-orders",
@@ -108,8 +192,24 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 29315,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 26520,
+      "cssBundleId": "400c61a8dc0f"
+    },
+    {
+      "route": "/inventory",
+      "slug": "inventory",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-drawer",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top",
+        "q-expansion-item"
+      ],
+      "strippedByteSize": 74793,
+      "cssBundleId": "99d70746d85f"
     },
     {
       "route": "/inventory/gtp-master-product",
@@ -121,8 +221,8 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 28447,
-      "cssBundleId": "7c3156e267d1"
+      "strippedByteSize": 28024,
+      "cssBundleId": "f50cad9a72b6"
     },
     {
       "route": "/inventory/products",
@@ -137,8 +237,8 @@
         "q-table__top",
         "q-expansion-item"
       ],
-      "strippedByteSize": 52067,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 74838,
+      "cssBundleId": "99d70746d85f"
     },
     {
       "route": "/inventory/recall",
@@ -150,8 +250,16 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 29252,
-      "cssBundleId": "43bf3e282bdb"
+      "strippedByteSize": 28829,
+      "cssBundleId": "cfcabf93f431"
+    },
+    {
+      "route": "/inventory/reserved-products",
+      "slug": "inventory__reserved-products",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "99d70746d85f"
     },
     {
       "route": "/inventory/stale-inventories",
@@ -164,8 +272,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 28810,
-      "cssBundleId": "affcb7bdc426"
+      "strippedByteSize": 28451,
+      "cssBundleId": "56acd6353133"
     },
     {
       "route": "/inventory/storage-utilisation",
@@ -178,8 +286,16 @@
         "q-toolbar",
         "q-expansion-item"
       ],
-      "strippedByteSize": 32912,
-      "cssBundleId": "7c3156e267d1"
+      "strippedByteSize": 31958,
+      "cssBundleId": "f50cad9a72b6"
+    },
+    {
+      "route": "/inventory/summary",
+      "slug": "inventory__summary",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "99d70746d85f"
     },
     {
       "route": "/inventory/tagChange",
@@ -190,8 +306,30 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 25847,
-      "cssBundleId": "2c6f6d1fe6fd"
+      "strippedByteSize": 26198,
+      "cssBundleId": "cbda2ae6bb78"
+    },
+    {
+      "route": "/inventory/utils",
+      "slug": "inventory__utils",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "cfcabf93f431"
+    },
+    {
+      "route": "/notification",
+      "slug": "notification",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-expansion-item"
+      ],
+      "strippedByteSize": 38570,
+      "cssBundleId": "6b570eef0903"
     },
     {
       "route": "/notification/listing",
@@ -203,8 +341,8 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 47738,
-      "cssBundleId": "affcb7bdc426"
+      "strippedByteSize": 31806,
+      "cssBundleId": "1d9574e293ef"
     },
     {
       "route": "/outbound",
@@ -218,8 +356,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 68843,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 67998,
+      "cssBundleId": "0503d5719ae3"
     },
     {
       "route": "/outbound/capacity-planning",
@@ -233,21 +371,34 @@
         "q-table__top",
         "q-expansion-item"
       ],
-      "strippedByteSize": 28720,
-      "cssBundleId": "aa796fec88cc"
+      "strippedByteSize": 29241,
+      "cssBundleId": "6d0718ba0b96"
     },
     {
-      "route": "/outbound/containers",
-      "slug": "outbound__containers",
+      "route": "/outbound/capacity-planning/manage-shifts",
+      "slug": "outbound__capacity-planning__manage-shifts",
       "archetype": "listing-table",
       "detectedComponents": [
         "q-table",
         "q-card",
         "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 27612,
+      "cssBundleId": "6d0718ba0b96"
+    },
+    {
+      "route": "/outbound/containers",
+      "slug": "outbound__containers",
+      "archetype": "other",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 27156,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 21640,
+      "cssBundleId": "60142f21fd77"
     },
     {
       "route": "/outbound/handling-unit",
@@ -261,8 +412,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 35293,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 35664,
+      "cssBundleId": "400c61a8dc0f"
     },
     {
       "route": "/outbound/orders",
@@ -275,8 +426,8 @@
         "q-toolbar",
         "q-expansion-item"
       ],
-      "strippedByteSize": 61901,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 60598,
+      "cssBundleId": "60142f21fd77"
     },
     {
       "route": "/outbound/ordersV2",
@@ -290,8 +441,8 @@
         "q-toolbar",
         "q-table__top"
       ],
-      "strippedByteSize": 66320,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 62239,
+      "cssBundleId": "60142f21fd77"
     },
     {
       "route": "/outbound/ra-orders",
@@ -302,25 +453,22 @@
         "q-drawer",
         "q-card",
         "q-tabs",
-        "q-toolbar",
-        "q-table__top"
+        "q-toolbar"
       ],
-      "strippedByteSize": 67127,
-      "cssBundleId": "21211a651913"
+      "strippedByteSize": 28540,
+      "cssBundleId": "60142f21fd77"
     },
     {
       "route": "/outbound/reserved-orders",
       "slug": "outbound__reserved-orders",
-      "archetype": "listing-table",
+      "archetype": "other",
       "detectedComponents": [
-        "q-table",
         "q-card",
         "q-tabs",
-        "q-toolbar",
-        "q-expansion-item"
+        "q-toolbar"
       ],
-      "strippedByteSize": 59024,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 21640,
+      "cssBundleId": "60142f21fd77"
     },
     {
       "route": "/outbound/reserved-ordersV2",
@@ -328,13 +476,40 @@
       "archetype": "listing-table",
       "detectedComponents": [
         "q-table",
+        "q-drawer",
         "q-card",
         "q-tabs",
         "q-toolbar",
-        "q-expansion-item"
+        "q-table__top"
       ],
-      "strippedByteSize": 59013,
-      "cssBundleId": "08553a329df9"
+      "strippedByteSize": 66704,
+      "cssBundleId": "60142f21fd77"
+    },
+    {
+      "route": "/overview",
+      "slug": "overview",
+      "archetype": "dashboard-tabs",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-tab-panels"
+      ],
+      "strippedByteSize": 21557,
+      "cssBundleId": "90475de00feb"
+    },
+    {
+      "route": "/overview/old",
+      "slug": "overview__old",
+      "archetype": "dashboard-tabs",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-tab-panels"
+      ],
+      "strippedByteSize": 21557,
+      "cssBundleId": "90475de00feb"
     },
     {
       "route": "/overview/v2",
@@ -346,8 +521,37 @@
         "q-toolbar",
         "q-tab-panels"
       ],
-      "strippedByteSize": 21514,
-      "cssBundleId": "8fdc4c22c7fa"
+      "strippedByteSize": 21557,
+      "cssBundleId": "90475de00feb"
+    },
+    {
+      "route": "/reports",
+      "slug": "reports",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 27610,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/reports/archived-downloads",
+      "slug": "reports__archived-downloads",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/reports/misc",
+      "slug": "reports__misc",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/reports/operations-log",
@@ -359,8 +563,16 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 28076,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 27637,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/reports/storage-space",
+      "slug": "reports__storage-space",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/",
@@ -378,6 +590,67 @@
       "cssBundleId": "0503d5719ae3"
     },
     {
+      "route": "/shift-planning",
+      "slug": "shift-planning",
+      "archetype": "other",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 27488,
+      "cssBundleId": "e891e852ca14"
+    },
+    {
+      "route": "/shift-planning/shift-management",
+      "slug": "shift-planning__shift-management",
+      "archetype": "other",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 27437,
+      "cssBundleId": "e891e852ca14"
+    },
+    {
+      "route": "/system",
+      "slug": "system",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 32068,
+      "cssBundleId": "1d9574e293ef"
+    },
+    {
+      "route": "/system/butlers",
+      "slug": "system__butlers",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/chargers",
+      "slug": "system__chargers",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/controllers",
+      "slug": "system__controllers",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "5866392ca849"
+    },
+    {
       "route": "/system/hardware-status",
       "slug": "system__hardware-status",
       "archetype": "other",
@@ -386,8 +659,32 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 23077,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 21550,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/overview",
+      "slug": "system__overview",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "1d9574e293ef"
+    },
+    {
+      "route": "/system/pps-config",
+      "slug": "system__pps-config",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/pps",
+      "slug": "system__pps",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3737,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/system/rack-config",
@@ -398,8 +695,47 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 22288,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 23185,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/reserve-station-management",
+      "slug": "system__reserve-station-management",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 31015,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/reserve-station-management/reserve-edit-config",
+      "slug": "system__reserve-station-management__reserve-edit-config",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 31015,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/reserve-station-management/reserve-flow-management",
+      "slug": "system__reserve-station-management__reserve-flow-management",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 35793,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/system/station-management",
@@ -411,8 +747,34 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 31859,
-      "cssBundleId": "14d42907392b"
+      "strippedByteSize": 31393,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/station-management/edit-config",
+      "slug": "system__station-management__edit-config",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 31393,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/system/station-management/flow-management",
+      "slug": "system__station-management__flow-management",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 35789,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/system/zones",
@@ -424,8 +786,21 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 26435,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 27332,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/transport",
+      "slug": "transport",
+      "archetype": "dashboard-tabs",
+      "detectedComponents": [
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-tab-panels"
+      ],
+      "strippedByteSize": 21557,
+      "cssBundleId": "90475de00feb"
     },
     {
       "route": "/transport/listing",
@@ -437,20 +812,111 @@
         "q-toolbar",
         "q-tab-panels"
       ],
-      "strippedByteSize": 21937,
-      "cssBundleId": "c270a5101f5c"
+      "strippedByteSize": 21557,
+      "cssBundleId": "90475de00feb"
+    },
+    {
+      "route": "/users",
+      "slug": "users",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 34946,
+      "cssBundleId": "5866392ca849"
     },
     {
       "route": "/users/access-control",
       "slug": "users__access-control",
-      "archetype": "form",
+      "archetype": "listing-table",
       "detectedComponents": [
+        "q-table",
         "q-card",
-        "q-toolbar",
-        "q-form"
+        "q-tabs",
+        "q-toolbar"
       ],
-      "strippedByteSize": 3547,
-      "cssBundleId": "e09ea603bd74"
+      "strippedByteSize": 27087,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/users/base-setup",
+      "slug": "users__base-setup",
+      "archetype": "other",
+      "detectedComponents": [],
+      "strippedByteSize": 3148,
+      "cssBundleId": "bc77e2948b77"
+    },
+    {
+      "route": "/users/handling-units",
+      "slug": "users__handling-units",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 28768,
+      "cssBundleId": "02b4cd785421"
+    },
+    {
+      "route": "/users/listing",
+      "slug": "users__listing",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 38589,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/users/pallet-types",
+      "slug": "users__pallet-types",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 29461,
+      "cssBundleId": "bc77e2948b77"
+    },
+    {
+      "route": "/users/tool-listing",
+      "slug": "users__tool-listing",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 30564,
+      "cssBundleId": "bc77e2948b77"
+    },
+    {
+      "route": "/users/tool-types",
+      "slug": "users__tool-types",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar",
+        "q-table__top"
+      ],
+      "strippedByteSize": 34479,
+      "cssBundleId": "b9d6cbc2bf8f"
     },
     {
       "route": "/users/v2Listing",
@@ -462,8 +928,21 @@
         "q-tabs",
         "q-toolbar"
       ],
-      "strippedByteSize": 46709,
-      "cssBundleId": "904e63caddec"
+      "strippedByteSize": 47162,
+      "cssBundleId": "5866392ca849"
+    },
+    {
+      "route": "/users/v2/billing",
+      "slug": "users__v2__billing",
+      "archetype": "listing-table",
+      "detectedComponents": [
+        "q-table",
+        "q-card",
+        "q-tabs",
+        "q-toolbar"
+      ],
+      "strippedByteSize": 25884,
+      "cssBundleId": "5866392ca849"
     }
   ]
 }

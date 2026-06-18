@@ -4,14 +4,15 @@
   "archetype": "listing-table",
   "detectedComponents": [
     "q-table",
+    "q-drawer",
     "q-card",
     "q-tabs",
     "q-toolbar",
-    "q-expansion-item"
+    "q-table__top"
   ],
-  "strippedByteSize": 59013,
-  "shellByteSize": 20958,
-  "subNavByteSize": 12945,
-  "mainContentByteSize": 36941,
-  "cssBundleId": "08553a329df9"
+  "strippedByteSize": 66704,
+  "shellByteSize": 20364,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 45226,
+  "cssBundleId": "60142f21fd77"
 }

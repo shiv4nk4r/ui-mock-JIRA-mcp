@@ -1,0 +1,17 @@
+{
+  "route": "/audit/reserve-audit/create",
+  "slug": "audit__reserve-audit__create",
+  "archetype": "dashboard-tabs",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-stepper",
+    "q-tab-panels"
+  ],
+  "strippedByteSize": 38058,
+  "shellByteSize": 18728,
+  "subNavByteSize": 12422,
+  "mainContentByteSize": 17745,
+  "cssBundleId": "6b570eef0903"
+}

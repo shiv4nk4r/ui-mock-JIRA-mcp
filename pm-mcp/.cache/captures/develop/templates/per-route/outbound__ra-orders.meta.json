@@ -7,12 +7,11 @@
     "q-drawer",
     "q-card",
     "q-tabs",
-    "q-toolbar",
-    "q-table__top"
+    "q-toolbar"
   ],
-  "strippedByteSize": 67127,
-  "shellByteSize": 20787,
-  "subNavByteSize": 12774,
-  "mainContentByteSize": 45226,
-  "cssBundleId": "21211a651913"
+  "strippedByteSize": 28540,
+  "shellByteSize": 20364,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 7062,
+  "cssBundleId": "60142f21fd77"
 }

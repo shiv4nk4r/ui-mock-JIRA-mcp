@@ -1,0 +1,11 @@
+{
+  "route": "/reports/storage-space",
+  "slug": "reports__storage-space",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3148,
+  "shellByteSize": 3148,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "5866392ca849"
+}

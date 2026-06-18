@@ -2,8 +2,8 @@
   "version": "1",
   "label": "develop",
   "baseUrl": "http://localhost:8080",
-  "createdAt": "2026-06-18T08:56:50.325Z",
-  "updatedAt": "2026-06-18T08:56:50.990Z",
+  "createdAt": "2026-06-18T09:01:53.556Z",
+  "updatedAt": "2026-06-18T09:03:16.620Z",
   "pages": [
     {
       "route": "/",
@@ -11,7 +11,7 @@
       "title": "Manager Dashboard",
       "screenshot": "root.png",
       "componentCount": 7,
-      "modalCount": 2
+      "modalCount": 0
     },
     {
       "route": "/outbound",
@@ -19,47 +19,599 @@
       "title": "Manager Dashboard",
       "screenshot": "outbound.png",
       "componentCount": 7,
-      "modalCount": 2
+      "modalCount": 0
     },
     {
       "route": "/outbound/orders",
       "slug": "outbound__orders",
       "title": "Manager Dashboard",
       "screenshot": "outbound__orders.png",
-      "componentCount": 6,
-      "modalCount": 2
+      "componentCount": 8,
+      "modalCount": 0
     },
     {
       "route": "/outbound/ordersV2",
       "slug": "outbound__ordersV2",
       "title": "Manager Dashboard",
       "screenshot": "outbound__ordersV2.png",
-      "componentCount": 7,
-      "modalCount": 2
+      "componentCount": 9,
+      "modalCount": 0
     },
     {
       "route": "/outbound/containers",
       "slug": "outbound__containers",
       "title": "Manager Dashboard",
       "screenshot": "outbound__containers.png",
-      "componentCount": 6,
-      "modalCount": 2
+      "componentCount": 4,
+      "modalCount": 0
     },
     {
       "route": "/outbound/reserved-orders",
       "slug": "outbound__reserved-orders",
       "title": "Manager Dashboard",
       "screenshot": "outbound__reserved-orders.png",
-      "componentCount": 6,
-      "modalCount": 2
+      "componentCount": 4,
+      "modalCount": 0
     },
     {
       "route": "/outbound/reserved-ordersV2",
       "slug": "outbound__reserved-ordersV2",
       "title": "Manager Dashboard",
       "screenshot": "outbound__reserved-ordersV2.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/ra-orders",
+      "slug": "outbound__ra-orders",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__ra-orders.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/capacity-planning",
+      "slug": "outbound__capacity-planning",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__capacity-planning.png",
+      "componentCount": 9,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/capacity-planning/manage-shifts",
+      "slug": "outbound__capacity-planning__manage-shifts",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__capacity-planning__manage-shifts.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/handling-unit",
+      "slug": "outbound__handling-unit",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__handling-unit.png",
       "componentCount": 8,
-      "modalCount": 2
+      "modalCount": 0
+    },
+    {
+      "route": "/inbound",
+      "slug": "inbound",
+      "title": "Manager Dashboard",
+      "screenshot": "inbound.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/inbound/listing",
+      "slug": "inbound__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "inbound__listing.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/inbound/transfer-orders",
+      "slug": "inbound__transfer-orders",
+      "title": "Manager Dashboard",
+      "screenshot": "inbound__transfer-orders.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/transport",
+      "slug": "transport",
+      "title": "Manager Dashboard",
+      "screenshot": "transport.png",
+      "componentCount": 3,
+      "modalCount": 0
+    },
+    {
+      "route": "/transport/listing",
+      "slug": "transport__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "transport__listing.png",
+      "componentCount": 3,
+      "modalCount": 0
+    },
+    {
+      "route": "/overview",
+      "slug": "overview",
+      "title": "Manager Dashboard",
+      "screenshot": "overview.png",
+      "componentCount": 3,
+      "modalCount": 0
+    },
+    {
+      "route": "/overview/v2",
+      "slug": "overview__v2",
+      "title": "Manager Dashboard",
+      "screenshot": "overview__v2.png",
+      "componentCount": 3,
+      "modalCount": 0
+    },
+    {
+      "route": "/overview/old",
+      "slug": "overview__old",
+      "title": "Manager Dashboard",
+      "screenshot": "overview__old.png",
+      "componentCount": 3,
+      "modalCount": 0
+    },
+    {
+      "route": "/exception",
+      "slug": "exception",
+      "title": "Manager Dashboard",
+      "screenshot": "exception.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/exception/listing",
+      "slug": "exception__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "exception__listing.png",
+      "componentCount": 5,
+      "modalCount": 0
+    },
+    {
+      "route": "/exception/reserved-listing",
+      "slug": "exception__reserved-listing",
+      "title": "Manager Dashboard",
+      "screenshot": "exception__reserved-listing.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory",
+      "slug": "inventory",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/products",
+      "slug": "inventory__products",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__products.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/reserved-products",
+      "slug": "inventory__reserved-products",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__reserved-products.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/summary",
+      "slug": "inventory__summary",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__summary.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/tagChange",
+      "slug": "inventory__tagChange",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__tagChange.png",
+      "componentCount": 5,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/recall",
+      "slug": "inventory__recall",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__recall.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/utils",
+      "slug": "inventory__utils",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__utils.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/storage-utilisation",
+      "slug": "inventory__storage-utilisation",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__storage-utilisation.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/gtp-master-product",
+      "slug": "inventory__gtp-master-product",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__gtp-master-product.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/inventory/stale-inventories",
+      "slug": "inventory__stale-inventories",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__stale-inventories.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit",
+      "slug": "audit",
+      "title": "Manager Dashboard",
+      "screenshot": "audit.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/audit",
+      "slug": "audit__audit",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__audit.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/gtp-audit/create",
+      "slug": "audit__gtp-audit__create",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__gtp-audit__create.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/reserve-audit/create",
+      "slug": "audit__reserve-audit__create",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__reserve-audit__create.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/audit/duplicate",
+      "slug": "audit__audit__duplicate",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__audit__duplicate.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/item-search",
+      "slug": "audit__item-search",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__item-search.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/audit/reserved-audit",
+      "slug": "audit__reserved-audit",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__reserved-audit.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/notification",
+      "slug": "notification",
+      "title": "Manager Dashboard",
+      "screenshot": "notification.png",
+      "componentCount": 8,
+      "modalCount": 0
+    },
+    {
+      "route": "/notification/listing",
+      "slug": "notification__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "notification__listing.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/system",
+      "slug": "system",
+      "title": "Manager Dashboard",
+      "screenshot": "system.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/overview",
+      "slug": "system__overview",
+      "title": "Manager Dashboard",
+      "screenshot": "system__overview.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/zones",
+      "slug": "system__zones",
+      "title": "Manager Dashboard",
+      "screenshot": "system__zones.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/butlers",
+      "slug": "system__butlers",
+      "title": "Manager Dashboard",
+      "screenshot": "system__butlers.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/pps",
+      "slug": "system__pps",
+      "title": "Manager Dashboard",
+      "screenshot": "system__pps.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/chargers",
+      "slug": "system__chargers",
+      "title": "Manager Dashboard",
+      "screenshot": "system__chargers.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/pps-config",
+      "slug": "system__pps-config",
+      "title": "Manager Dashboard",
+      "screenshot": "system__pps-config.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/rack-config",
+      "slug": "system__rack-config",
+      "title": "Manager Dashboard",
+      "screenshot": "system__rack-config.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/controllers",
+      "slug": "system__controllers",
+      "title": "Manager Dashboard",
+      "screenshot": "system__controllers.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/station-management",
+      "slug": "system__station-management",
+      "title": "Manager Dashboard",
+      "screenshot": "system__station-management.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/reserve-station-management",
+      "slug": "system__reserve-station-management",
+      "title": "Manager Dashboard",
+      "screenshot": "system__reserve-station-management.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/station-management/edit-config",
+      "slug": "system__station-management__edit-config",
+      "title": "Manager Dashboard",
+      "screenshot": "system__station-management__edit-config.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/reserve-station-management/reserve-edit-config",
+      "slug": "system__reserve-station-management__reserve-edit-config",
+      "title": "Manager Dashboard",
+      "screenshot": "system__reserve-station-management__reserve-edit-config.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/station-management/flow-management",
+      "slug": "system__station-management__flow-management",
+      "title": "Manager Dashboard",
+      "screenshot": "system__station-management__flow-management.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/reserve-station-management/reserve-flow-management",
+      "slug": "system__reserve-station-management__reserve-flow-management",
+      "title": "Manager Dashboard",
+      "screenshot": "system__reserve-station-management__reserve-flow-management.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/system/hardware-status",
+      "slug": "system__hardware-status",
+      "title": "Manager Dashboard",
+      "screenshot": "system__hardware-status.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/reports",
+      "slug": "reports",
+      "title": "Manager Dashboard",
+      "screenshot": "reports.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/reports/operations-log",
+      "slug": "reports__operations-log",
+      "title": "Manager Dashboard",
+      "screenshot": "reports__operations-log.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/reports/storage-space",
+      "slug": "reports__storage-space",
+      "title": "Manager Dashboard",
+      "screenshot": "reports__storage-space.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/reports/misc",
+      "slug": "reports__misc",
+      "title": "Manager Dashboard",
+      "screenshot": "reports__misc.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/reports/archived-downloads",
+      "slug": "reports__archived-downloads",
+      "title": "Manager Dashboard",
+      "screenshot": "reports__archived-downloads.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/downloads",
+      "slug": "downloads",
+      "title": "Manager Dashboard",
+      "screenshot": "downloads.png",
+      "componentCount": 5,
+      "modalCount": 0
+    },
+    {
+      "route": "/users",
+      "slug": "users",
+      "title": "Manager Dashboard",
+      "screenshot": "users.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/listing",
+      "slug": "users__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "users__listing.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/v2Listing",
+      "slug": "users__v2Listing",
+      "title": "Manager Dashboard",
+      "screenshot": "users__v2Listing.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/v2/billing",
+      "slug": "users__v2__billing",
+      "title": "Manager Dashboard",
+      "screenshot": "users__v2__billing.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/access-control",
+      "slug": "users__access-control",
+      "title": "Manager Dashboard",
+      "screenshot": "users__access-control.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/tool-types",
+      "slug": "users__tool-types",
+      "title": "Manager Dashboard",
+      "screenshot": "users__tool-types.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/handling-units",
+      "slug": "users__handling-units",
+      "title": "Manager Dashboard",
+      "screenshot": "users__handling-units.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/pallet-types",
+      "slug": "users__pallet-types",
+      "title": "Manager Dashboard",
+      "screenshot": "users__pallet-types.png",
+      "componentCount": 6,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/tool-listing",
+      "slug": "users__tool-listing",
+      "title": "Manager Dashboard",
+      "screenshot": "users__tool-listing.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/users/base-setup",
+      "slug": "users__base-setup",
+      "title": "Manager Dashboard",
+      "screenshot": "users__base-setup.png",
+      "componentCount": 0,
+      "modalCount": 0
+    },
+    {
+      "route": "/alerts",
+      "slug": "alerts",
+      "title": "Manager Dashboard",
+      "screenshot": "alerts.png",
+      "componentCount": 5,
+      "modalCount": 0
+    },
+    {
+      "route": "/shift-planning",
+      "slug": "shift-planning",
+      "title": "Manager Dashboard",
+      "screenshot": "shift-planning.png",
+      "componentCount": 4,
+      "modalCount": 0
+    },
+    {
+      "route": "/shift-planning/shift-management",
+      "slug": "shift-planning__shift-management",
+      "title": "Manager Dashboard",
+      "screenshot": "shift-planning__shift-management.png",
+      "componentCount": 4,
+      "modalCount": 0
     }
   ],
   "componentIds": [
@@ -70,30 +622,126 @@
     "q-tabs__e0003cc2b8",
     "q-toolbar__01a5968db5",
     "q-table__top__d61d2a4524",
-    "q-menu__13258f954a",
-    "q-menu__c68f57fe97",
-    "q-card__bf3e708c4f",
-    "q-tabs__f4e9f0fb87",
+    "q-card__022dba4338",
+    "q-table__001a8b4d69",
     "q-card__a7c134afed",
+    "q-card__f1206ec233",
     "q-tabs__e4d3b766db",
     "q-expansion-item__5941e56b01",
+    "q-table__28647da9d4",
     "q-card__6c224b3070",
-    "q-table__958a03d1be",
-    "q-card__5acc90141f",
+    "q-card__c0a2fbb2b4",
     "q-tabs__03a5ee760f",
     "q-tabs__5f35bbf780",
-    "q-table__001a8b4d69",
-    "q-card__3319b40498"
+    "q-table__top__cad3be868d",
+    "q-table__958a03d1be",
+    "q-card__be768496f1",
+    "q-table__a24709695e",
+    "q-card__3f5929f65b",
+    "q-card__8d0d36919c",
+    "q-tabs__1423e444c1",
+    "q-table__top__52e740ab03",
+    "q-table__09fa11734a",
+    "q-card__9ece687ee4",
+    "q-tabs__e44445063f",
+    "q-table__top__fc9bff347e",
+    "q-card__1eae525d0d",
+    "q-table__top__e41b28da5d",
+    "q-table__f8bf69e6b7",
+    "q-card__a0db81bce5",
+    "q-tabs__145337233b",
+    "q-tabs__b13e4aa514",
+    "q-card__c6372f876c",
+    "q-tabs__24478d6eee",
+    "q-tabs__954da8728d",
+    "q-card__22d3f8267b",
+    "q-tabs__3731793690",
+    "q-tabs__5818590090",
+    "q-table__top__5f2c2ab143",
+    "q-card__bc6b7ccec1",
+    "q-tabs__b9592af300",
+    "q-tabs__f4e9f0fb87",
+    "q-table__top__442b888bd1",
+    "q-expansion-item__8e76970bff",
+    "q-card__50846688fd",
+    "q-tabs__17b08bc770",
+    "q-card__7dd3823994",
+    "q-table__43f2a47343",
+    "q-card__6a204d474a",
+    "q-expansion-item__faa203cf53",
+    "q-card__1f1b8cce35",
+    "q-table__0db21a94b9",
+    "q-card__7978374fbc",
+    "q-table__top__fcb84fb09d",
+    "q-card__43435ead29",
+    "q-card__611c45c3da",
+    "q-tabs__e5c1a17c94",
+    "q-expansion-item__5c08773911",
+    "q-card__113b722b4d",
+    "q-tabs__eacaad63a5",
+    "q-stepper__782037d19c",
+    "q-tab-panels__43e2cd24d9",
+    "q-tabs__9b5fcc8041",
+    "q-card__015cb2ec16",
+    "q-card__ca1700f57e",
+    "q-tabs__7f330f84e3",
+    "q-card__b415b23d06",
+    "q-tabs__55bd67b5b0",
+    "q-card__e282ad341e",
+    "q-tabs__1e46bc7b14",
+    "q-table__2a1aca4777",
+    "q-card__f8d00c1040",
+    "q-tabs__6c8fd53b80",
+    "q-card__bcbd2adf49",
+    "q-tabs__8f57fa6c27",
+    "q-card__d1a2e6fa5b",
+    "q-tabs__1f7ee5ba8d",
+    "q-toolbar__648bd6c7ff",
+    "q-card__b46a38cfaa",
+    "q-tabs__5423c3a18b",
+    "q-tabs__1ca3f46e51",
+    "q-tabs__9c512d75a5",
+    "q-card__a514634765",
+    "q-card__f89711b155",
+    "q-tabs__a07128fcbe",
+    "q-card__bd91263365",
+    "q-tabs__ab25776fd8",
+    "q-table__top__cb793aed30",
+    "q-table__0a07365590",
+    "q-tabs__edef147192",
+    "q-tabs__16c75d0cb7",
+    "q-card__e784de8ec6",
+    "q-tabs__591b3bb241",
+    "q-table__top__8d8227027b",
+    "q-card__e54ba7367e",
+    "q-list__79810e4673",
+    "q-tabs__a8905198a9"
   ],
   "cssBundleIds": [
     "0503d5719ae3",
-    "08553a329df9"
+    "60142f21fd77",
+    "6d0718ba0b96",
+    "400c61a8dc0f",
+    "90475de00feb",
+    "7a397a2db205",
+    "99d70746d85f",
+    "cbda2ae6bb78",
+    "cfcabf93f431",
+    "f50cad9a72b6",
+    "56acd6353133",
+    "73d3a6a2d95b",
+    "6b570eef0903",
+    "1d9574e293ef",
+    "5866392ca849",
+    "b9d6cbc2bf8f",
+    "02b4cd785421",
+    "bc77e2948b77",
+    "e891e852ca14"
   ],
-  "templatesGeneratedAt": "2026-06-18T08:56:50.990Z",
+  "templatesGeneratedAt": "2026-06-18T09:03:16.620Z",
   "archetypes": [
     "listing-table",
     "dashboard-tabs",
-    "form",
     "other"
   ]
 }

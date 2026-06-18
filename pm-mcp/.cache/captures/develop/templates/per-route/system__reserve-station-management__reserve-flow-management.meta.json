@@ -1,0 +1,16 @@
+{
+  "route": "/system/reserve-station-management/reserve-flow-management",
+  "slug": "system__reserve-station-management__reserve-flow-management",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 35793,
+  "shellByteSize": 20369,
+  "subNavByteSize": 12379,
+  "mainContentByteSize": 14310,
+  "cssBundleId": "5866392ca849"
+}

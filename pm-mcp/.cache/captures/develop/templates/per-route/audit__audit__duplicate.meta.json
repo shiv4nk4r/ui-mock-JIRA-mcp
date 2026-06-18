@@ -1,0 +1,11 @@
+{
+  "route": "/audit/audit/duplicate",
+  "slug": "audit__audit__duplicate",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3619,
+  "shellByteSize": 3619,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "6b570eef0903"
+}

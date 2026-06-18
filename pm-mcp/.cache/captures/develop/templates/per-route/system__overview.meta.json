@@ -1,0 +1,11 @@
+{
+  "route": "/system/overview",
+  "slug": "system__overview",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3737,
+  "shellByteSize": 3737,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "1d9574e293ef"
+}

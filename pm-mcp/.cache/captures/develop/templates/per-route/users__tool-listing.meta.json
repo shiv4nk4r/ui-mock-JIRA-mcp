@@ -1,0 +1,17 @@
+{
+  "route": "/users/tool-listing",
+  "slug": "users__tool-listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 30564,
+  "shellByteSize": 21651,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 7799,
+  "cssBundleId": "bc77e2948b77"
+}

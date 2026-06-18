@@ -1,0 +1,11 @@
+{
+  "route": "/inventory/reserved-products",
+  "slug": "inventory__reserved-products",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3148,
+  "shellByteSize": 3148,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "99d70746d85f"
+}

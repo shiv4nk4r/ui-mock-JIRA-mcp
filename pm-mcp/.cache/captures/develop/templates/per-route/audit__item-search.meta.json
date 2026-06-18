@@ -1,0 +1,11 @@
+{
+  "route": "/audit/item-search",
+  "slug": "audit__item-search",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3768,
+  "shellByteSize": 3768,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "6b570eef0903"
+}

@@ -1,0 +1,16 @@
+{
+  "route": "/alerts",
+  "slug": "alerts",
+  "archetype": "other",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-list"
+  ],
+  "strippedByteSize": 21136,
+  "shellByteSize": 18881,
+  "subNavByteSize": 12224,
+  "mainContentByteSize": 1142,
+  "cssBundleId": "bc77e2948b77"
+}

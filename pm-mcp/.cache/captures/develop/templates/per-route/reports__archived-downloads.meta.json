@@ -1,0 +1,11 @@
+{
+  "route": "/reports/archived-downloads",
+  "slug": "reports__archived-downloads",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3148,
+  "shellByteSize": 3148,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "5866392ca849"
+}

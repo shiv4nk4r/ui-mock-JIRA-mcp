@@ -1,0 +1,15 @@
+{
+  "route": "/shift-planning/shift-management",
+  "slug": "shift-planning__shift-management",
+  "archetype": "other",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 27437,
+  "shellByteSize": 18625,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 7698,
+  "cssBundleId": "e891e852ca14"
+}

@@ -1,38 +1,56 @@
 {
-  "generatedAt": "2026-06-18T08:56:50.990Z",
+  "generatedAt": "2026-06-18T09:03:16.620Z",
   "label": "develop",
-  "pageCount": 34,
+  "pageCount": 76,
   "archetypes": {
     "listing-table": {
       "routes": [
+        "/audit",
         "/audit/audit",
-        "/audit/gtp-audit/create",
         "/audit/reserved-audit",
         "/downloads",
+        "/exception",
         "/exception/listing",
         "/exception/reserved-listing",
+        "/inbound",
         "/inbound/listing",
         "/inbound/transfer-orders",
+        "/inventory",
         "/inventory/gtp-master-product",
         "/inventory/products",
         "/inventory/recall",
         "/inventory/stale-inventories",
         "/inventory/storage-utilisation",
+        "/notification",
         "/notification/listing",
         "/outbound",
         "/outbound/capacity-planning",
-        "/outbound/containers",
+        "/outbound/capacity-planning/manage-shifts",
         "/outbound/handling-unit",
         "/outbound/orders",
         "/outbound/ordersV2",
         "/outbound/ra-orders",
-        "/outbound/reserved-orders",
         "/outbound/reserved-ordersV2",
+        "/reports",
         "/reports/operations-log",
         "/",
+        "/system",
+        "/system/reserve-station-management",
+        "/system/reserve-station-management/reserve-edit-config",
+        "/system/reserve-station-management/reserve-flow-management",
         "/system/station-management",
+        "/system/station-management/edit-config",
+        "/system/station-management/flow-management",
         "/system/zones",
-        "/users/v2Listing"
+        "/users",
+        "/users/access-control",
+        "/users/handling-units",
+        "/users/listing",
+        "/users/pallet-types",
+        "/users/tool-listing",
+        "/users/tool-types",
+        "/users/v2Listing",
+        "/users/v2/billing"
       ],
       "canonicalRoute": "/downloads",
       "canonicalSlug": "downloads",
@@ -44,7 +62,12 @@
     },
     "dashboard-tabs": {
       "routes": [
+        "/audit/gtp-audit/create",
+        "/audit/reserve-audit/create",
+        "/overview",
+        "/overview/old",
         "/overview/v2",
+        "/transport",
         "/transport/listing"
       ],
       "canonicalRoute": "/overview/v2",
@@ -56,186 +79,288 @@
       }
     },
     "form": {
-      "routes": [
-        "/users/access-control"
-      ],
-      "canonicalRoute": "/users/access-control",
-      "canonicalSlug": "users__access-control",
-      "commonPatterns": {
-        "tableClasses": "",
-        "filterBarSnippet": "",
-        "sectionBannerSnippet": ""
-      }
+      "routes": [],
+      "commonPatterns": {}
     },
     "other": {
       "routes": [
+        "/alerts",
+        "/audit/audit/duplicate",
+        "/audit/item-search",
+        "/inventory/reserved-products",
+        "/inventory/summary",
         "/inventory/tagChange",
+        "/inventory/utils",
+        "/outbound/containers",
+        "/outbound/reserved-orders",
+        "/reports/archived-downloads",
+        "/reports/misc",
+        "/reports/storage-space",
+        "/shift-planning",
+        "/shift-planning/shift-management",
+        "/system/butlers",
+        "/system/chargers",
+        "/system/controllers",
         "/system/hardware-status",
-        "/system/rack-config"
+        "/system/overview",
+        "/system/pps-config",
+        "/system/pps",
+        "/system/rack-config",
+        "/users/base-setup"
       ],
       "commonPatterns": {}
     }
   },
   "shellVariants": [
     {
-      "hash": "341ceb04c725",
+      "hash": "22432f535d68",
       "routeCount": 1,
-      "sampleRoute": "/audit/audit"
+      "sampleRoute": "/alerts"
     },
     {
-      "hash": "8212ca161b8c",
+      "hash": "0476e7d4e8c0",
+      "routeCount": 2,
+      "sampleRoute": "/audit"
+    },
+    {
+      "hash": "c36bc59ce976",
+      "routeCount": 1,
+      "sampleRoute": "/audit/audit/duplicate"
+    },
+    {
+      "hash": "850460368992",
       "routeCount": 2,
       "sampleRoute": "/audit/gtp-audit/create"
     },
     {
-      "hash": "faed254f576e",
+      "hash": "1643c9b095fd",
+      "routeCount": 1,
+      "sampleRoute": "/audit/item-search"
+    },
+    {
+      "hash": "faa11d4fc068",
+      "routeCount": 1,
+      "sampleRoute": "/audit/reserved-audit"
+    },
+    {
+      "hash": "c8a6b85743e4",
       "routeCount": 1,
       "sampleRoute": "/downloads"
     },
     {
-      "hash": "03e7ee4f0954",
-      "routeCount": 1,
-      "sampleRoute": "/exception/listing"
+      "hash": "0469d504cb7a",
+      "routeCount": 2,
+      "sampleRoute": "/exception"
     },
     {
-      "hash": "2416f039a607",
+      "hash": "db4b4a96b466",
       "routeCount": 1,
       "sampleRoute": "/exception/reserved-listing"
     },
     {
-      "hash": "c83b18584f23",
-      "routeCount": 1,
-      "sampleRoute": "/inbound/listing"
+      "hash": "b6b19288cd84",
+      "routeCount": 2,
+      "sampleRoute": "/inbound"
     },
     {
-      "hash": "cd9fccaf4424",
+      "hash": "f62e8df11872",
       "routeCount": 1,
       "sampleRoute": "/inbound/transfer-orders"
     },
     {
-      "hash": "1d3054f1b220",
+      "hash": "ca06ea88b8f9",
+      "routeCount": 2,
+      "sampleRoute": "/inventory"
+    },
+    {
+      "hash": "6088091744f9",
       "routeCount": 1,
       "sampleRoute": "/inventory/gtp-master-product"
     },
     {
-      "hash": "e3f01341475e",
-      "routeCount": 1,
-      "sampleRoute": "/inventory/products"
-    },
-    {
-      "hash": "df178d3dcada",
+      "hash": "aadd469656b3",
       "routeCount": 1,
       "sampleRoute": "/inventory/recall"
     },
     {
-      "hash": "4a9d814f5e99",
+      "hash": "f998c0d3a4ff",
+      "routeCount": 2,
+      "sampleRoute": "/inventory/reserved-products"
+    },
+    {
+      "hash": "691db493a6a2",
       "routeCount": 1,
       "sampleRoute": "/inventory/stale-inventories"
     },
     {
-      "hash": "699defb4afa6",
+      "hash": "8c8d5fbd4ce9",
       "routeCount": 1,
       "sampleRoute": "/inventory/storage-utilisation"
     },
     {
-      "hash": "80c23246eb5a",
+      "hash": "5ac47e012775",
       "routeCount": 1,
       "sampleRoute": "/inventory/tagChange"
     },
     {
-      "hash": "32e37e194e2b",
+      "hash": "e62b5861566a",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/utils"
+    },
+    {
+      "hash": "1bb12a56e2bf",
+      "routeCount": 1,
+      "sampleRoute": "/notification"
+    },
+    {
+      "hash": "08188fd9f701",
       "routeCount": 1,
       "sampleRoute": "/notification/listing"
     },
     {
-      "hash": "a38e8efbc911",
-      "routeCount": 1,
+      "hash": "26cc52adee72",
+      "routeCount": 2,
       "sampleRoute": "/outbound"
     },
     {
-      "hash": "8c1faa87a5b4",
+      "hash": "9f603854d10f",
       "routeCount": 1,
       "sampleRoute": "/outbound/capacity-planning"
     },
     {
-      "hash": "13c23b38a4d0",
+      "hash": "9fb7dd50e7eb",
       "routeCount": 1,
+      "sampleRoute": "/outbound/capacity-planning/manage-shifts"
+    },
+    {
+      "hash": "0526229345c4",
+      "routeCount": 2,
       "sampleRoute": "/outbound/containers"
     },
     {
-      "hash": "a0118964079f",
+      "hash": "85ee33c0ce70",
       "routeCount": 1,
       "sampleRoute": "/outbound/handling-unit"
     },
     {
-      "hash": "a18f15a3baa9",
+      "hash": "77bef22f9e66",
       "routeCount": 1,
       "sampleRoute": "/outbound/orders"
     },
     {
-      "hash": "59f0feb874cc",
+      "hash": "ffb29507cbf4",
       "routeCount": 1,
       "sampleRoute": "/outbound/ordersV2"
     },
     {
-      "hash": "ec02d1d21ba5",
-      "routeCount": 1,
+      "hash": "d32cadc768f9",
+      "routeCount": 2,
       "sampleRoute": "/outbound/ra-orders"
     },
     {
-      "hash": "4c6dc2b93f2c",
+      "hash": "fc466d530cc0",
+      "routeCount": 5,
+      "sampleRoute": "/overview"
+    },
+    {
+      "hash": "98a4f457b288",
       "routeCount": 2,
-      "sampleRoute": "/outbound/reserved-orders"
+      "sampleRoute": "/reports"
     },
     {
-      "hash": "92b70a0aed67",
+      "hash": "bf3db0e848bd",
+      "routeCount": 3,
+      "sampleRoute": "/reports/archived-downloads"
+    },
+    {
+      "hash": "68795b424f75",
+      "routeCount": 2,
+      "sampleRoute": "/shift-planning"
+    },
+    {
+      "hash": "7dea5fc32083",
       "routeCount": 1,
-      "sampleRoute": "/overview/v2"
+      "sampleRoute": "/system"
     },
     {
-      "hash": "6a2b5c22faef",
-      "routeCount": 1,
-      "sampleRoute": "/reports/operations-log"
+      "hash": "87b69bdfa246",
+      "routeCount": 5,
+      "sampleRoute": "/system/butlers"
     },
     {
-      "hash": "26cc52adee72",
-      "routeCount": 1,
-      "sampleRoute": "/"
-    },
-    {
-      "hash": "d0768ed881a1",
+      "hash": "3430c548b367",
       "routeCount": 1,
       "sampleRoute": "/system/hardware-status"
     },
     {
-      "hash": "54d98c457c55",
+      "hash": "e456605f06f0",
+      "routeCount": 1,
+      "sampleRoute": "/system/overview"
+    },
+    {
+      "hash": "af4233b286c7",
       "routeCount": 1,
       "sampleRoute": "/system/rack-config"
     },
     {
-      "hash": "3d8238cd2a82",
-      "routeCount": 1,
+      "hash": "cdf28d0dfc9e",
+      "routeCount": 3,
+      "sampleRoute": "/system/reserve-station-management"
+    },
+    {
+      "hash": "a77c9f18726f",
+      "routeCount": 2,
       "sampleRoute": "/system/station-management"
     },
     {
-      "hash": "d9ac08bce066",
+      "hash": "565d29666638",
+      "routeCount": 1,
+      "sampleRoute": "/system/station-management/flow-management"
+    },
+    {
+      "hash": "81245ee16cd8",
       "routeCount": 1,
       "sampleRoute": "/system/zones"
     },
     {
-      "hash": "9f88d5e7ff86",
-      "routeCount": 1,
-      "sampleRoute": "/transport/listing"
+      "hash": "8bc99c43b8f4",
+      "routeCount": 2,
+      "sampleRoute": "/users"
     },
     {
-      "hash": "cdd1d6c50da4",
+      "hash": "5111df89713b",
       "routeCount": 1,
       "sampleRoute": "/users/access-control"
     },
     {
-      "hash": "01d18c4b357b",
+      "hash": "bd6c2cb4419d",
       "routeCount": 1,
-      "sampleRoute": "/users/v2Listing"
+      "sampleRoute": "/users/base-setup"
+    },
+    {
+      "hash": "555d3f29bf79",
+      "routeCount": 1,
+      "sampleRoute": "/users/handling-units"
+    },
+    {
+      "hash": "b18d62abf60e",
+      "routeCount": 2,
+      "sampleRoute": "/users/listing"
+    },
+    {
+      "hash": "9160aa1fa706",
+      "routeCount": 1,
+      "sampleRoute": "/users/pallet-types"
+    },
+    {
+      "hash": "ced9c565cc6a",
+      "routeCount": 1,
+      "sampleRoute": "/users/tool-listing"
+    },
+    {
+      "hash": "00980b45d1f7",
+      "routeCount": 1,
+      "sampleRoute": "/users/tool-types"
     }
   ]
 }

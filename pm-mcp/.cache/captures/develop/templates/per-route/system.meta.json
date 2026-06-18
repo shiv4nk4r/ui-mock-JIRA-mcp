@@ -1,0 +1,16 @@
+{
+  "route": "/system",
+  "slug": "system",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 32068,
+  "shellByteSize": 20497,
+  "subNavByteSize": 12465,
+  "mainContentByteSize": 9868,
+  "cssBundleId": "1d9574e293ef"
+}

@@ -1,0 +1,16 @@
+{
+  "route": "/users/listing",
+  "slug": "users__listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 38589,
+  "shellByteSize": 21354,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 16121,
+  "cssBundleId": "5866392ca849"
+}

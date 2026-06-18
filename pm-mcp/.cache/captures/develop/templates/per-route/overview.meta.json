@@ -1,0 +1,16 @@
+{
+  "route": "/overview",
+  "slug": "overview",
+  "archetype": "dashboard-tabs",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-tab-panels"
+  ],
+  "strippedByteSize": 21557,
+  "shellByteSize": 18207,
+  "subNavByteSize": 12450,
+  "mainContentByteSize": 1559,
+  "cssBundleId": "90475de00feb"
+}

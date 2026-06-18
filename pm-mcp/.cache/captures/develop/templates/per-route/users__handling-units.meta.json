@@ -1,0 +1,17 @@
+{
+  "route": "/users/handling-units",
+  "slug": "users__handling-units",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 28768,
+  "shellByteSize": 21565,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 5434,
+  "cssBundleId": "02b4cd785421"
+}

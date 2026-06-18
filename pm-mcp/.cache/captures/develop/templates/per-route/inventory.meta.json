@@ -1,0 +1,19 @@
+{
+  "route": "/inventory",
+  "slug": "inventory",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-drawer",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top",
+    "q-expansion-item"
+  ],
+  "strippedByteSize": 74793,
+  "shellByteSize": 20568,
+  "subNavByteSize": 12508,
+  "mainContentByteSize": 53111,
+  "cssBundleId": "99d70746d85f"
+}

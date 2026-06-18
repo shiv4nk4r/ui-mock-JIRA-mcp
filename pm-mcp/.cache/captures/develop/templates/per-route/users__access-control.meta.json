@@ -1,15 +1,16 @@
 {
   "route": "/users/access-control",
   "slug": "users__access-control",
-  "archetype": "form",
+  "archetype": "listing-table",
   "detectedComponents": [
+    "q-table",
     "q-card",
-    "q-toolbar",
-    "q-form"
+    "q-tabs",
+    "q-toolbar"
   ],
-  "strippedByteSize": 3547,
-  "shellByteSize": 3547,
-  "subNavByteSize": 0,
-  "mainContentByteSize": 929,
-  "cssBundleId": "e09ea603bd74"
+  "strippedByteSize": 27087,
+  "shellByteSize": 21396,
+  "subNavByteSize": 12253,
+  "mainContentByteSize": 3413,
+  "cssBundleId": "5866392ca849"
 }

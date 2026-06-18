@@ -1,0 +1,11 @@
+{
+  "route": "/users/base-setup",
+  "slug": "users__base-setup",
+  "archetype": "other",
+  "detectedComponents": [],
+  "strippedByteSize": 3148,
+  "shellByteSize": 3148,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 0,
+  "cssBundleId": "bc77e2948b77"
+}
