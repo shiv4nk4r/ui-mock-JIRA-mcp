@@ -69,8 +69,17 @@ export interface CrawlConfig {
   captureComponents: boolean;
   componentScreenshots: boolean;
   sanitize: boolean;
+  /** Navigate routes client-side via the SPA router (for servers w/o history fallback). */
+  spaNav: boolean;
   viewport: { width: number; height: number };
   appCommit?: string;
+  /** Optional credentials for automated (non-interactive) login. */
+  username?: string;
+  password?: string;
+  /** Optional selector overrides for the login form. */
+  usernameSelector?: string;
+  passwordSelector?: string;
+  submitSelector?: string;
 }
 
 function envBool(name: string, fallback: boolean): boolean {
@@ -117,11 +126,17 @@ export function loadCrawlConfig(): CrawlConfig {
     captureComponents: envBool("CRAWL_CAPTURE_COMPONENTS", true),
     componentScreenshots: envBool("CRAWL_COMPONENT_SHOTS", false),
     sanitize: envBool("CRAWL_SANITIZE", false),
+    spaNav: envBool("CRAWL_SPA_NAV", false),
     viewport: {
       width: envNum("CRAWL_VIEWPORT_W", 1440),
       height: envNum("CRAWL_VIEWPORT_H", 900),
     },
     appCommit: process.env.CRAWL_APP_COMMIT,
+    username: process.env.CRAWL_USERNAME,
+    password: process.env.CRAWL_PASSWORD,
+    usernameSelector: process.env.CRAWL_USERNAME_SELECTOR,
+    passwordSelector: process.env.CRAWL_PASSWORD_SELECTOR,
+    submitSelector: process.env.CRAWL_SUBMIT_SELECTOR,
   };
 }
 

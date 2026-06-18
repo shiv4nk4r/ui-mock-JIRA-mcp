@@ -43,7 +43,16 @@ export async function capturePage(
   config: CrawlConfig
 ): Promise<CapturePageResult> {
   await gotoAndSettle(page, url, config);
+  return captureCurrent(page, context, url, config);
+}
 
+/** Capture the page in its current (already-navigated) state — no navigation. */
+export async function captureCurrent(
+  page: Page,
+  context: BrowserContext,
+  url: string,
+  config: CrawlConfig
+): Promise<CapturePageResult> {
   const title = await page.title();
   let html = await page.content();
   if (config.sanitize) html = sanitizeHtml(html);

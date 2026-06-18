@@ -1,0 +1,8 @@
+{
+  "id": "q-expansion-item__faa203cf53",
+  "componentKey": "q-expansion-item",
+  "route": "/inventory/storage-utilisation",
+  "renderedHtml": "<div class=\"q-expansion-item q-item-type overflow-hidden rounded-borders q-expansion-item--collapsed q-expansion-item--standard\"><div class=\"q-expansion-item__container relative-position\"><div tabindex=\"0\" class=\"q-item q-item-type row no-wrap q-item--clickable q-link cursor-pointer q-focusable q-hoverable q-item--dense bg-primary text-white q-pa-sm \"><div tabindex=\"-1\" class=\"q-focus-helper\"></div><div class=\"q-item__section column q-item__section--main justify-center\"><span>Summary | Overall Storage Utilisation: <span class=\"text-weight-bold\">43%</span>\n          | Utilised Volume: <span class=\"text-weight-bold\"> 8949 m³</span>\n          | Free Volume: <span class=\"text-weight-bold\"> 11670.41 m³</span></span></div><div class=\"q-item__section column q-focusable relative-position cursor-pointer q-item__section--side justify-center text-white\"><i aria-hidden=\"true\" role=\"presentation\" class=\"q-expansion-item__toggle-icon q-icon notranslate material-icons\">keyboard_arrow_down</i></div></div><div class=\"q-expansion-item__content relative-position\" style=\"display: none;\"></div></div></div>",
+  "kind": "component",
+  "signature": "div.overflow-hidden.q-expansion-item.q-expansion-item--collapsed.q-expansion-item--standard.q-item-type.rounded-borders>div.q-expansion-item__container.relative-position>div.bg-primary.cursor-pointer.no-wrap.q-focusable.q-hoverable.q-item.q-item--clickable.q-item--dense.q-item-type.q-link.q-pa-sm.row.text-white>div.q-expansion-item__content.relative-position"
+}

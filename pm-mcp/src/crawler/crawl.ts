@@ -10,15 +10,16 @@
 
 import type { Page } from "playwright";
 
-import { discoverLinks, launchSession } from "./browser";
+import { discoverLinks, gotoAndSettle, launchSession, spaNavigate } from "./browser";
 import {
   discoverRoutesFromRepo,
   loadCrawlConfig,
   type CrawlConfig,
 } from "./config";
-import { capturePage } from "./capture-page";
+import { capturePage, captureCurrent } from "./capture-page";
 import { captureInteractions } from "./capture-interactions";
 import { mapToSource } from "./extract-components";
+import { automatedLogin, isOnLoginPage } from "./login";
 import {
   CAPTURE_VERSION,
   type CaptureManifest,
@@ -78,6 +79,30 @@ async function main() {
   const { browser, context } = await launchSession(config);
   const page: Page = await context.newPage();
 
+  // Inline login (preferred): logs in inside this live context so tokens stored
+  // in sessionStorage / memory survive the whole crawl (storageState can't).
+  let booted = false;
+  if (config.username && config.password) {
+    console.log("[crawl] Logging in inline with provided credentials…");
+    const ok = await automatedLogin(page, context, config);
+    if (!ok) {
+      console.warn(
+        "[crawl] Inline login unconfirmed — continuing, but pages may be the login screen. " +
+          "Check .cache/crawl-auth/login-*.png."
+      );
+    } else {
+      console.log("[crawl] Login confirmed.");
+      booted = true; // app is already booted + authenticated in this tab
+    }
+  }
+
+  // For servers without history-mode fallback, boot the SPA at "/" once and
+  // navigate client-side via the router for every subsequent route.
+  if (config.spaNav && !booted) {
+    console.log("[crawl] SPA nav mode — booting app at base URL…");
+    await gotoAndSettle(page, config.baseUrl, config);
+  }
+
   const visited = new Set<string>();
   const queue: QueueItem[] = buildSeeds(config).map((url) => ({ url, depth: 0 }));
 
@@ -99,7 +124,26 @@ async function main() {
 
       let result;
       try {
-        result = await capturePage(page, context, item.url, config);
+        if (config.spaNav) {
+          let navOk = await spaNavigate(page, route, config);
+          if (!navOk) {
+            console.warn(`[crawl]   skipped ${route}: SPA router not reachable`);
+            continue;
+          }
+          // Some routes trip a logout/redirect — re-authenticate and retry once.
+          if (config.username && config.password && (await isOnLoginPage(page))) {
+            console.warn(`[crawl]   ${route}: bounced to login, re-authenticating…`);
+            await automatedLogin(page, context, config);
+            navOk = await spaNavigate(page, route, config);
+          }
+          if (await isOnLoginPage(page)) {
+            console.warn(`[crawl]   skipped ${route}: auth bounce (still on login after retry)`);
+            continue;
+          }
+          result = await captureCurrent(page, context, item.url, config);
+        } else {
+          result = await capturePage(page, context, item.url, config);
+        }
       } catch (e) {
         console.warn(`[crawl]   skipped ${route}: ${(e as Error).message}`);
         continue;
@@ -144,7 +188,14 @@ async function main() {
       const modalRefs: CapturedModalRef[] = [];
       if (config.captureModals) {
         try {
-          const modals = await captureInteractions(page, config, item.url);
+          const recover = async () => {
+            if (config.spaNav) {
+              await spaNavigate(page, route, config);
+            } else {
+              await gotoAndSettle(page, item.url, config);
+            }
+          };
+          const modals = await captureInteractions(page, config, recover);
           for (const modal of modals) {
             const sigKey = `${modal.componentKey}::${modal.signature}`;
             const id = `${modal.componentKey}__${hashContent(sigKey).slice(0, 10)}`;

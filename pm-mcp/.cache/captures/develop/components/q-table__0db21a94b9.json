@@ -1,0 +1,8 @@
+{
+  "id": "q-table__0db21a94b9",
+  "componentKey": "q-table",
+  "route": "/inventory/stale-inventories",
+  "renderedHtml": "<table class=\"q-table\"><thead><tr data-v-09e09ae6=\"\" class=\"q-tr\"><th data-v-09e09ae6=\"\" class=\"q-table--col-auto-width\"><div data-v-09e09ae6=\"\" tabindex=\"0\" role=\"checkbox\" aria-checked=\"false\" class=\"q-checkbox cursor-pointer no-outline row inline no-wrap items-center\"><div class=\"q-checkbox__inner relative-position non-selectable q-checkbox__inner--falsy\"><input type=\"checkbox\" class=\"hidden q-checkbox__native absolute q-ma-none q-pa-none\" style=\"\"><div class=\"q-checkbox__bg absolute\"><svg focusable=\"false\" viewBox=\"0 0 24 24\" aria-hidden=\"true\" class=\"q-checkbox__svg fit absolute-full\"><path fill=\"none\" d=\"M1.73,12.91 8.1,19.28 22.79,4.59\" class=\"q-checkbox__truthy\"></path><path d=\"M4,14H20V10H4\" class=\"q-checkbox__indet\"></path></svg></div></div><span tabindex=\"-1\" class=\"no-outline\"></span></div></th><th data-v-09e09ae6=\"\" class=\"text-left\" style=\"min-width: 100px;\">\n                SKU\n                <!----></th><th data-v-09e09ae6=\"\" class=\"text-left\" style=\"min-width: 80px;\">\n                Quantity\n                <!----></th><th data-v-09e09ae6=\"\" class=\"text-left\" style=\"min-width: 80px;\">\n                Location\n                <!----></th><th data-v-09e09ae6=\"\" class=\"text-left\">\n                Last Update Time\n                <!----></th><th data-v-09e09ae6=\"\" class=\"q-table--col-auto-width\" style=\"min-width: 80px;\">\n                Actions\n              </th></tr></thead><tbody></tbody></table>",
+  "kind": "component",
+  "signature": "table.q-table>thead>tr.q-tr>tbody"
+}

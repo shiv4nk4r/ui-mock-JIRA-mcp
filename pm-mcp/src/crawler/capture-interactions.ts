@@ -90,10 +90,11 @@ async function closeOverlays(page: Page): Promise<void> {
 export async function captureInteractions(
   page: Page,
   config: CrawlConfig,
-  originUrl: string
+  recover: () => Promise<void>
 ): Promise<ModalSnapshot[]> {
   const out: ModalSnapshot[] = [];
   const seenSignatures = new Set<string>();
+  const startUrl = page.url();
 
   const handles = await page.$$(TRIGGER_SELECTORS.join(", "));
   let clicks = 0;
@@ -116,9 +117,8 @@ export async function captureInteractions(
       await page.waitForTimeout(500);
 
       // Bail out (and recover) if the click navigated away.
-      if (page.url() !== originUrl) {
-        await page.goto(originUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
-        await page.waitForTimeout(config.settleMs);
+      if (page.url() !== startUrl) {
+        await recover();
         continue;
       }
 

@@ -1,0 +1,8 @@
+{
+  "id": "q-card__82bb283edf",
+  "componentKey": "q-card",
+  "route": "/overview/v2",
+  "renderedHtml": "<div class=\"q-card q-card--flat no-shadow\"><div class=\"text-subtitle2 text-weight-medium text-orange-8 q-px-sm q-pa-none q-card__section q-card__section--vert\">\n      Manager Dashboard\n    </div><div class=\"text-weight-light q-px-sm q-pa-none q-card__section q-card__section--vert\" style=\"font-size: 12.5px;\">\n      Version  unknown\n    </div></div>",
+  "kind": "component",
+  "signature": "div.no-shadow.q-card.q-card--flat>div.q-card__section.q-card__section--vert.q-pa-none.q-px-sm.text-orange-8.text-subtitle2.text-weight-medium>div.q-card__section.q-card__section--vert.q-pa-none.q-px-sm.text-weight-light"
+}

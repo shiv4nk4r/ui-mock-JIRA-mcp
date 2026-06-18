@@ -15,18 +15,36 @@ export interface BrowserSession {
   context: BrowserContext;
 }
 
+/**
+ * Shim for esbuild's `__name` helper (injected by tsx with keepNames). Functions
+ * passed to page.evaluate / waitForFunction are serialized and run in the browser
+ * where `__name` is undefined, so we define a no-op global in every document.
+ */
+export const NAME_SHIM_CONTENT =
+  "window.__name = window.__name || function (fn) { return fn; };";
+
+export async function installEvaluateShim(context: BrowserContext): Promise<void> {
+  await context.addInitScript({ content: NAME_SHIM_CONTENT });
+}
+
 export async function launchSession(config: CrawlConfig): Promise<BrowserSession> {
-  if (!fs.existsSync(config.storageStatePath)) {
+  const hasCreds = Boolean(config.username && config.password);
+  const hasState = fs.existsSync(config.storageStatePath);
+  if (!hasState && !hasCreds) {
     throw new Error(
-      `No auth state at ${config.storageStatePath}. Run \`npm run crawl:login -w pm-mcp\` first.`
+      `No auth state at ${config.storageStatePath} and no CRAWL_USERNAME/CRAWL_PASSWORD set. ` +
+        "Run `npm run crawl:login -w pm-mcp` first, or provide credentials for inline login."
     );
   }
   const browser = await chromium.launch({ headless: config.headless });
+  // Prefer inline credential login (survives sessionStorage-based tokens);
+  // otherwise reuse the saved storageState.
   const context = await browser.newContext({
-    storageState: config.storageStatePath,
+    ...(hasState && !hasCreds ? { storageState: config.storageStatePath } : {}),
     viewport: config.viewport,
   });
   context.setDefaultNavigationTimeout(config.navTimeoutMs);
+  await installEvaluateShim(context);
   return { browser, context };
 }
 
@@ -49,6 +67,47 @@ export async function gotoAndSettle(
     )
     .catch(() => {});
   await page.waitForTimeout(config.settleMs);
+}
+
+/**
+ * Client-side SPA navigation via the Vue 2 router instance exposed on the root
+ * element (`#q-app.__vue__.$router`). Needed when the static server has no
+ * history-mode fallback, so deep URLs 404 and only `/` boots the app.
+ *
+ * Returns true if the router push was issued, false if no router was found.
+ */
+export async function spaNavigate(
+  page: Page,
+  route: string,
+  config: CrawlConfig
+): Promise<boolean> {
+  const issued = await page.evaluate((r) => {
+    const el =
+      (document.querySelector("#q-app") as unknown as { __vue__?: unknown }) ??
+      (document.body as unknown as { __vue__?: unknown });
+    const vue = el?.__vue__ as
+      | { $router?: { push: (p: string) => Promise<unknown> }; $root?: { $router?: { push: (p: string) => Promise<unknown> } } }
+      | undefined;
+    const router = vue?.$router ?? vue?.$root?.$router;
+    if (!router) return false;
+    Promise.resolve(router.push(r)).catch(() => {});
+    return true;
+  }, route);
+
+  if (!issued) return false;
+
+  await page.waitForLoadState("networkidle", { timeout: config.navTimeoutMs }).catch(() => {});
+  await page
+    .waitForFunction(
+      () => {
+        const root = document.querySelector("#q-app") ?? document.body;
+        return !!root && root.childElementCount > 0;
+      },
+      { timeout: Math.min(config.navTimeoutMs, 10_000) }
+    )
+    .catch(() => {});
+  await page.waitForTimeout(config.settleMs);
+  return true;
 }
 
 interface RawSheet {

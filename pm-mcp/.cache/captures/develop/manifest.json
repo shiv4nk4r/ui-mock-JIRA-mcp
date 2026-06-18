@@ -1,0 +1,343 @@
+{
+  "version": "1",
+  "label": "develop",
+  "baseUrl": "http://localhost:8080",
+  "createdAt": "2026-06-18T07:56:46.274Z",
+  "updatedAt": "2026-06-18T07:56:46.274Z",
+  "pages": [
+    {
+      "route": "/overview/v2",
+      "slug": "overview__v2",
+      "title": "Manager Dashboard",
+      "screenshot": "overview__v2.png",
+      "componentCount": 3,
+      "modalCount": 2
+    },
+    {
+      "route": "/outbound/ordersV2",
+      "slug": "outbound__ordersV2",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__ordersV2.png",
+      "componentCount": 9,
+      "modalCount": 2
+    },
+    {
+      "route": "/outbound/orders",
+      "slug": "outbound__orders",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__orders.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/containers",
+      "slug": "outbound__containers",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__containers.png",
+      "componentCount": 8,
+      "modalCount": 2
+    },
+    {
+      "route": "/outbound/reserved-ordersV2",
+      "slug": "outbound__reserved-ordersV2",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__reserved-ordersV2.png",
+      "componentCount": 7,
+      "modalCount": 2
+    },
+    {
+      "route": "/outbound/ra-orders",
+      "slug": "outbound__ra-orders",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__ra-orders.png",
+      "componentCount": 7,
+      "modalCount": 0
+    },
+    {
+      "route": "/outbound/capacity-planning",
+      "slug": "outbound__capacity-planning",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__capacity-planning.png",
+      "componentCount": 9,
+      "modalCount": 2
+    },
+    {
+      "route": "/outbound/handling-unit",
+      "slug": "outbound__handling-unit",
+      "title": "Manager Dashboard",
+      "screenshot": "outbound__handling-unit.png",
+      "componentCount": 8,
+      "modalCount": 2
+    },
+    {
+      "route": "/inbound/listing",
+      "slug": "inbound__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "inbound__listing.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/inbound/transfer-orders",
+      "slug": "inbound__transfer-orders",
+      "title": "Manager Dashboard",
+      "screenshot": "inbound__transfer-orders.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/transport/listing",
+      "slug": "transport__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "transport__listing.png",
+      "componentCount": 3,
+      "modalCount": 2
+    },
+    {
+      "route": "/exception/listing",
+      "slug": "exception__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "exception__listing.png",
+      "componentCount": 5,
+      "modalCount": 2
+    },
+    {
+      "route": "/exception/reserved-listing",
+      "slug": "exception__reserved-listing",
+      "title": "Manager Dashboard",
+      "screenshot": "exception__reserved-listing.png",
+      "componentCount": 7,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/products",
+      "slug": "inventory__products",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__products.png",
+      "componentCount": 10,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/tagChange",
+      "slug": "inventory__tagChange",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__tagChange.png",
+      "componentCount": 5,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/recall",
+      "slug": "inventory__recall",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__recall.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/storage-utilisation",
+      "slug": "inventory__storage-utilisation",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__storage-utilisation.png",
+      "componentCount": 5,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/gtp-master-product",
+      "slug": "inventory__gtp-master-product",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__gtp-master-product.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/inventory/stale-inventories",
+      "slug": "inventory__stale-inventories",
+      "title": "Manager Dashboard",
+      "screenshot": "inventory__stale-inventories.png",
+      "componentCount": 7,
+      "modalCount": 2
+    },
+    {
+      "route": "/audit/audit",
+      "slug": "audit__audit",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__audit.png",
+      "componentCount": 8,
+      "modalCount": 2
+    },
+    {
+      "route": "/audit/reserved-audit",
+      "slug": "audit__reserved-audit",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__reserved-audit.png",
+      "componentCount": 8,
+      "modalCount": 2
+    },
+    {
+      "route": "/audit/gtp-audit/create",
+      "slug": "audit__gtp-audit__create",
+      "title": "Manager Dashboard",
+      "screenshot": "audit__gtp-audit__create.png",
+      "componentCount": 8,
+      "modalCount": 2
+    },
+    {
+      "route": "/notification/listing",
+      "slug": "notification__listing",
+      "title": "Manager Dashboard",
+      "screenshot": "notification__listing.png",
+      "componentCount": 4,
+      "modalCount": 2
+    },
+    {
+      "route": "/system/station-management",
+      "slug": "system__station-management",
+      "title": "Manager Dashboard",
+      "screenshot": "system__station-management.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/system/zones",
+      "slug": "system__zones",
+      "title": "Manager Dashboard",
+      "screenshot": "system__zones.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/system/rack-config",
+      "slug": "system__rack-config",
+      "title": "Manager Dashboard",
+      "screenshot": "system__rack-config.png",
+      "componentCount": 4,
+      "modalCount": 2
+    },
+    {
+      "route": "/system/hardware-status",
+      "slug": "system__hardware-status",
+      "title": "Manager Dashboard",
+      "screenshot": "system__hardware-status.png",
+      "componentCount": 4,
+      "modalCount": 2
+    },
+    {
+      "route": "/reports/operations-log",
+      "slug": "reports__operations-log",
+      "title": "Manager Dashboard",
+      "screenshot": "reports__operations-log.png",
+      "componentCount": 6,
+      "modalCount": 2
+    },
+    {
+      "route": "/downloads",
+      "slug": "downloads",
+      "title": "Manager Dashboard",
+      "screenshot": "downloads.png",
+      "componentCount": 5,
+      "modalCount": 2
+    },
+    {
+      "route": "/users/v2Listing",
+      "slug": "users__v2Listing",
+      "title": "Manager Dashboard",
+      "screenshot": "users__v2Listing.png",
+      "componentCount": 4,
+      "modalCount": 2
+    },
+    {
+      "route": "/users/access-control",
+      "slug": "users__access-control",
+      "title": "Manager Dashboard",
+      "screenshot": "users__access-control.png",
+      "componentCount": 4,
+      "modalCount": 1
+    }
+  ],
+  "componentIds": [
+    "q-card__82bb283edf",
+    "q-tabs__954da8728d",
+    "q-toolbar__01a5968db5",
+    "q-menu__13258f954a",
+    "q-menu__c68f57fe97",
+    "q-table__958a03d1be",
+    "q-drawer__fa5a47876e",
+    "q-card__fc0dea7ad8",
+    "q-card__c0a2fbb2b4",
+    "q-tabs__40254ca818",
+    "q-tabs__e0003cc2b8",
+    "q-table__top__d61d2a4524",
+    "q-table__001a8b4d69",
+    "q-card__a7c134afed",
+    "q-card__f1206ec233",
+    "q-tabs__e4d3b766db",
+    "q-expansion-item__5941e56b01",
+    "q-tabs__5f35bbf780",
+    "q-table__top__cad3be868d",
+    "q-table__a24709695e",
+    "q-card__3f5929f65b",
+    "q-card__8d0d36919c",
+    "q-tabs__1423e444c1",
+    "q-table__top__52e740ab03",
+    "q-card__1eae525d0d",
+    "q-table__top__e41b28da5d",
+    "q-table__f8bf69e6b7",
+    "q-card__a0db81bce5",
+    "q-tabs__145337233b",
+    "q-tabs__b13e4aa514",
+    "q-card__c6372f876c",
+    "q-tabs__24478d6eee",
+    "q-tabs__3731793690",
+    "q-tabs__5818590090",
+    "q-table__top__5f2c2ab143",
+    "q-table__53f50ff4f4",
+    "q-card__22d3f8267b",
+    "q-table__43f2a47343",
+    "q-card__bc6b7ccec1",
+    "q-tabs__b9592af300",
+    "q-tabs__f4e9f0fb87",
+    "q-table__top__1c8d9caea9",
+    "q-expansion-item__8e76970bff",
+    "q-card__50846688fd",
+    "q-tabs__17b08bc770",
+    "q-table__09fa11734a",
+    "q-card__7dd3823994",
+    "q-tabs__03a5ee760f",
+    "q-expansion-item__faa203cf53",
+    "q-card__1f1b8cce35",
+    "q-table__0db21a94b9",
+    "q-card__7978374fbc",
+    "q-table__top__fcb84fb09d",
+    "q-card__015cb2ec16",
+    "q-card__611c45c3da",
+    "q-tabs__e5c1a17c94",
+    "q-expansion-item__5c08773911",
+    "q-card__ca1700f57e",
+    "q-tabs__5423c3a18b",
+    "q-tabs__1ca3f46e51",
+    "q-card__b415b23d06",
+    "q-tabs__55bd67b5b0",
+    "q-card__e282ad341e",
+    "q-tabs__1e46bc7b14",
+    "q-card__bcbd2adf49",
+    "q-tabs__8f57fa6c27",
+    "q-card__d1a2e6fa5b",
+    "q-tabs__1f7ee5ba8d",
+    "q-card__28221d4f41",
+    "q-toolbar__8adee60dad",
+    "q-form__6341a08f2c"
+  ],
+  "cssBundleIds": [
+    "8fdc4c22c7fa",
+    "21211a651913",
+    "aa796fec88cc",
+    "c270a5101f5c",
+    "2c6f6d1fe6fd",
+    "43bf3e282bdb",
+    "7c3156e267d1",
+    "affcb7bdc426",
+    "14d42907392b",
+    "904e63caddec",
+    "e09ea603bd74"
+  ]
+}

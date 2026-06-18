@@ -1,12 +1,12 @@
 /**
- * One-time interactive login for the crawler.
+ * One-time interactive (or automated) login that saves Playwright storageState.
  *
  * Run: npm run crawl:login -w pm-mcp
  *
- * Launches a headed browser at CRAWL_BASE_URL, lets you complete the Keycloak
- * SSO flow manually, then persists cookies + localStorage to a storageState
- * file. Subsequent `npm run crawl` runs reuse that state headlessly. Auth is
- * only needed for the duration of a crawl; re-run this if the session expires.
+ * IMPORTANT: storageState only persists cookies + localStorage. Apps that keep
+ * their token in sessionStorage / memory will NOT stay logged in from a saved
+ * state file — for those, the crawler logs in inline instead (set CRAWL_USERNAME
+ * + CRAWL_PASSWORD and run `npm run crawl`).
  */
 
 import fs from "node:fs";
@@ -15,7 +15,9 @@ import readline from "node:readline";
 
 import { chromium } from "playwright";
 
+import { installEvaluateShim } from "./browser";
 import { loadCrawlConfig } from "./config";
+import { automatedLogin } from "./login";
 
 function prompt(question: string): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -37,29 +39,42 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[crawl:login] Opening ${config.baseUrl} in a headed browser…`);
-  const browser = await chromium.launch({ headless: false });
+  const automated = Boolean(config.username && config.password);
+  console.log(
+    `[crawl:login] Opening ${config.baseUrl} (${automated ? "automated credential login" : "interactive login"})…`
+  );
+
+  const headless = automated ? config.headless : false;
+  const browser = await chromium.launch({ headless });
   const context = await browser.newContext({ viewport: config.viewport });
+  await installEvaluateShim(context);
   const page = await context.newPage();
 
-  try {
+  if (automated) {
+    const ok = await automatedLogin(page, context, config);
+    console.log(
+      ok
+        ? "[crawl:login] Automated login succeeded."
+        : "[crawl:login] Automated login unconfirmed — saving state anyway (inspect login-*.png)."
+    );
+  } else {
     await page.goto(config.baseUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
-  } catch {
-    /* user can still navigate manually */
+    console.log(
+      "\n[crawl:login] Complete the login in the opened browser window.\n" +
+        "When you can see the Manager Dashboard fully loaded, return here and press Enter."
+    );
+    await prompt("Press Enter once you are logged in… ");
   }
-
-  console.log(
-    "\n[crawl:login] Complete the login in the opened browser window.\n" +
-      "When you can see the Manager Dashboard fully loaded, return here and press Enter."
-  );
-  await prompt("Press Enter once you are logged in… ");
 
   fs.mkdirSync(path.dirname(config.storageStatePath), { recursive: true });
   await context.storageState({ path: config.storageStatePath });
   console.log(`[crawl:login] Saved auth state → ${config.storageStatePath}`);
+  console.log(
+    "[crawl:login] NOTE: if the app stores its token in sessionStorage, prefer inline login:\n" +
+      "  set CRAWL_USERNAME + CRAWL_PASSWORD and run `npm run crawl -w pm-mcp`."
+  );
 
   await browser.close();
-  console.log("[crawl:login] Done. Run `npm run crawl -w pm-mcp` to capture pages.");
 }
 
 main().catch((err) => {
