@@ -13,6 +13,13 @@ import type { SessionContext } from "./session-manager";
 import type { RepoManager } from "./repo-manager";
 import type { SessionManager } from "./session-manager";
 import { registerFilesystemTools } from "./filesystem-tools";
+import {
+  findBrandAssets,
+  formatAssetCatalog,
+  readBrandAssetForEmbed,
+  resolveBrandAsset,
+  scanBrandAssets,
+} from "./brand-assets";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTEXT_DIR = path.join(__dirname, "context");
@@ -250,7 +257,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "list-product-screenshots",
-    "Lists all product screenshot PNG files in the context directory.",
+    "Lists reference screenshot PNGs bundled in pm-mcp context (not repo icons). For UI icons/logos use list-brand-icons instead.",
     async () => {
       const files = fs
         .readdirSync(CONTEXT_DIR)
@@ -262,11 +269,138 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
           {
             type: "text",
             text: files.length
-              ? `Available product screenshots:\n${lines}`
-              : "No product screenshots found in context directory.",
+              ? `Available product screenshots (context docs only):\n${lines}\n\nFor official UI icons/logos in mockups, call list-brand-icons.`
+              : "No product screenshots in context directory. Use list-brand-icons for repo icons.",
           },
         ],
       };
+    }
+  );
+
+  server.tool(
+    "list-brand-icons",
+    "List official Manager Dashboard icons and logos from mdui/public/ in the active repo checkout. REQUIRED before using icons in HTML mockups — do not invent or hallucinate brand icons.",
+    {
+      query: z
+        .string()
+        .optional()
+        .describe("Optional filter, e.g. inventory, audit, listing, logos, gxo"),
+      category: z
+        .enum(["icons", "logos", "asset", "all"])
+        .optional()
+        .default("all")
+        .describe("Restrict to icons/, logos/, or other public root assets"),
+    },
+    async ({ query, category }) => {
+      const repoRoot = activeRepoRoot();
+      const all = scanBrandAssets(repoRoot);
+      if (all.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No brand assets found under ${path.join(repoRoot, "mdui/public")}. Ensure the repo checkout is ready (get-repo-status).`,
+            },
+          ],
+        };
+      }
+
+      let filtered =
+        category === "all" ? all : all.filter((a) => a.category === category);
+      if (query) filtered = findBrandAssets(filtered, query, 100);
+
+      if (filtered.length === 0) {
+        const suggestions = query ? findBrandAssets(all, query, 8) : all.slice(0, 8);
+        return {
+          content: [
+            {
+              type: "text",
+              text: [
+                `No brand assets matched query "${query ?? ""}" (category: ${category}).`,
+                suggestions.length ? `Try:\n${suggestions.map((s) => s.appPath).join("\n")}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              `Branch: ${ctx.branch} · Repo: ${repoRoot}`,
+              "",
+              formatAssetCatalog(filtered),
+            ].join("\n"),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "get-brand-icon",
+    "Fetch an official icon or logo from mdui/public/ for embedding in HTML mockups. Returns data-uri img tag + SVG source when applicable. NEVER hand-draw icons if this tool can supply the asset.",
+    {
+      name: z
+        .string()
+        .describe(
+          "App path or keyword, e.g. /icons/inventory/audit.png, icons/listing/fav-filter.png, logos/gxo.png, audit"
+        ),
+    },
+    async ({ name }) => {
+      const repoRoot = activeRepoRoot();
+      const assets = scanBrandAssets(repoRoot);
+      const asset = resolveBrandAsset(assets, name);
+
+      if (!asset) {
+        const suggestions = findBrandAssets(assets, name, 8);
+        return {
+          content: [
+            {
+              type: "text",
+              text: [
+                `No brand icon found for "${name}".`,
+                suggestions.length
+                  ? `Did you mean:\n${suggestions.map((s) => `  ${s.appPath}`).join("\n")}\n\nCall list-brand-icons to browse all assets.`
+                  : "Call list-brand-icons to browse available assets.",
+              ].join("\n"),
+            },
+          ],
+        };
+      }
+
+      const embed = readBrandAssetForEmbed(asset.absolutePath, asset.appPath);
+      const textParts = [
+        `Official asset: ${asset.appPath}`,
+        `Category: ${asset.category}`,
+        `File: ${path.relative(repoRoot, asset.absolutePath)}`,
+        "",
+        "Use this in standalone HTML mockups (iframe srcDoc — relative /icons/ paths will NOT work):",
+        embed.embeddingHtml,
+      ];
+
+      if (embed.rawSvg) {
+        textParts.push("", "Raw SVG (may inline instead of img):", embed.rawSvg.slice(0, 12_000));
+      }
+
+      const content: Array<
+        | { type: "text"; text: string }
+        | { type: "image"; data: string; mimeType: string }
+      > = [{ type: "text", text: textParts.join("\n") }];
+
+      if (embed.base64 && !embed.rawSvg && embed.mimeType.startsWith("image/")) {
+        content.push({
+          type: "image",
+          data: embed.base64,
+          mimeType: embed.mimeType,
+        });
+      }
+
+      return { content };
     }
   );
 

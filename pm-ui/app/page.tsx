@@ -19,6 +19,7 @@ interface LinkedUrl {
 }
 interface TicketData {
   id: string; summary: string; description: string;
+  _source?: "jira" | "mock";
   metadata?: JiraMetadata; comments?: JiraComment[]; subtasks?: JiraSubtask[];
   linkedIssues?: JiraLinkedIssue[]; attachments?: JiraAttachment[]; linkedUrls?: LinkedUrl[];
 }
@@ -27,6 +28,8 @@ interface ModelOption   { id: string; label: string; description: string }
 interface ProviderConfig {
   provider: "claude-code" | "claude" | "gemini" | "openai" | "mock";
   providerLabel: string; baseUrl: string; defaultModel: string; models: ModelOption[];
+  jiraConfigured?: boolean;
+  jiraMockMode?: boolean;
 }
 interface AttachedFile {
   name: string; type: string; size: number; sizeLabel: string;
@@ -500,6 +503,7 @@ export default function Home() {
 
   const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(null);
   const [selectedModel, setSelectedModel]   = useState("");
+  const [jiraWarning, setJiraWarning]     = useState("");
 
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
@@ -513,7 +517,20 @@ export default function Home() {
 
   // ── Mount ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/config").then((r) => r.json()).then((cfg: ProviderConfig) => { setProviderConfig(cfg); setSelectedModel(cfg.defaultModel); }).catch(() => {});
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((cfg: ProviderConfig) => {
+        setProviderConfig(cfg);
+        setSelectedModel(cfg.defaultModel);
+        if (!cfg.jiraConfigured) {
+          setJiraWarning(
+            cfg.jiraMockMode
+              ? "Jira credentials missing — using offline mock ticket data (JIRA_USE_MOCK=true)."
+              : "Jira not configured — create pm-ui/.env.local from .env.example with your API token."
+          );
+        }
+      })
+      .catch(() => {});
     try { const raw = localStorage.getItem(RECENT_KEY); if (raw) setRecentSessions(JSON.parse(raw)); } catch {}
   }, []);
 
@@ -551,6 +568,10 @@ export default function Home() {
 
   async function streamChat(requestBody: Record<string, unknown>, usageLabel: string, onHtml: (html: string) => void): Promise<void> {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error((errBody as { error?: string }).error ?? `Chat failed (${res.status})`);
+    }
     if (!res.body) throw new Error("No response body");
 
     setMessages((prev) => [...prev, { role: "assistant", text: "", isStreaming: true, thinking: { log: [], done: false } }]);
@@ -599,9 +620,11 @@ export default function Home() {
     setMessages([{ role: "user", text: `Auto-generate UI mockup · ${ticket.id}: "${ticket.summary}"` }]);
     try {
       await streamChat({ jiraTicketId: ticket.id, jiraData: ticket, enableVisualSkill: true, model, isRefinement: false }, "Initial mockup generation", (html) => setActiveHtml(html));
-    } finally {
       setPhase("workspace");
       setActiveTab("mockup");
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : String(err));
+      setPhase("gateway");
     }
   }
 
@@ -617,6 +640,9 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok || data.error) { setFetchError(data.error ?? "Failed to fetch ticket"); return; }
       const ticket = data as TicketData;
+      if (ticket._source === "mock") {
+        setJiraWarning("Showing mock ticket data — configure pm-ui/.env.local for real Jira fetch.");
+      }
       setTicketData(ticket);
       recordRecent(ticket.id, ticket.summary);
       try {
@@ -645,6 +671,9 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok || data.error) { setFetchError(data.error ?? "Failed to fetch ticket"); return; }
       const ticket = data as TicketData;
+      if (ticket._source === "mock") {
+        setJiraWarning("Showing mock ticket data — configure pm-ui/.env.local for real Jira fetch.");
+      }
       setTicketData(ticket);
       try {
         const raw = localStorage.getItem(SESSION_KEY(ticketId));
@@ -734,13 +763,19 @@ export default function Home() {
                 <div className="scanner-sweep" style={{ top: 0 }} />
                 <div className="relative flex items-center gap-3 pb-3 border-b-2 transition-colors duration-200 focus-within:border-amber-400" style={{ borderColor: "#D0CCC6", zIndex: 2 }}>
                   <span style={{ ...F.mono, color: "#D97706", fontSize: "13px" }}>▶</span>
-                  <input id="ticketId" type="text" placeholder="GM-246050" value={ticketIdInput}
+                  <input id="ticketId" type="text" placeholder="e.g. GM-299464" value={ticketIdInput}
                     onChange={(e) => setTicketIdInput(e.target.value)} disabled={isFetching}
                     className="flex-1 bg-transparent outline-none text-sm font-medium tracking-[0.12em] uppercase disabled:opacity-50"
                     style={{ ...F.mono, color: "#1A1510", caretColor: "#D97706" }} />
                 </div>
               </div>
             </div>
+
+            {jiraWarning && (
+              <div className="flex items-start gap-2 text-xs px-3 py-2.5 border" style={{ background: "rgba(217,119,6,0.06)", borderColor: "rgba(217,119,6,0.25)", color: "#B45309", ...F.condensed, letterSpacing: "0.04em" }}>
+                <span className="flex-none font-bold mt-px">!</span><span>{jiraWarning}</span>
+              </div>
+            )}
 
             {fetchError && (
               <div className="flex items-start gap-2 text-xs px-3 py-2.5 border" style={{ background: "rgba(239,68,68,0.04)", borderColor: "rgba(239,68,68,0.18)", color: "#F87171", ...F.condensed, letterSpacing: "0.04em" }}>

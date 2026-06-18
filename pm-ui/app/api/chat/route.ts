@@ -5,9 +5,15 @@ import { tmpdir, homedir } from "os";
 import { join } from "path";
 import {
   fetchContextResources,
+  fetchBrandIconCatalog,
   listProductScreenshots,
   screenshotPath,
+  claudeMcpConfigArg,
+  claudeMcpAllowedToolsPattern,
+  checkMcpServerHealth,
+  getMcpServerUrl,
 } from "@/mcp-client";
+import { WORKSPACE_ROOT } from "@/paths";
 
 export const dynamic = "force-dynamic";
 
@@ -169,7 +175,8 @@ function buildSystemPrompt(
   enableVisualSkill: boolean,
   archContext    = "",
   designContext  = "",
-  sitemapContext = ""
+  sitemapContext = "",
+  brandIconsContext = ""
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -208,6 +215,12 @@ function buildSystemPrompt(
       "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
       "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
       "",
+      "ICON POLICY — STRICT:",
+      "- Use ONLY official icons/logos from mdui/public/ via MCP tools list-brand-icons and get-brand-icon.",
+      "- NEVER hand-draw, SVG-inline, Material Icons, Font Awesome, or hallucinated brand marks.",
+      "- Mockups run in an iframe srcDoc — use get-brand-icon to obtain data-uri <img> tags (relative /icons/ paths will break).",
+      "- Call list-brand-icons before adding icons; call get-brand-icon for each icon you embed.",
+      "",
       "WRAP the full HTML in these exact markers — do not omit them:",
       "RAW_HTML_COMPONENT_START",
       "<!DOCTYPE html>",
@@ -217,19 +230,27 @@ function buildSystemPrompt(
       "MOCKUP RULES (derive all values from design.md above):",
       "- Colors: ONLY the exact tokens — primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324, info #2982cc, warning #f9b115",
       "- Font: Source Sans Pro via Google Fonts CDN. Body 13px.",
-      "- Top bar: white bg, 52px sticky, GreyOrange G-mark SVG (orange) + 'GreyOrange' / 'Manager Dashboard' wordmarks",
+      "- Top bar: white bg, 52px sticky — use get-brand-icon for GreyOrange/client logos from /logos/",
       "- Primary nav: #101a5c bg, 42px, orange 2px bottom-border on active tab",
       "- Sub-tabs: white bg, 38px, orange underline on active",
       "- Section banner: #101a5c bg, white text, colored dot + label + count per stat",
       "- Filter bar: '≡ Filter' with text label (not icon-only)",
       "- Table rows: 40px height, sort indicators = CSS triangles (▲▼), NOT Material Icons",
-      "- Action buttons: 26×26px, 3px border-radius, outline style",
+      "- Action buttons: 26×26px, 3px border-radius, outline style — use /icons/ assets via get-brand-icon",
       "- Modals: #101a5c header, white body, backdrop rgba(16,26,92,0.38), radio options as bordered rows",
       "- Pagination: < 1 2 3 … N > with ellipsis",
       "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only",
       "- Implement EVERY status chip, state-transition rule, and field-visibility rule from the Jira ticket",
       "- If product screenshots are provided, match the exact visual patterns you observe in them"
     );
+
+    if (brandIconsContext) {
+      sections.push(
+        "=== OFFICIAL BRAND ICONS CATALOG (mdui/public/ via MCP) ===",
+        brandIconsContext,
+        "=== END BRAND ICONS ==="
+      );
+    }
   }
 
   // This section MUST be last — the UI parser splits on this exact heading.
@@ -370,8 +391,10 @@ function buildUserMessage(
 
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
-function buildRefinementSystemPrompt(designContext = ""): string {
-  const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.`;
+function buildRefinementSystemPrompt(designContext = "", brandIconsContext = ""): string {
+  const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
+
+ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons and get-brand-icon. Never invent or hand-draw brand icons. Use data-uri img tags from get-brand-icon in HTML mockups.`;
 
   const parts: string[] = [base];
   if (designContext) {
@@ -379,6 +402,13 @@ function buildRefinementSystemPrompt(designContext = ""): string {
       "=== DESIGN LANGUAGE RULES (from design.md) ===",
       designContext,
       "=== END DESIGN LANGUAGE ==="
+    );
+  }
+  if (brandIconsContext) {
+    parts.push(
+      "=== OFFICIAL BRAND ICONS (mdui/public/) ===",
+      brandIconsContext,
+      "=== END BRAND ICONS ==="
     );
   }
   parts.push(
@@ -419,6 +449,7 @@ function streamClaudeCode(
   archContext: string,
   designContext: string,
   sitemapContext: string,
+  brandIconsContext: string,
   attachedFiles?: UserAttachedFile[],
   isRefinement = false,
   currentHtml?: string,
@@ -437,6 +468,16 @@ function streamClaudeCode(
       try {
         send({ thinking: "Starting Claude Code local session…" });
 
+        const mcpHealthy = await checkMcpServerHealth();
+        if (!mcpHealthy) {
+          send({
+            error:
+              `pm-mcp is not reachable at ${getMcpServerUrl()}. ` +
+              "Start both services with: npm run dev",
+          });
+          return;
+        }
+
         mkdirSync(designOutputDir, { recursive: true });
 
         // ── Step 1: build prompts ────────────────────────────────────────
@@ -445,12 +486,16 @@ function streamClaudeCode(
         let userMessage:  string;
 
         if (isRefinement && currentHtml) {
-          // Refinement mode: shorter system prompt, current HTML in user message
-          systemPrompt = buildRefinementSystemPrompt(designContext);
+          systemPrompt = buildRefinementSystemPrompt(designContext, brandIconsContext);
           userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
         } else {
-          // Initial generation: full context + visual skill instructions
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext);
+          systemPrompt = buildSystemPrompt(
+            enableVisualSkill,
+            archContext,
+            designContext,
+            sitemapContext,
+            brandIconsContext
+          );
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           if (enableVisualSkill) {
@@ -458,7 +503,7 @@ function streamClaudeCode(
             const screenshotNote = screenshots.length
               ? `\n\nProduct screenshots for reference (read these with the Read tool to match the actual UI):\n${screenshots.map((f) => screenshotPath(f)).join("\n")}`
               : "";
-            userMessage += `${screenshotNote}\n\nOUTPUT: Include the complete HTML mockup inline in your response, wrapped in these exact markers:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
+            userMessage += `${screenshotNote}\n\nICON TOOLS: Call list-brand-icons then get-brand-icon for every icon/logo in the mockup — do not invent icons.\n\nOUTPUT: Include the complete HTML mockup inline in your response, wrapped in these exact markers:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
           }
         }
 
@@ -481,10 +526,16 @@ function streamClaudeCode(
           // "--model", model,
           "--system-prompt-file", tmpFile,
           "--max-budget-usd", "2",
-          "--allowedTools", "Write,Read",
+          "--mcp-config", claudeMcpConfigArg(),
+          "--strict-mcp-config",
+          "--permission-mode", "bypassPermissions",
+          "--allowedTools", `Write,Read,${claudeMcpAllowedToolsPattern()}`,
         ];
 
-        const proc = spawn("claude", spawnArgs, { stdio: ["pipe", "pipe", "pipe"] });
+        const proc = spawn("claude", spawnArgs, {
+          stdio: ["pipe", "pipe", "pipe"],
+          cwd: WORKSPACE_ROOT,
+        });
 
         proc.stdin.write(userMessage, "utf8");
         proc.stdin.end();
@@ -526,7 +577,7 @@ function streamClaudeCode(
 
                 if (content?.length) {
                   const thinkBlocks   = content.filter((b) => b.type === "thinking" && b.thinking);
-                  const toolUseBlocks = content.filter((b) => b.type === "tool_use" && b.name === "Write");
+                  const toolUseBlocks = content.filter((b) => b.type === "tool_use");
                   const textBlocks    = content.filter((b) => b.type === "text" && b.text);
 
                   for (const b of thinkBlocks) {
@@ -537,10 +588,15 @@ function streamClaudeCode(
                   }
 
                   for (const b of toolUseBlocks) {
-                    const filePath = b.input?.file_path as string | undefined;
-                    if (filePath) {
-                      savedFiles.push(filePath);
-                      send({ thinking: `Writing file: ${filePath}` });
+                    if (b.name === "Write") {
+                      const filePath = b.input?.file_path as string | undefined;
+                      if (filePath) {
+                        savedFiles.push(filePath);
+                        send({ thinking: `Writing file: ${filePath}` });
+                      }
+                    } else if (b.name?.startsWith("mcp__")) {
+                      const toolLabel = b.name.replace(/^mcp__[^_]+__/, "");
+                      send({ thinking: `MCP: ${toolLabel}` });
                     }
                   }
 
@@ -630,23 +686,41 @@ export async function POST(request: Request) {
     model, attachedFiles, isRefinement, currentHtml,
   } = body;
 
-  let archContext = "", designContext = "", sitemapContext = "";
+  let archContext = "", designContext = "", sitemapContext = "", brandIconsContext = "";
+  let mcpContextError = "";
   try {
     const ctx = await fetchContextResources();
     if (isRefinement) {
-      // Refinements only need design rules — skips arch + sitemap (saves ~15k tokens)
       designContext = ctx.design;
     } else {
       archContext    = ctx.architecture;
       designContext  = ctx.design;
       sitemapContext = ctx.sitemap;
     }
-  } catch { /* proceed without context if files are missing */ }
+  } catch (e) {
+    mcpContextError = (e as Error).message;
+    console.warn("[chat] MCP context pre-fetch failed:", mcpContextError);
+  }
+
+  if (enableVisualSkill) {
+    brandIconsContext = await fetchBrandIconCatalog();
+  }
+
+  if (mcpContextError && !isRefinement) {
+    return NextResponse.json(
+      {
+        error:
+          `pm-mcp context unavailable (${mcpContextError}). ` +
+          "Start the MCP server with: npm run dev",
+      },
+      { status: 503 }
+    );
+  }
 
   const activeModel = model ?? "claude-haiku-4-5-20251001";
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
-    enableVisualSkill, archContext, designContext, sitemapContext,
+    enableVisualSkill, archContext, designContext, sitemapContext, brandIconsContext,
     attachedFiles, isRefinement, currentHtml,
   );
 }

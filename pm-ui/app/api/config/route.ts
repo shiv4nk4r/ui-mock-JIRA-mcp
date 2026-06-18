@@ -15,6 +15,8 @@ export interface ProviderConfig {
   baseUrl: string;
   defaultModel: string;
   models: ModelOption[];
+  jiraConfigured: boolean;
+  jiraMockMode: boolean;
 }
 
 const MODELS: ModelOption[] = [
@@ -32,8 +34,23 @@ function isClaudeCodeAvailable(): boolean {
   }
 }
 
+function isJiraConfigured(): boolean {
+  const email = process.env.JIRA_USER_EMAIL;
+  const token = process.env.JIRA_API_TOKEN;
+  const baseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL;
+  return Boolean(
+    email &&
+      token &&
+      baseUrl &&
+      !email.includes("your-email") &&
+      !token.includes("your-") &&
+      !baseUrl.includes("your-company")
+  );
+}
+
 export function GET() {
   const available = isClaudeCodeAvailable();
+  const jiraConfigured = isJiraConfigured();
 
   const config: ProviderConfig = {
     provider: "claude-code",
@@ -41,6 +58,8 @@ export function GET() {
     baseUrl: "local",
     defaultModel: "claude-haiku-4-5-20251001",
     models: MODELS,
+    jiraConfigured,
+    jiraMockMode: !jiraConfigured && process.env.JIRA_USE_MOCK === "true",
   };
 
   return NextResponse.json(config);

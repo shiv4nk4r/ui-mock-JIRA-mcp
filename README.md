@@ -36,7 +36,8 @@ npm run dev:ui    # Next.js UI on :3000
 ```
 pm-ui (Next.js)
   ├── Visual mockup skills (templates, prompt engineering)
-  ├── /api/chat  ──HTTP──▶  pm-mcp (Streamable HTTP MCP)
+  ├── /api/chat  ──HTTP──▶  pm-mcp (context pre-fetch)
+  ├── /api/chat  ──spawn──▶  claude CLI (--mcp-config → pm-mcp tools)
   ├── /api/jira
   └── /api/config
 
@@ -49,7 +50,10 @@ pm-mcp (Express + MCP SDK)
 ```
 
 The UI connects to MCP via `MCP_SERVER_URL` (default `http://127.0.0.1:3100/mcp`).
+When `/api/chat` spawns Claude Code, it passes the same MCP config automatically so the child session can call pm-mcp tools (code graph, filesystem, branch switching) without manual setup.
 Skills stay in **pm-ui** only; all MCP resources and tools live in **pm-mcp**.
+
+**Requirement:** run `npm run dev` (both pm-mcp and pm-ui) before using chat — the spawn fails fast if pm-mcp is not reachable.
 
 ## pm-mcp: Repository sync
 

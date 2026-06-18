@@ -177,9 +177,24 @@ const MAX_TEXT_ATTACHMENTS = 5;
 
 // ── Mock response ─────────────────────────────────────────────────────────────
 
+function isJiraConfigured(): boolean {
+  const email = process.env.JIRA_USER_EMAIL;
+  const token = process.env.JIRA_API_TOKEN;
+  const baseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL;
+  return Boolean(
+    email &&
+      token &&
+      baseUrl &&
+      !email.includes("your-email") &&
+      !token.includes("your-") &&
+      !baseUrl.includes("your-company")
+  );
+}
+
 function mockResponse(id: string) {
   return NextResponse.json({
     id,
+    _source: "mock" as const,
     summary: `[Mock] ${id}: Shift Planning UI Redesign`,
     description:
       "As a warehouse manager, I need a visual shift planner.\n\n" +
@@ -226,13 +241,24 @@ export async function GET(request: Request) {
   const id = searchParams.get("id")?.trim().toUpperCase();
   if (!id) return NextResponse.json({ error: "Missing ticket id" }, { status: 400 });
 
-  const email   = process.env.JIRA_USER_EMAIL;
-  const token   = process.env.JIRA_API_TOKEN;
-  const baseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL;
-
-  if (!email || !token || !baseUrl || email.includes("your-email")) {
-    return mockResponse(id);
+  if (!isJiraConfigured()) {
+    if (process.env.JIRA_USE_MOCK === "true") {
+      return mockResponse(id);
+    }
+    return NextResponse.json(
+      {
+        error:
+          "Jira is not configured. Copy pm-ui/.env.example → pm-ui/.env.local and set " +
+          "JIRA_USER_EMAIL, JIRA_API_TOKEN, and NEXT_PUBLIC_JIRA_BASE_URL. " +
+          "Set JIRA_USE_MOCK=true only for offline demo mode.",
+      },
+      { status: 503 }
+    );
   }
+
+  const email   = process.env.JIRA_USER_EMAIL!;
+  const token   = process.env.JIRA_API_TOKEN!;
+  const baseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL!;
 
   const auth    = `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`;
   const headers = { Authorization: auth, Accept: "application/json" };
@@ -341,7 +367,18 @@ export async function GET(request: Request) {
       ? await Promise.all(urlsToFetch.map((u) => fetchUrl(u)))
       : [];
 
-    return NextResponse.json({ id, summary, description, metadata, comments, subtasks, linkedIssues, attachments, linkedUrls });
+    return NextResponse.json({
+      id,
+      _source: "jira" as const,
+      summary,
+      description,
+      metadata,
+      comments,
+      subtasks,
+      linkedIssues,
+      attachments,
+      linkedUrls,
+    });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

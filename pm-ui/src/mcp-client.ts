@@ -10,8 +10,48 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 const DEFAULT_MCP_URL = "http://127.0.0.1:3100/mcp";
 
-function getMcpServerUrl(): string {
+/** Must match the server name in poc-mcp/.mcp.json */
+export const MCP_SERVER_NAME = "manager-dashboard";
+
+export function getMcpServerUrl(): string {
   return process.env.MCP_SERVER_URL ?? DEFAULT_MCP_URL;
+}
+
+export function getMcpHealthUrl(): string {
+  return getMcpServerUrl().replace(/\/mcp\/?$/, "/health");
+}
+
+/** Inline MCP config for `claude --mcp-config` when spawning a child process. */
+export function buildClaudeMcpConfig(): { mcpServers: Record<string, { type: string; url: string }> } {
+  return {
+    mcpServers: {
+      [MCP_SERVER_NAME]: {
+        type: "http",
+        url: getMcpServerUrl(),
+      },
+    },
+  };
+}
+
+/** JSON string argument for `claude --mcp-config`. */
+export function claudeMcpConfigArg(): string {
+  return JSON.stringify(buildClaudeMcpConfig());
+}
+
+/** Wildcard pattern for `--allowedTools` covering all pm-mcp tools. */
+export function claudeMcpAllowedToolsPattern(): string {
+  return `mcp__${MCP_SERVER_NAME}__*`;
+}
+
+export async function checkMcpServerHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(getMcpHealthUrl(), { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { status?: string };
+    return body.status === "ok";
+  } catch {
+    return false;
+  }
 }
 
 export interface McpClientHandle {
@@ -46,6 +86,30 @@ export async function fetchContextResources(): Promise<FetchedContext> {
     const txt = (r: { contents: unknown[] }) =>
       ((r.contents[0] as Record<string, unknown>)?.text as string) ?? "";
     return { architecture: txt(archRes), design: txt(designRes), sitemap: txt(sitemapRes) };
+  } finally {
+    await close();
+  }
+}
+
+function toolText(result: unknown): string {
+  const content = (result as { content?: Array<{ type: string; text?: string }> }).content ?? [];
+  return content
+    .filter((c) => c.type === "text")
+    .map((c) => c.text ?? "")
+    .join("\n");
+}
+
+/** Official icons/logos catalog from mdui/public/ in the repo checkout. */
+export async function fetchBrandIconCatalog(query?: string): Promise<string> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "list-brand-icons",
+      arguments: query ? { query } : {},
+    });
+    return toolText(result);
+  } catch {
+    return "";
   } finally {
     await close();
   }
