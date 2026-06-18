@@ -131,6 +131,22 @@ export async function fetchComponentCatalog(query?: string, limit = 60): Promise
   }
 }
 
+/** Full template survey — all routes metadata (agent must read before mockup). */
+export async function fetchTemplateSurvey(): Promise<string> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "survey-page-templates",
+      arguments: {},
+    });
+    return toolText(result);
+  } catch {
+    return "";
+  } finally {
+    await close();
+  }
+}
+
 /** Real rendered pages captured from the live app by the crawler. */
 export async function fetchCapturedPageCatalog(): Promise<string> {
   const { client, close } = await createMcpClient();

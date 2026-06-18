@@ -98,8 +98,12 @@ export async function updateFilesystemAccess(directories: string[]): Promise<str
   return resolved;
 }
 
-/** Register official filesystem tools on an existing McpServer. */
-export function registerFilesystemTools(server: McpServer): void {
+/** Register filesystem tools on an existing McpServer. Write tools are omitted when readOnly (default). */
+export function registerFilesystemTools(
+  server: McpServer,
+  options: { readOnly?: boolean } = {}
+): void {
+  const readOnly = options.readOnly !== false;
   const readTextFileHandler = async (args: {
     path: string;
     tail?: number;
@@ -192,51 +196,69 @@ export function registerFilesystemTools(server: McpServer): void {
     }
   );
 
-  server.tool(
-    "write_file",
-    {
-      path: z.string(),
-      content: z.string(),
-    },
-    async ({ path: filePath, content }) => {
-      const validPath = await validatePath(filePath);
-      await writeFileContent(validPath, content);
-      return {
-        content: [{ type: "text", text: `Successfully wrote to ${filePath}` }],
-      };
-    }
-  );
+  if (!readOnly) {
+    server.tool(
+      "write_file",
+      {
+        path: z.string(),
+        content: z.string(),
+      },
+      async ({ path: filePath, content }) => {
+        const validPath = await validatePath(filePath);
+        await writeFileContent(validPath, content);
+        return {
+          content: [{ type: "text", text: `Successfully wrote to ${filePath}` }],
+        };
+      }
+    );
 
-  server.tool(
-    "edit_file",
-    {
-      path: z.string(),
-      edits: z.array(
-        z.object({
-          oldText: z.string(),
-          newText: z.string(),
-        })
-      ),
-      dryRun: z.boolean().optional().default(false),
-    },
-    async ({ path: filePath, edits, dryRun }) => {
-      const validPath = await validatePath(filePath);
-      const result = await applyFileEdits(validPath, edits, dryRun);
-      return { content: [{ type: "text", text: result }] };
-    }
-  );
+    server.tool(
+      "edit_file",
+      {
+        path: z.string(),
+        edits: z.array(
+          z.object({
+            oldText: z.string(),
+            newText: z.string(),
+          })
+        ),
+        dryRun: z.boolean().optional().default(false),
+      },
+      async ({ path: filePath, edits, dryRun }) => {
+        const validPath = await validatePath(filePath);
+        const result = await applyFileEdits(validPath, edits, dryRun);
+        return { content: [{ type: "text", text: result }] };
+      }
+    );
 
-  server.tool(
-    "create_directory",
-    { path: z.string() },
-    async ({ path: dirPath }) => {
-      const validPath = await validatePath(dirPath);
-      await fs.mkdir(validPath, { recursive: true });
-      return {
-        content: [{ type: "text", text: `Successfully created directory ${dirPath}` }],
-      };
-    }
-  );
+    server.tool(
+      "create_directory",
+      { path: z.string() },
+      async ({ path: dirPath }) => {
+        const validPath = await validatePath(dirPath);
+        await fs.mkdir(validPath, { recursive: true });
+        return {
+          content: [{ type: "text", text: `Successfully created directory ${dirPath}` }],
+        };
+      }
+    );
+
+    server.tool(
+      "move_file",
+      {
+        source: z.string(),
+        destination: z.string(),
+      },
+      async ({ source, destination }) => {
+        const validSource = await validatePath(source);
+        const validDest = await validatePath(destination);
+        await fs.rename(validSource, validDest);
+        return {
+          content: [{ type: "text", text: `Successfully moved ${source} to ${destination}` }],
+        };
+      }
+    );
+  }
 
   server.tool(
     "list_directory",
@@ -335,22 +357,6 @@ export function registerFilesystemTools(server: McpServer): void {
 
       const tree = await buildTree(rootPath, excludePatterns);
       return { content: [{ type: "text", text: JSON.stringify(tree, null, 2) }] };
-    }
-  );
-
-  server.tool(
-    "move_file",
-    {
-      source: z.string(),
-      destination: z.string(),
-    },
-    async ({ source, destination }) => {
-      const validSource = await validatePath(source);
-      const validDest = await validatePath(destination);
-      await fs.rename(validSource, validDest);
-      return {
-        content: [{ type: "text", text: `Successfully moved ${source} to ${destination}` }],
-      };
     }
   );
 

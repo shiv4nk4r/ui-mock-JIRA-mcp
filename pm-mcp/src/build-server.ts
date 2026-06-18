@@ -29,10 +29,14 @@ import {
 import { readSfcSource } from "./sfc-source";
 import {
   formatCapturedPages,
+  formatPageTemplates,
   formatRenderedComponents,
   getCapturedPageText,
+  getPageTemplateText,
+  getPageTemplatesBatchText,
   getRenderedComponentText,
   resolveCaptureLabel,
+  surveyPageTemplates,
 } from "./capture-catalog";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1096,7 +1100,75 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
     }
   );
 
-  registerFilesystemTools(server);
+  server.tool(
+    "list-page-templates",
+    "Compact list of stripped page templates. Prefer survey-page-templates first — it includes full metadata for all routes.",
+    async () => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: formatPageTemplates(label) }] };
+    }
+  );
+
+  server.tool(
+    "survey-page-templates",
+    "REQUIRED FIRST STEP for mockups. Returns metadata for ALL captured page templates (76 routes): archetype groups, shell variants, components, and layout region sizes per route. Read entirely before picking a base or mixing regions from multiple templates.",
+    async () => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+      return { content: [{ type: "text", text: surveyPageTemplates(label) }] };
+    }
+  );
+
+  server.tool(
+    "get-page-template",
+    "Return stripped captured page template HTML. Use after survey-page-templates. Pass route for one page, or routes (max 6) to compare/load multiple templates for mix-and-match (e.g. nav from one route, table from another).",
+    {
+      route: z
+        .string()
+        .optional()
+        .describe("Single route from survey-page-templates, e.g. /outbound/ordersV2"),
+      routes: z
+        .array(z.string())
+        .optional()
+        .describe("Up to 6 routes to load in one call for comparison or region grafting"),
+      archetype: z
+        .enum(["listing-table", "dashboard-tabs", "form", "other"])
+        .optional()
+        .describe("Archetype fallback when no specific route fits"),
+    },
+    async ({ route, routes, archetype }) => {
+      const label = resolveCaptureLabel(ctx.branch);
+      if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
+
+      if (routes?.length) {
+        return {
+          content: [{ type: "text", text: getPageTemplatesBatchText(label, routes) }],
+        };
+      }
+
+      if (!route && !archetype) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Call survey-page-templates first, then provide route or routes[].",
+            },
+          ],
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: getPageTemplateText(label, route, archetype),
+          },
+        ],
+      };
+    }
+  );
+
+  registerFilesystemTools(server, { readOnly: true });
 
   return server;
 }

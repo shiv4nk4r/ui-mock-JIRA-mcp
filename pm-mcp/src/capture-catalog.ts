@@ -10,12 +10,18 @@ import {
   type CapturedComponent,
   type CapturedPage,
   type CaptureManifest,
+  type PageArchetype,
   hasCapture,
   listCaptureLabels,
   listComponents,
+  readArchetypeTemplate,
   readComponent,
   readManifest,
   readPageByRoute,
+  readPageTemplate,
+  readPageTemplateMeta,
+  readTemplateAnalysis,
+  readTemplateIndex,
   listPages,
 } from "./crawler/capture-store";
 
@@ -179,4 +185,178 @@ function cssUrlForComponent(label: string): string | null {
   const manifest: CaptureManifest | null = readManifest(label);
   const id = manifest?.cssBundleIds[0];
   return id ? cssBundleUrl(label, id) : null;
+}
+
+function cssUrlForBundle(label: string, bundleId?: string): string | null {
+  const id = bundleId ?? readManifest(label)?.cssBundleIds[0];
+  return id ? cssBundleUrl(label, id) : null;
+}
+
+function normalizeRoute(route: string): string {
+  const trimmed = route.trim();
+  if (!trimmed || trimmed === "/") return "/";
+  return `/${trimmed.replace(/^\/+|\/+$/g, "")}`;
+}
+
+export function formatPageTemplates(label: string): string {
+  const index = readTemplateIndex(label);
+  if (!index?.templates.length) {
+    return `No page templates for "${label}". Run \`npm run crawl -w pm-mcp\` then \`npm run analyze-captures -w pm-mcp\`.`;
+  }
+
+  const analysis = readTemplateAnalysis(label);
+  const archetypeCounts = analysis
+    ? Object.entries(analysis.archetypes)
+        .filter(([, info]) => info.routes.length > 0)
+        .map(([name, info]) => `${name}=${info.routes.length}`)
+        .join(", ")
+    : "";
+
+  const header = [
+    `PAGE TEMPLATES (label: ${label}, ${index.templates.length} routes)`,
+    index.generatedAt ? `Generated: ${index.generatedAt}` : "",
+    archetypeCounts ? `Archetypes: ${archetypeCounts}` : "",
+    "Pick the best route yourself, then call get-page-template(route) for the stripped DOM base.",
+    "Archetype fallbacks: get-page-template(archetype=listing-table|dashboard-tabs|form|other).",
+    "",
+  ].filter(Boolean);
+
+  const lines = index.templates.map(
+    (t) =>
+      `  ${t.route} — ${t.archetype} · ${t.detectedComponents.join(", ") || "(no components)"}`
+  );
+  return [...header, ...lines].join("\n");
+}
+
+export function getPageTemplateText(
+  label: string,
+  route?: string,
+  archetype?: PageArchetype
+): string {
+  const index = readTemplateIndex(label);
+
+  if (route) {
+    const normalized = normalizeRoute(route);
+    const entry = index?.templates.find((t) => normalizeRoute(t.route) === normalized);
+
+    if (entry) {
+      const html = readPageTemplate(label, entry.slug);
+      if (html) {
+        const meta = readPageTemplateMeta(label, entry.slug);
+        const cssUrl = cssUrlForBundle(label, entry.cssBundleId ?? meta?.cssBundleId);
+        return [
+          `PAGE TEMPLATE: ${entry.route}`,
+          `slug: ${entry.slug}`,
+          `archetype: ${entry.archetype}`,
+          meta?.detectedComponents.length
+            ? `components: ${meta.detectedComponents.join(", ")}`
+            : "",
+          cssUrl
+            ? `CSS bundle (server injects this — reference only):\n  <link rel="stylesheet" href="${cssUrl}">`
+            : "",
+          "",
+          "=== STRIPPED TEMPLATE HTML (edit in place — preserve layout/classes, change visible text) ===",
+          html,
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+    }
+    return `No page template for route "${route}" (label: ${label}). Call list-page-templates to browse routes.`;
+  }
+
+  if (archetype) {
+    const html = readArchetypeTemplate(label, archetype);
+    if (html) {
+      const cssUrl = cssUrlForBundle(label);
+      const routes = analysisRoutesForArchetype(label, archetype);
+      return [
+        `ARCHETYPE TEMPLATE: ${archetype}`,
+        routes.length ? `example routes: ${routes.slice(0, 8).join(", ")}` : "",
+        cssUrl ? `CSS bundle: ${cssUrl}` : "",
+        "",
+        "=== STRIPPED ARCHETYPE TEMPLATE HTML ===",
+        html,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+    return `No archetype template "${archetype}" for label "${label}".`;
+  }
+
+  return "Provide route or archetype. Call list-page-templates first.";
+}
+
+function analysisRoutesForArchetype(label: string, archetype: PageArchetype): string[] {
+  const analysis = readTemplateAnalysis(label);
+  return analysis?.archetypes[archetype]?.routes ?? [];
+}
+
+const MAX_BATCH_ROUTES = 6;
+
+/** Full survey of every page template — metadata only, no HTML. Agent must call this first. */
+export function surveyPageTemplates(label: string): string {
+  const index = readTemplateIndex(label);
+  if (!index?.templates.length) {
+    return `No page templates for "${label}". Run crawl + analyze-captures first.`;
+  }
+
+  const analysis = readTemplateAnalysis(label);
+  const lines: string[] = [
+    `PAGE TEMPLATE SURVEY (label: ${label}, ${index.templates.length} routes)`,
+    index.generatedAt ? `Generated: ${index.generatedAt}` : "",
+    "",
+    "REQUIRED: Read this entire survey before building a mockup.",
+    "Then either (a) pick one primary route via get-page-template(route), or",
+    "(b) mix regions/components from multiple routes — call get-page-template(routes=[...]) to load up to 6 candidates.",
+    "",
+  ].filter(Boolean);
+
+  if (analysis) {
+    lines.push("=== ARCHETYPE GROUPS ===");
+    for (const name of ["listing-table", "dashboard-tabs", "form", "other"] as PageArchetype[]) {
+      const info = analysis.archetypes[name];
+      if (!info?.routes.length) continue;
+      lines.push(
+        `${name} (${info.routes.length} routes)`,
+        info.canonicalRoute ? `  canonical: ${info.canonicalRoute}` : "",
+        `  routes: ${info.routes.join(", ")}`
+      );
+      const patterns = info.commonPatterns;
+      if (patterns.tableClasses) lines.push(`  table pattern: ${patterns.tableClasses.slice(0, 120)}…`);
+      if (patterns.filterBarSnippet) lines.push(`  filter bar: ${patterns.filterBarSnippet.slice(0, 80)}…`);
+      lines.push("");
+    }
+
+    if (analysis.shellVariants.length) {
+      lines.push("=== SHELL VARIANTS (shared header/nav layouts) ===");
+      for (const v of analysis.shellVariants) {
+        lines.push(`  hash ${v.hash.slice(0, 8)} — ${v.routeCount} routes, sample: ${v.sampleRoute}`);
+      }
+      lines.push("");
+    }
+  }
+
+  lines.push("=== ALL ROUTES (route · archetype · components · region sizes) ===");
+  for (const entry of index.templates) {
+    const meta = readPageTemplateMeta(label, entry.slug);
+    const comps = (meta?.detectedComponents ?? entry.detectedComponents).join(", ") || "—";
+    const regions = meta
+      ? `shell=${meta.shellByteSize}b subNav=${meta.subNavByteSize}b main=${meta.mainContentByteSize}b`
+      : `~${entry.strippedByteSize}b`;
+    lines.push(`  ${entry.route} · ${entry.archetype} · [${comps}] · ${regions}`);
+  }
+
+  return lines.join("\n");
+}
+
+export function getPageTemplatesBatchText(label: string, routes: string[]): string {
+  const unique = [...new Set(routes.map(normalizeRoute))].slice(0, MAX_BATCH_ROUTES);
+  if (!unique.length) return "Provide at least one route.";
+
+  const parts = unique.map((route) => {
+    const text = getPageTemplateText(label, route);
+    return `---\n${text}`;
+  });
+  return parts.join("\n\n");
 }
