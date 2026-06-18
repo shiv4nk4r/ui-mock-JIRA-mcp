@@ -1,10 +1,6 @@
 /**
- * Stdio MCP entry point — for Claude Code / Claude Desktop via .mcp.json.
- * Runs the same pm-context server over stdio (Claude spawns this process).
+ * Stdio MCP entry point — for Claude Code via .mcp.json (pm-context).
  */
-
-import fs from "node:fs";
-import path from "node:path";
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -13,22 +9,9 @@ import {
   defaultFilesystemDirs,
   initFilesystemAccess,
 } from "./filesystem-tools";
-import { PM_MCP_ROOT } from "./paths";
+import { ensureLocalRepoRoot } from "./repo-env";
 import { RepoManager } from "./repo-manager";
 import { SessionManager } from "./session-manager";
-
-/** Use parent monorepo checkout when poc-mcp lives inside manager-dashboard. */
-function ensureLocalRepoRoot(): void {
-  if (process.env.REPO_ROOT) return;
-
-  const candidate = path.resolve(PM_MCP_ROOT, "..");
-  if (fs.existsSync(path.join(candidate, ".git"))) {
-    process.env.REPO_ROOT = candidate;
-    if (process.env.REPO_AUTO_PULL === undefined) {
-      process.env.REPO_AUTO_PULL = "false";
-    }
-  }
-}
 
 async function main() {
   ensureLocalRepoRoot();

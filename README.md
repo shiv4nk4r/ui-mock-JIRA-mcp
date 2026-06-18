@@ -106,9 +106,12 @@ Optional: add extra allowed paths via `FS_ALLOWED_DIRS` in `pm-mcp/.env` (comma-
 
 ### Claude Code (project `.mcp.json`)
 
-This repo includes [`.mcp.json`](.mcp.json) at the project root. Claude Code picks it up automatically when you open `poc-mcp` as the project directory.
+This repo includes [`.mcp.json`](.mcp.json) with **two** connection options:
 
-It spawns the MCP server over **stdio** (no need to run `npm run dev:mcp` separately):
+| Server | Transport | When to use |
+|--------|-----------|-------------|
+| `pm-context` | stdio | Claude spawns the server automatically (simplest) |
+| `pm-context-http` | http | Connect to a running HTTP server (shared with Cursor / pm-ui) |
 
 ```json
 {
@@ -117,16 +120,30 @@ It spawns the MCP server over **stdio** (no need to run `npm run dev:mcp` separa
       "type": "stdio",
       "command": "npx",
       "args": ["tsx", "pm-mcp/src/stdio.ts"]
+    },
+    "pm-context-http": {
+      "type": "http",
+      "url": "http://127.0.0.1:3100/mcp"
     }
   }
 }
 ```
 
-When `poc-mcp` is inside the `manager-dashboard` monorepo, the stdio entry auto-detects the parent git checkout as `REPO_ROOT`. To override, set `REPO_ROOT` in your shell or add an `env` block to `.mcp.json`.
+**Stdio (`pm-context`):** No separate server process — Claude starts it on connect. Approve when prompted, then verify with `/mcp`.
 
-On first connect, Claude will prompt you to approve the `pm-context` server. Verify with `/mcp` inside a Claude Code session.
+**HTTP (`pm-context-http`):** Start the server first, then approve in Claude Code:
 
-To use the **HTTP** server instead (e.g. Cursor), point your client at:
+```bash
+npm run dev:mcp    # or: npm run start:mcp
+```
+
+Health check: http://127.0.0.1:3100/health
+
+Use **one** of the two in Claude Code at a time to avoid duplicate tools.
+
+### Cursor / other HTTP clients
+
+Point at the same URL (server must be running):
 
 ```json
 {
@@ -139,7 +156,7 @@ To use the **HTTP** server instead (e.g. Cursor), point your client at:
 }
 ```
 
-Start the HTTP server first: `npm run dev:mcp`
+pm-ui uses the same endpoint via `MCP_SERVER_URL` in `pm-ui/.env.local`.
 
 ## Code index (manual rebuild)
 

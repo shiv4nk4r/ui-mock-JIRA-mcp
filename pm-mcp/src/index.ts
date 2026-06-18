@@ -15,6 +15,7 @@ import {
   defaultFilesystemDirs,
   initFilesystemAccess,
 } from "./filesystem-tools";
+import { ensureLocalRepoRoot, mcpHttpUrl } from "./repo-env";
 import { RepoManager } from "./repo-manager";
 import { SessionManager } from "./session-manager";
 import type { SessionContext } from "./session-manager";
@@ -131,6 +132,8 @@ app.get("/mcp", mcpGetHandler);
 app.delete("/mcp", mcpDeleteHandler);
 
 async function main() {
+  ensureLocalRepoRoot();
+
   console.log("[pm-mcp] Syncing repository…");
   const repoState = await repoManager.ensureReady();
   console.log(
@@ -148,7 +151,7 @@ async function main() {
   setInterval(() => sessionManager.cleanupIdleSessions(), 15 * 60 * 1000);
 
   app.listen(PORT, HOST, () => {
-    console.log(`[pm-mcp] MCP server listening on http://${HOST}:${PORT}/mcp`);
+    console.log(`[pm-mcp] MCP server listening on ${mcpHttpUrl()}`);
     console.log(`[pm-mcp] Health check: http://${HOST}:${PORT}/health`);
   });
 }

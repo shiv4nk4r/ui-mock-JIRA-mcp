@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "concurrently -n mcp,ui -c blue,green \"npm run dev -w pm-mcp\" \"npm run dev -w pm-ui\"",
     "dev:mcp": "npm run dev -w pm-mcp",
+    "start:mcp": "npm run start -w pm-mcp",
     "dev:ui": "npm run dev -w pm-ui",
     "build": "npm run build -w pm-ui",
     "type-check": "npm run type-check -w pm-ui && npm run type-check -w pm-mcp"
