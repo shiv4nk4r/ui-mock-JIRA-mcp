@@ -1,0 +1,29 @@
+{
+  "name": "pm-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "type-check": "tsc --noEmit",
+    "index": "tsx src/parser/test-parser.ts --full"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.24.0",
+    "@babel/traverse": "^7.24.0",
+    "@babel/types": "^7.24.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "express": "^5.2.1",
+    "fast-glob": "^3.3.2",
+    "graphql": "^16.8.1",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.20.6",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}

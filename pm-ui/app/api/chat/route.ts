@@ -7,7 +7,7 @@ import {
   fetchContextResources,
   listProductScreenshots,
   screenshotPath,
-} from "@/mcp-bridge";
+} from "@/mcp-client";
 
 export const dynamic = "force-dynamic";
 
@@ -454,7 +454,7 @@ function streamClaudeCode(
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           if (enableVisualSkill) {
-            const screenshots = listProductScreenshots();
+            const screenshots = await listProductScreenshots();
             const screenshotNote = screenshots.length
               ? `\n\nProduct screenshots for reference (read these with the Read tool to match the actual UI):\n${screenshots.map((f) => screenshotPath(f)).join("\n")}`
               : "";

@@ -345,7 +345,7 @@ function commonAncestor(paths: string[]): string {
 export function defaultConfig(repoRoot: string): IndexerConfig {
   return {
     repoRoot,
-    cachePath: path.join(repoRoot, 'poc-mcp', '.cache', 'code-graph.json'),
+    cachePath: path.join(repoRoot, 'poc-mcp', 'pm-mcp', '.cache', 'code-graph.json'),
     roots: [
       path.join(repoRoot, 'mdui'),
       path.join(repoRoot, 'mdbff'),
@@ -361,5 +361,5 @@ export function defaultConfig(repoRoot: string): IndexerConfig {
 
 /** Default cache file path for this monorepo */
 export function defaultCachePath(repoRoot: string): string {
-  return path.join(repoRoot, 'poc-mcp', '.cache', 'code-graph.json');
+  return path.join(repoRoot, 'poc-mcp', 'pm-mcp', '.cache', 'code-graph.json');
 }

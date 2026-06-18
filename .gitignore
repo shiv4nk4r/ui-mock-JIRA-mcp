@@ -1,5 +1,6 @@
-# Parser cache (rebuild with: npx tsx src/parser/test-parser.ts --full)
+# Parser cache (rebuild with: npm run index -w pm-mcp)
 .cache/
+pm-mcp/.cache/
 
 # Dependencies
 node_modules/

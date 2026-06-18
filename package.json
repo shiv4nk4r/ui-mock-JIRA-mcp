@@ -1,38 +1,19 @@
 {
-  "name": "poc-pm-jira-orchestrator",
+  "name": "poc-mcp",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "pm-ui",
+    "pm-mcp"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.161",
-    "@anthropic-ai/sdk": "^0.100.0",
-    "@babel/parser": "^7.24.0",
-    "@babel/traverse": "^7.24.0",
-    "@babel/types": "^7.24.0",
-    "@google/generative-ai": "^0.24.1",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "fast-glob": "^3.3.2",
-    "graphql": "^16.8.1",
-    "next": "^14.2.0",
-    "openai": "^6.41.0",
-    "react": "^18",
-    "react-dom": "^18",
-    "zod": "^3.22.0"
+    "dev": "concurrently -n mcp,ui -c blue,green \"npm run dev -w pm-mcp\" \"npm run dev -w pm-ui\"",
+    "dev:mcp": "npm run dev -w pm-mcp",
+    "dev:ui": "npm run dev -w pm-ui",
+    "build": "npm run build -w pm-ui",
+    "type-check": "npm run type-check -w pm-ui && npm run type-check -w pm-mcp"
   },
   "devDependencies": {
-    "@types/babel__traverse": "^7.20.6",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.0",
-    "tsx": "^4.22.4",
-    "typescript": "^5"
+    "concurrently": "^9.1.2"
   }
 }
