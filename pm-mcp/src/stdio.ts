@@ -14,7 +14,10 @@ import { RepoManager } from "./repo-manager";
 import { SessionManager } from "./session-manager";
 
 async function main() {
-  ensureLocalRepoRoot();
+  const detectedRoot = ensureLocalRepoRoot();
+  if (detectedRoot) {
+    process.stderr.write(`[pm-mcp] Using manager-dashboard at ${detectedRoot}\n`);
+  }
 
   const repoManager = new RepoManager();
   const sessionManager = new SessionManager(repoManager);

@@ -95,7 +95,7 @@ const DESIGN_TOKENS: Record<string, string> = {
 
 export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpServer {
   const { repoManager, sessionManager } = deps;
-  const repoRoot = repoManager.getRepoRoot();
+  const activeRepoRoot = () => repoManager.getRepoRoot();
   const { graph } = ctx;
 
   const server = new McpServer({ name: "pm-context-server", version: "2.1.0" });
@@ -167,7 +167,9 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
               "## Repository Status",
               `- **Session branch:** ${ctx.branch}`,
               `- **Session commit:** ${ctx.commit}`,
-              `- **Clone path:** ${repoRoot}`,
+              `- **Checkout path:** ${activeRepoRoot()}`,
+              `- **Main clone:** ${repoManager.getMainRepoPath()}`,
+              `- **Worktrees dir:** ${repoManager.getWorktreesDir()}`,
               `- **Index ready:** ${ctx.indexReady}`,
               `- **Index status:** ${ctx.indexStatus}`,
               repoState
@@ -485,7 +487,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
         };
       }
       const lines = results.map((n) => {
-        const relFile = path.relative(repoRoot, n.filePath);
+        const relFile = path.relative(activeRepoRoot(), n.filePath);
         return `[${n.kind}] ${n.scopePath} (${relFile}:${n.loc.start.line})`;
       });
       return {
@@ -509,7 +511,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
       if (!ctx.indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
-      const absPath = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
+      const absPath = path.isAbsolute(filePath) ? filePath : path.join(activeRepoRoot(), filePath);
       const struct = graph.getFileStructure(absPath);
       if (!struct) {
         return {
@@ -524,7 +526,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
           {
             type: "text",
             text: [
-              `FILE: ${path.relative(repoRoot, struct.file.filePath)} (branch: ${ctx.branch})`,
+              `FILE: ${path.relative(activeRepoRoot(), struct.file.filePath)} (branch: ${ctx.branch})`,
               "",
               `SYMBOLS (${struct.children.length}):`,
               ...symbolLines,
@@ -574,35 +576,81 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "get-vue-component",
-    "Get the API surface of a Vue SFC component.",
-    { name: z.string().describe("Component name or partial path") },
+    "Get the API surface of a Vue SFC component (props, methods, computed). Use read_text_file on the path for full source.",
+    { name: z.string().describe("Component name or partial file path (e.g. Listing, outbound/listing)") },
     async ({ name }) => {
       if (!ctx.indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
-      const candidates = graph
-        .searchByName(name, 20)
+
+      const q = name.toLowerCase();
+      const byName = graph
+        .searchByName(name, 30)
         .filter((n) => n.kind === "vue-component" || n.filePath.endsWith(".vue"));
+      const byPath = graph
+        .getNodesByKind("vue-component")
+        .filter((n) => n.filePath.toLowerCase().includes(q));
+
+      const seen = new Set<string>();
+      const candidates = [...byName, ...byPath].filter((n) => {
+        if (seen.has(n.id)) return false;
+        seen.add(n.id);
+        return true;
+      });
+
+      candidates.sort((a, b) => {
+        const aExact = a.name.toLowerCase() === q ? 0 : 1;
+        const bExact = b.name.toLowerCase() === q ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+        return a.filePath.localeCompare(b.filePath);
+      });
 
       if (candidates.length === 0) {
         return {
-          content: [{ type: "text", text: `No Vue component found matching "${name}".` }],
+          content: [
+            {
+              type: "text",
+              text: [
+                `No Vue component found matching "${name}".`,
+                `Active checkout: ${activeRepoRoot()} (branch: ${ctx.branch})`,
+                "Try search_files with pattern **/*Listing*.vue or rebuild-code-index.",
+              ].join("\n"),
+            },
+          ],
         };
       }
 
-      const lines = candidates.slice(0, 5).map((cmp) => {
-        const m = cmp.metadata;
+      const formatComponent = (cmp: (typeof candidates)[0]) => {
+        const m = cmp.metadata as Record<string, unknown>;
+        const rel = path.relative(activeRepoRoot(), cmp.filePath);
         return [
           `COMPONENT: ${cmp.name}`,
-          `  file: ${path.relative(repoRoot, cmp.filePath)}`,
+          `  file: ${rel}`,
+          `  path: ${cmp.filePath}`,
           m.props ? `  props: ${(m.props as string[]).join(", ")}` : null,
           m.methods ? `  methods: ${(m.methods as string[]).join(", ")}` : null,
+          m.computed ? `  computed: ${(m.computed as string[]).join(", ")}` : null,
+          m.dataKeys ? `  data: ${(m.dataKeys as string[]).join(", ")}` : null,
+          m.mixins ? `  mixins: ${(m.mixins as string[]).join(", ")}` : null,
         ]
           .filter(Boolean)
           .join("\n");
-      });
+      };
 
-      return { content: [{ type: "text", text: lines.join("\n\n") }] };
+      const shown = candidates.slice(0, 10);
+      const suffix =
+        candidates.length > shown.length
+          ? `\n\n… and ${candidates.length - shown.length} more. Refine your query.`
+          : "";
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${shown.map(formatComponent).join("\n\n")}${suffix}`,
+          },
+        ],
+      };
     }
   );
 
@@ -626,7 +674,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
       const lines = resolvers.map((r) => {
         const op = r.metadata.graphqlOperation ?? "?";
-        return `[${op}] ${r.name} — ${path.relative(repoRoot, r.filePath)}:${r.loc.start.line}`;
+        return `[${op}] ${r.name} — ${path.relative(activeRepoRoot(), r.filePath)}:${r.loc.start.line}`;
       });
 
       return {

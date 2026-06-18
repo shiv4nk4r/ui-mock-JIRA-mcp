@@ -5,6 +5,7 @@
 
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,8 @@ import {
   writeFileContent,
 } from "@modelcontextprotocol/server-filesystem/dist/lib.js";
 import { expandHome, normalizePath } from "@modelcontextprotocol/server-filesystem/dist/path-utils.js";
+
+import { PM_MCP_ROOT } from "./paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const CONTEXT_DIR = path.join(__dirname, "context");
@@ -55,9 +58,15 @@ export async function resolveAllowedDirectories(directories: string[]): Promise<
   return [...new Set(resolved)] as string[];
 }
 
-/** Build default allowed dirs: repo clone + bundled context (+ optional extras). */
+/** Build default allowed dirs: active checkout + all .repos worktrees + bundled context. */
 export function defaultFilesystemDirs(repoRoot: string): string[] {
   const dirs = [repoRoot, CONTEXT_DIR];
+
+  const reposDir = path.join(PM_MCP_ROOT, ".repos");
+  if (fsSync.existsSync(reposDir)) {
+    dirs.push(reposDir);
+  }
+
   const extra = process.env.FS_ALLOWED_DIRS?.split(",")
     .map((s) => s.trim())
     .filter(Boolean);
@@ -67,6 +76,11 @@ export function defaultFilesystemDirs(repoRoot: string): string[] {
 
 /** Initialize global allowed directories (call once at startup). */
 export async function initFilesystemAccess(directories: string[]): Promise<string[]> {
+  return updateFilesystemAccess(directories);
+}
+
+/** Refresh allowed directories (e.g. after branch switch). */
+export async function updateFilesystemAccess(directories: string[]): Promise<string[]> {
   const resolved = await resolveAllowedDirectories(directories);
 
   await Promise.all(
@@ -379,7 +393,7 @@ export function registerFilesystemTools(server: McpServer): void {
 
   server.tool(
     "list_allowed_directories",
-    "Returns directories this server can access (repo clone + context docs).",
+    "Returns directories this server can access (repo checkout, worktrees, context docs).",
     async () => {
       const dirs = getAllowedDirectories();
       return {

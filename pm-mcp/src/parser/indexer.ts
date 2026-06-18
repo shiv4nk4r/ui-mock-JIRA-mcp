@@ -151,6 +151,7 @@ export interface CacheLoadResult {
 export interface CacheLoadOptions {
   maxAgeMs?: number;
   commit?: string;
+  repoRoot?: string;
 }
 
 /**
@@ -171,6 +172,11 @@ export function tryLoadCache(
   if (!meta) return { loaded: false, meta: null };
 
   if (opts.commit && meta.commit && meta.commit !== opts.commit) {
+    store.clear();
+    return { loaded: false, meta, ageMs: 0 };
+  }
+
+  if (opts.repoRoot && meta.repoRoot && meta.repoRoot !== opts.repoRoot) {
     store.clear();
     return { loaded: false, meta, ageMs: 0 };
   }

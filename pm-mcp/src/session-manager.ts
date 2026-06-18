@@ -5,6 +5,10 @@ import {
   tryLoadCache,
   cachePathForBranch,
 } from "./parser/indexer";
+import {
+  defaultFilesystemDirs,
+  updateFilesystemAccess,
+} from "./filesystem-tools";
 import type { RepoManager } from "./repo-manager";
 
 export interface SessionContext {
@@ -74,7 +78,7 @@ export class SessionManager {
     const repoRoot = this.repoManager.getRepoRoot();
     const cachePath = cachePathForBranch(branch);
     const probe = new GraphStore();
-    const cached = tryLoadCache(probe, cachePath, { commit });
+    const cached = tryLoadCache(probe, cachePath, { commit, repoRoot });
 
     if (cached.loaded) {
       console.log(
@@ -98,7 +102,10 @@ export class SessionManager {
 
     const repoRoot = this.repoManager.getRepoRoot();
     const cachePath = cachePathForBranch(ctx.branch);
-    const cacheResult = tryLoadCache(ctx.graph, cachePath, { commit: ctx.commit });
+    const cacheResult = tryLoadCache(ctx.graph, cachePath, {
+      commit: ctx.commit,
+      repoRoot,
+    });
 
     if (cacheResult.loaded && cacheResult.meta) {
       const stats = ctx.graph.stats();
@@ -144,6 +151,11 @@ export class SessionManager {
     ctx.graph.clear();
     ctx.indexReady = false;
     ctx.indexStatus = "Switching branch…";
+
+    await updateFilesystemAccess(
+      defaultFilesystemDirs(this.repoManager.getRepoRoot())
+    );
+
     await this.ensureIndexed(ctx);
     return ctx;
   }

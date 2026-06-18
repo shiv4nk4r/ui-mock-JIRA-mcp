@@ -1,11 +1,6 @@
 {
   "mcpServers": {
-    "pm-context": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["tsx", "pm-mcp/src/stdio.ts"]
-    },
-    "pm-context-http": {
+    "manager-dashboard": {
       "type": "http",
       "url": "http://127.0.0.1:3100/mcp"
     }

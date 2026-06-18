@@ -132,7 +132,10 @@ app.get("/mcp", mcpGetHandler);
 app.delete("/mcp", mcpDeleteHandler);
 
 async function main() {
-  ensureLocalRepoRoot();
+  const detectedRoot = ensureLocalRepoRoot();
+  if (detectedRoot) {
+    console.log(`[pm-mcp] Using manager-dashboard at ${detectedRoot}`);
+  }
 
   console.log("[pm-mcp] Syncing repository…");
   const repoState = await repoManager.ensureReady();
