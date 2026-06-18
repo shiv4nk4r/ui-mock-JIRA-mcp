@@ -1,19 +1,29 @@
 /**
  * Server-side mockup CSS grounding from captured pages.
  *
- * Template selection is left to the AI agent via MCP tools
- * (list-page-templates / get-page-template). This module only loads the
- * captured Quasar CSS bundle for post-generation iframe injection.
+ * Template selection is left to the AI agent via MCP tools.
+ * This module loads the captured Quasar CSS bundle for post-generation iframe injection.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
+import { buildGroundingPromptBlock } from "./lean-mockup-run";
 import { getMcpHealthUrl, getMcpServerUrl } from "./mcp-client";
 import { MOCKUP_ICON_STYLES, rewriteMockupAssetUrls } from "./mockup-assets";
 import { WORKSPACE_ROOT } from "./paths";
 
+export { formatRouteHints, suggestTemplateRoutes } from "./lean-mockup-run";
+
 const STYLE_MARKER = "data-md-capture-css";
+
+/** Remove server-injected capture CSS before sending HTML to Claude (re-injected after). */
+export function stripInjectedCaptureCss(html: string): string {
+  if (!html?.trim()) return html;
+  return html
+    .replace(/<style[^>]*data-md-capture-css[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<link[^>]*data-md-capture-css-link[^>]*>\s*/gi, "");
+}
 
 export interface MockupGrounding {
   available: boolean;
@@ -95,29 +105,6 @@ async function loadCssBundle(label: string, bundleId: string): Promise<string> {
   return readLocalText(path.join(captureCacheDir(label), "styles", `${bundleId}.css`));
 }
 
-function buildPromptBlock(label: string): string {
-  return [
-    "=== CAPTURED PAGE TEMPLATES (survey → plan → build) ===",
-    "",
-    "PHASE 1 — SURVEY (required before any mockup HTML):",
-    "1) survey-page-templates — read ALL routes (archetypes, components, layout regions)",
-    "2) Understand how the Manager Dashboard is structured across outbound, inbound, inventory, audit, system, users, etc.",
-    "",
-    "PHASE 2 — PLAN (you decide):",
-    "- Pick ONE primary route as the mockup base, OR",
-    "- Mix-and-match: graft regions/components from multiple templates (e.g. sub-nav from /outbound, table from /audit/audit)",
-    "- Call get-page-template(route) for primary base, or get-page-template(routes=[...]) to load up to 6 candidates",
-    "",
-    "PHASE 3 — BUILD:",
-    "- Edit captured DOM in place — preserve Quasar classes and layout",
-    "- list-rendered-components + get-rendered-component for isolated q-dialog/modal snippets",
-    "- list-brand-icons + get-brand-icon for action column icons (data-uri <img>)",
-    "",
-    `Capture label: ${label}`,
-    "Captured Quasar CSS is AUTO-INJECTED server-side — do NOT hand-write table CSS.",
-  ].join("\n");
-}
-
 export async function buildMockupGrounding(): Promise<MockupGrounding> {
   const empty: MockupGrounding = {
     available: false,
@@ -143,7 +130,7 @@ export async function buildMockupGrounding(): Promise<MockupGrounding> {
     label,
     cssText,
     cssBundleId,
-    promptBlock: buildPromptBlock(label),
+    promptBlock: buildGroundingPromptBlock(label),
   };
 }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { useRef, useState, useEffect, FormEvent, KeyboardEvent } from "react";
+import { ActivityLog } from "@/ActivityLog";
+import type { ActivityEntry } from "@/activity-log";
+import { activityToDisplayText, appendActivity, normalizeActivityEntry } from "@/activity-log";
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -38,6 +41,8 @@ interface AttachedFile {
 interface ReuseManifest {
   reusedComponents: string[];
   reusedIcons: string[];
+  reusedTemplates?: string[];
+  reusedCaptureComponents?: string[];
   newComponents: Array<{ name: string; reason: string }>;
   newIcons: Array<{ name: string; reason: string }>;
 }
@@ -45,12 +50,13 @@ interface ReuseValidation {
   valid: boolean;
   unknownComponents: Array<{ ref: string; suggestions?: string[] }>;
   unknownIcons: Array<{ ref: string; suggestions?: string[] }>;
+  unknownTemplates?: Array<{ ref: string }>;
 }
 interface Message {
   role: "user" | "assistant";
   text?: string; htmlComponent?: string; effortEstimation?: string;
   rawBlocks?: ContentBlock[]; isStreaming?: boolean;
-  thinking?: { log: string[]; elapsed?: number; done: boolean };
+  thinking?: { log: string[]; entries?: ActivityEntry[]; elapsed?: number; done: boolean };
   manifest?: ReuseManifest; validation?: ReuseValidation;
   attachedFiles?: Array<{ name: string; contentType: string; sizeLabel: string; htmlContent?: string }>;
 }
@@ -304,33 +310,48 @@ function ChatMarkdown({ text }: { text: string }) {
 
 // ── ThinkingBlock ─────────────────────────────────────────────────────────────
 
-function ThinkingBlock({ log, done, elapsed }: { log: string[]; done: boolean; elapsed?: number }) {
+function ThinkingBlock({
+  log,
+  entries,
+  done,
+  elapsed,
+}: {
+  log: string[];
+  entries?: ActivityEntry[];
+  done: boolean;
+  elapsed?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
-  const latest = log[log.length - 1] ?? "Processing…";
-  if (!done) return (
-    <div className="flex items-start gap-3 px-4 py-3 border-l-2 mb-2" style={{ borderLeftColor: "#D0CCC6", background: "#FFFFFF" }}>
-      <div className="signal-bars flex-none" style={{ marginTop: 3 }}><span /><span /><span /><span /><span /></div>
-      <div>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#6A6560", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 3 }}>Thinking</div>
-        <div style={{ fontFamily: "'Barlow',sans-serif", fontSize: 12, color: "#8A8680", lineHeight: "1.4" }}>{latest}</div>
+  const displayEntries: ActivityEntry[] = entries?.length
+    ? entries.map((e) => normalizeActivityEntry(e))
+    : log
+        .filter((line): line is string => typeof line === "string" && line.length > 0)
+        .map((line, i) => normalizeActivityEntry({ text: line, ts: i }));
+
+  if (!done) {
+    return (
+      <div className="border-l-2 mb-2 overflow-hidden" style={{ borderLeftColor: "#D0CCC6", background: "#FFFFFF" }}>
+        <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ borderColor: "#E2DDD8" }}>
+          <div className="signal-bars flex-none"><span /><span /><span /><span /><span /></div>
+          <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#6A6560", letterSpacing: "0.22em", textTransform: "uppercase" }}>Activity</span>
+        </div>
+        <div className="px-4 py-3">
+          <ActivityLog entries={displayEntries} maxHeight="50vh" autoScroll />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
   return (
     <div className="border-l-2 mb-2 overflow-hidden" style={{ borderLeftColor: "#E2DDD8" }}>
       <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-2 px-4 py-2 text-left" style={{ background: "#FFFFFF" }}>
         <span style={{ color: "#A8A4A0", fontSize: 9 }}>{expanded ? "▾" : "▸"}</span>
         <span style={{ fontFamily: "'Fira Code',monospace", fontSize: 10, color: "#8A8680", letterSpacing: "0.05em" }}>Thought for {elapsed?.toFixed(1)}s</span>
-        {log.length > 0 && <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#C4C0BA", letterSpacing: "0.08em" }}>· {log.length} step{log.length !== 1 ? "s" : ""}</span>}
+        {displayEntries.length > 0 && <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#C4C0BA", letterSpacing: "0.08em" }}>· {displayEntries.length} step{displayEntries.length !== 1 ? "s" : ""}</span>}
       </button>
       {expanded && (
-        <div className="px-4 py-2 space-y-1.5" style={{ background: "#EDEBE8", borderTop: "1px solid #E2DDD8" }}>
-          {log.map((entry, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span style={{ color: "#C4C0BA", fontSize: 10, marginTop: 1, flexShrink: 0 }}>›</span>
-              <span style={{ fontFamily: "'Barlow',sans-serif", fontSize: 11, color: "#706C68", lineHeight: "1.45" }}>{entry}</span>
-            </div>
-          ))}
+        <div className="px-4 py-3" style={{ background: "#EDEBE8", borderTop: "1px solid #E2DDD8" }}>
+          <ActivityLog entries={displayEntries} maxHeight="50vh" />
         </div>
       )}
     </div>
@@ -339,9 +360,16 @@ function ThinkingBlock({ log, done, elapsed }: { log: string[]; done: boolean; e
 
 function ReuseManifestPanel({ manifest, validation }: { manifest: ReuseManifest; validation?: ReuseValidation }) {
   const [expanded, setExpanded] = useState(false);
-  const reusedCount = manifest.reusedComponents.length + manifest.reusedIcons.length;
+  const reusedCount =
+    manifest.reusedComponents.length +
+    manifest.reusedIcons.length +
+    (manifest.reusedTemplates?.length ?? 0) +
+    (manifest.reusedCaptureComponents?.length ?? 0);
   const newCount    = manifest.newComponents.length + manifest.newIcons.length;
-  const unknownCount = (validation?.unknownComponents.length ?? 0) + (validation?.unknownIcons.length ?? 0);
+  const unknownCount =
+    (validation?.unknownComponents.length ?? 0) +
+    (validation?.unknownIcons.length ?? 0) +
+    (validation?.unknownTemplates?.length ?? 0);
   if (reusedCount === 0 && newCount === 0) return null;
 
   const ok = validation ? validation.valid : true;
@@ -361,6 +389,12 @@ function ReuseManifestPanel({ manifest, validation }: { manifest: ReuseManifest;
       </button>
       {expanded && (
         <div className="px-4 py-2 space-y-2" style={{ background: "#F4F2EF", borderTop: "1px solid #E2DDD8" }}>
+          {manifest.reusedTemplates && manifest.reusedTemplates.length > 0 && (
+            <ManifestGroup title="Reused templates (routes)" items={manifest.reusedTemplates} dot="#66bb6a" />
+          )}
+          {manifest.reusedCaptureComponents && manifest.reusedCaptureComponents.length > 0 && (
+            <ManifestGroup title="Reused capture components" items={manifest.reusedCaptureComponents} dot="#66bb6a" />
+          )}
           {manifest.reusedComponents.length > 0 && (
             <ManifestGroup title="Reused components" items={manifest.reusedComponents} dot="#66bb6a" />
           )}
@@ -377,6 +411,7 @@ function ReuseManifestPanel({ manifest, validation }: { manifest: ReuseManifest;
             <ManifestGroup
               title="Unverified (could not resolve in codebase)"
               items={[
+                ...(validation.unknownTemplates ?? []).map((c) => `${c.ref} → not in template survey`),
                 ...validation.unknownComponents.map((c) => `${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : ""}`),
                 ...validation.unknownIcons.map((c) => `${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : ""}`),
               ]}
@@ -471,9 +506,7 @@ function TicketPanel({ ticketData, jiraBaseUrl }: { ticketData: TicketData | nul
 
 // ── Generating Screen ─────────────────────────────────────────────────────────
 
-function GeneratingScreen({ ticketId, summary, model, thinkingLog }: { ticketId: string; summary: string; model: string; thinkingLog: string[] }) {
-  const logRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" }); }, [thinkingLog]);
+function GeneratingScreen({ ticketId, summary, model, thinkingLog }: { ticketId: string; summary: string; model: string; thinkingLog: ActivityEntry[] }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden" style={{ background: "#F8F6F3" }}>
       <div className="absolute inset-0 grid-pattern pointer-events-none" />
@@ -493,14 +526,8 @@ function GeneratingScreen({ ticketId, summary, model, thinkingLog }: { ticketId:
           <div style={{ ...F.condensed, fontSize: 10, color: "#A8A4A0", letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 4 }}>Model: {model}</div>
         </div>
         <div className="h-px" style={{ background: "linear-gradient(90deg, #D97706 0%, transparent 70%)" }} />
-        <div ref={logRef} className="space-y-1.5 overflow-y-auto" style={{ maxHeight: 220 }}>
-          {thinkingLog.length === 0 && <div style={{ ...F.condensed, fontSize: 10, color: "#C4C0BA", letterSpacing: "0.15em" }}>Initialising…</div>}
-          {thinkingLog.map((entry, i) => (
-            <div key={i} className="flex items-start gap-2.5">
-              <span style={{ ...F.mono, fontSize: 10, color: i === thinkingLog.length - 1 ? "#D97706" : "#C4C0BA", flexShrink: 0, marginTop: 1 }}>{i === thinkingLog.length - 1 ? "›" : "✓"}</span>
-              <span style={{ ...F.body, fontSize: 12, color: i === thinkingLog.length - 1 ? "#4A4540" : "#8A8680", lineHeight: "1.45" }}>{entry}</span>
-            </div>
-          ))}
+        <div className="space-y-1.5">
+          <ActivityLog entries={thinkingLog} maxHeight="50vh" autoScroll />
         </div>
         <p style={{ ...F.condensed, fontSize: 9, color: "#A8A4A0", letterSpacing: "0.2em", textTransform: "uppercase" }}>This may take 30–90 seconds · Do not close the tab</p>
       </div>
@@ -579,7 +606,7 @@ export default function Home() {
   const [activeHtml, setActiveHtml] = useState("");
   const [activeTab, setActiveTab]   = useState<Tab>("mockup");
   const [messages, setMessages]     = useState<Message[]>([]);
-  const [thinkingLog, setThinkingLog] = useState<string[]>([]);
+  const [thinkingLog, setThinkingLog] = useState<ActivityEntry[]>([]);
 
   const [refineInput, setRefineInput] = useState("");
   const [isRefining, setIsRefining]   = useState(false);
@@ -649,6 +676,22 @@ export default function Home() {
 
   // ── Core SSE stream handler ────────────────────────────────────────────────
 
+  function pushActivity(raw: Partial<ActivityEntry>) {
+    const entry = normalizeActivityEntry(raw);
+    setThinkingLog((prev) => appendActivity(prev, entry));
+    updateLastMessage((m) => {
+      const nextEntries = appendActivity(m.thinking?.entries ?? [], entry);
+      return {
+        ...m,
+        thinking: {
+          log: nextEntries.map(activityToDisplayText),
+          entries: nextEntries,
+          done: false,
+        },
+      };
+    });
+  }
+
   async function streamChat(requestBody: Record<string, unknown>, usageLabel: string, onHtml: (html: string) => void): Promise<void> {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
     if (!res.ok) {
@@ -675,12 +718,22 @@ export default function Home() {
         if (!line) continue;
         try {
           const ev = JSON.parse(line.slice(6));
-          if (ev.thinking) {
-            const t = ev.thinking as string;
-            setThinkingLog((prev) => [...prev, t]);
-            updateLastMessage((m) => ({ ...m, thinking: { log: [...(m.thinking?.log ?? []), t], done: false } }));
+          if (ev.activity) {
+            pushActivity(ev.activity as Partial<ActivityEntry>);
+          } else if (typeof ev.thinking === "string" && ev.thinking) {
+            pushActivity({ text: ev.thinking, ts: Date.now() });
           }
-          if (ev.thinkingDone) updateLastMessage((m) => ({ ...m, thinking: { log: m.thinking?.log ?? [], done: true, elapsed: ev.elapsed as number } }));
+          if (ev.thinkingDone) {
+            updateLastMessage((m) => ({
+              ...m,
+              thinking: {
+                log: m.thinking?.log ?? [],
+                entries: m.thinking?.entries ?? [],
+                done: true,
+                elapsed: ev.elapsed as number,
+              },
+            }));
+          }
           if (ev.delta) { accumulated += ev.delta as string; updateLastMessage({ text: accumulated, isStreaming: true }); }
           if (ev.html) { streamingHtml = ev.html as string; onHtml(ev.html as string); }
           if (ev.manifest) {
@@ -1073,7 +1126,7 @@ export default function Home() {
                       {msg.role === "assistant" && <span style={{ ...F.mono, color: "#6E6560", fontSize: "9px" }}>MCP</span>}
                     </div>
 
-                    {msg.thinking && <ThinkingBlock log={msg.thinking.log} done={msg.thinking.done} elapsed={msg.thinking.elapsed} />}
+                    {msg.thinking && <ThinkingBlock log={msg.thinking.log} entries={msg.thinking.entries} done={msg.thinking.done} elapsed={msg.thinking.elapsed} />}
 
                     {msg.manifest && <ReuseManifestPanel manifest={msg.manifest} validation={msg.validation} />}
 

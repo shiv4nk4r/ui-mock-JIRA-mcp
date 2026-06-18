@@ -183,12 +183,15 @@ export interface UiReferenceValidation {
   valid: boolean;
   unknownComponents: Array<{ ref: string; suggestions?: string[] }>;
   unknownIcons: Array<{ ref: string; suggestions?: string[] }>;
+  unknownTemplates?: Array<{ ref: string }>;
 }
 
-/** Verify reused components/icons exist in the codebase (hard-fail grounding). */
+/** Verify reused manifest entries (capture-first: templates + icons required). */
 export async function validateUiReferences(refs: {
   components?: string[];
   icons?: string[];
+  templates?: string[];
+  captureComponents?: string[];
 }): Promise<UiReferenceValidation> {
   const { client, close } = await createMcpClient();
   try {
@@ -197,6 +200,8 @@ export async function validateUiReferences(refs: {
       arguments: {
         components: refs.components ?? [],
         icons: refs.icons ?? [],
+        templates: refs.templates ?? [],
+        captureComponents: refs.captureComponents ?? [],
       },
     });
     const text = toolText(result);

@@ -37,6 +37,7 @@ import {
   getRenderedComponentText,
   resolveCaptureLabel,
   surveyPageTemplates,
+  validateTemplateRoutes,
 } from "./capture-catalog";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -297,7 +298,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "list-brand-icons",
-    "List official Manager Dashboard icons and logos from mdui/public/ in the active repo checkout. REQUIRED before using icons in HTML mockups — do not invent or hallucinate brand icons.",
+    "List official Manager Dashboard icons and logos from mdui/public/. Skip if BRAND ICONS CATALOG is already in the prompt — use get-brand-icon directly for icons you embed.",
     {
       query: z
         .string()
@@ -960,21 +961,30 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "validate-ui-references",
-    "Verify that referenced components and icons actually EXIST in the codebase. Returns which references resolved and which are hallucinated (with suggestions). Call this on a reuse manifest before finalizing a mockup.",
+    "Verify reuse manifest entries. Icons and template routes are strictly validated. Vue component paths are advisory when reusedTemplates is set (capture-first mockups).",
     {
       components: z
         .array(z.string())
         .optional()
-        .describe("Component names/paths claimed as reused, e.g. OrderListing"),
+        .describe("Vue SFC paths claimed as reused — optional for capture-first mockups"),
       icons: z
         .array(z.string())
         .optional()
         .describe("Icon app paths claimed as reused, e.g. /icons/inventory/audit.png"),
+      templates: z
+        .array(z.string())
+        .optional()
+        .describe("Captured page routes from reusedTemplates, e.g. /outbound/ordersV2"),
+      captureComponents: z
+        .array(z.string())
+        .optional()
+        .describe("Rendered component ids from reusedCaptureComponents"),
     },
-    async ({ components, icons }) => {
+    async ({ components, icons, templates, captureComponents }) => {
       if (!ctx.indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
+      const label = resolveCaptureLabel(ctx.branch);
       const repoRoot = activeRepoRoot();
       const compChecks = validateComponentRefs(graph, repoRoot, components ?? []);
 
@@ -987,21 +997,37 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
         return { ref, resolved: false, suggestions };
       });
 
+      const templateChecks = label && templates?.length
+        ? validateTemplateRoutes(label, templates)
+        : (templates ?? []).map((ref) => ({ ref, resolved: false }));
+
       const badComps = compChecks.filter((c) => !c.resolved);
       const badIcons = iconChecks.filter((c) => !c.resolved);
-      const ok = badComps.length === 0 && badIcons.length === 0;
+      const badTemplates = templateChecks.filter((c) => !c.resolved);
+      const captureFirst = Boolean(templates?.length);
+      const ok = badIcons.length === 0 && badTemplates.length === 0 &&
+        (badComps.length === 0 || captureFirst);
 
       const lines: string[] = [
         ok
-          ? "✓ VALID — all referenced components and icons exist."
-          : "✗ HALLUCINATION DETECTED — fix the references below and regenerate.",
+          ? captureFirst && badComps.length
+            ? "✓ VALID (capture-first) — icons and template routes OK; unverified vue paths listed below."
+            : "✓ VALID — all referenced assets exist."
+          : "✗ HALLUCINATION DETECTED — fix icons and/or template routes below.",
         "",
       ];
+      if (badTemplates.length) {
+        lines.push("Unknown template routes:");
+        for (const c of badTemplates) {
+          lines.push(`  ✗ ${c.ref} → call list-page-templates or check PAGE TEMPLATE SURVEY`);
+        }
+        lines.push("");
+      }
       if (badComps.length) {
-        lines.push("Unknown components:");
+        lines.push(captureFirst ? "Unverified vue components (optional for capture-first):" : "Unknown components:");
         for (const c of badComps) {
           lines.push(
-            `  ✗ ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match"}`
+            `  ${captureFirst ? "?" : "✗"} ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match"}`
           );
         }
         lines.push("");
@@ -1015,8 +1041,13 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
         }
         lines.push("");
       }
+      if (captureComponents?.length) {
+        lines.push(`Capture component refs (not validated): ${captureComponents.join(", ")}`);
+      }
       const okComps = compChecks.filter((c) => c.resolved).map((c) => c.match);
       const okIcons = iconChecks.filter((c) => c.resolved).map((c) => c.match);
+      const okTemplates = templateChecks.filter((c) => c.resolved).map((c) => c.ref);
+      if (okTemplates.length) lines.push(`Resolved templates: ${okTemplates.join(", ")}`);
       if (okComps.length) lines.push(`Resolved components: ${okComps.join(", ")}`);
       if (okIcons.length) lines.push(`Resolved icons: ${okIcons.join(", ")}`);
 
@@ -1029,6 +1060,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
                 valid: ok,
                 unknownComponents: badComps.map((c) => ({ ref: c.ref, suggestions: c.suggestions })),
                 unknownIcons: badIcons.map((c) => ({ ref: c.ref, suggestions: c.suggestions })),
+                unknownTemplates: badTemplates.map((c) => ({ ref: c.ref })),
               },
               null,
               2
@@ -1102,7 +1134,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "list-page-templates",
-    "Compact list of stripped page templates. Prefer survey-page-templates first — it includes full metadata for all routes.",
+    "Compact template route list. Skip if PAGE TEMPLATE SURVEY is already in the system prompt.",
     async () => {
       const label = resolveCaptureLabel(ctx.branch);
       if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
@@ -1112,7 +1144,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "survey-page-templates",
-    "REQUIRED FIRST STEP for mockups. Returns metadata for ALL captured page templates (76 routes): archetype groups, shell variants, components, and layout region sizes per route. Read entirely before picking a base or mixing regions from multiple templates.",
+    "Fallback only if PAGE TEMPLATE SURVEY is missing from the system prompt. Returns metadata for all captured routes.",
     async () => {
       const label = resolveCaptureLabel(ctx.branch);
       if (!label) return { content: [{ type: "text", text: noCaptureMsg }] };
@@ -1122,7 +1154,7 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
 
   server.tool(
     "get-page-template",
-    "Return stripped captured page template HTML. Use after survey-page-templates. Pass route for one page, or routes (max 6) to compare/load multiple templates for mix-and-match (e.g. nav from one route, table from another).",
+    "Load stripped page template HTML. Prefer routes array (max 6) in ONE call. Do not call twice for the same route. Survey is prefetched in the prompt — skip survey-page-templates.",
     {
       route: z
         .string()

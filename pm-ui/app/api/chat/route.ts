@@ -8,7 +8,6 @@ import {
   fetchBrandIconCatalog,
   fetchComponentCatalog,
   fetchTemplateSurvey,
-  fetchCapturedPageCatalog,
   fetchRenderedComponentCatalog,
   validateUiReferences,
   listProductScreenshots,
@@ -20,7 +19,10 @@ import {
 } from "@/mcp-client";
 import type { UiReferenceValidation } from "@/mcp-client";
 import { WORKSPACE_ROOT } from "@/paths";
-import { buildMockupGrounding, injectGroundingIntoHtml, type MockupGrounding } from "@/capture-grounding";
+import { buildMockupGrounding, formatRouteHints, injectGroundingIntoHtml, stripInjectedCaptureCss, type MockupGrounding } from "@/capture-grounding";
+import { LEAN_MOCKUP_RUN, ticketNeedsModalCapture } from "@/lean-mockup-run";
+import type { ActivityEntry } from "@/activity-log";
+import { activityToDisplayText } from "@/activity-log";
 
 export const dynamic = "force-dynamic";
 
@@ -225,6 +227,8 @@ const MANIFEST_MARKER_END   = "REUSE_MANIFEST_END";
 export interface ReuseManifest {
   reusedComponents: string[];
   reusedIcons: string[];
+  reusedTemplates?: string[];
+  reusedCaptureComponents?: string[];
   newComponents: Array<{ name: string; reason: string }>;
   newIcons: Array<{ name: string; reason: string }>;
 }
@@ -232,6 +236,8 @@ export interface ReuseManifest {
 const EMPTY_MANIFEST: ReuseManifest = {
   reusedComponents: [],
   reusedIcons: [],
+  reusedTemplates: [],
+  reusedCaptureComponents: [],
   newComponents: [],
   newIcons: [],
 };
@@ -258,6 +264,8 @@ function extractManifest(text: string): { manifest: ReuseManifest | null; displa
       manifest: {
         reusedComponents: parsed.reusedComponents ?? [],
         reusedIcons: parsed.reusedIcons ?? [],
+        reusedTemplates: parsed.reusedTemplates ?? [],
+        reusedCaptureComponents: parsed.reusedCaptureComponents ?? [],
         newComponents: parsed.newComponents ?? [],
         newIcons: parsed.newIcons ?? [],
       },
@@ -273,7 +281,9 @@ const MANIFEST_CONTRACT = [
   MANIFEST_MARKER_START,
   JSON.stringify(
     {
-      reusedComponents: ["mdui/src/components/<path>.vue"],
+      reusedTemplates: ["/outbound/ordersV2"],
+      reusedCaptureComponents: ["q-dialog-id-from-get-rendered-component"],
+      reusedComponents: [],
       reusedIcons: ["/icons/<path>.png"],
       newComponents: [{ name: "NewThing", reason: "no existing component covers X" }],
       newIcons: [{ name: "new-icon", reason: "no existing asset for Y" }],
@@ -282,7 +292,7 @@ const MANIFEST_CONTRACT = [
     2
   ),
   MANIFEST_MARKER_END,
-  "Rules: reusedComponents/reusedIcons MUST exist in the codebase (you verified them via list-reusable-components / get-component-source / list-brand-icons). Anything you could not find an existing match for goes under newComponents/newIcons with a one-line reason. Do NOT silently invent — declare it.",
+  "Rules: For capture-first mockups list reusedTemplates (routes from get-page-template). reusedIcons MUST exist (verified via get-brand-icon). reusedComponents only when you called get-component-source. Unverified items go under newComponents/newIcons with a reason.",
 ].join("\n");
 
 const CAPTURE_TABLE_RULES = [
@@ -291,24 +301,12 @@ const CAPTURE_TABLE_RULES = [
   "- Quasar CSS is auto-injected — do NOT add <style> rules for .q-table / .q-td / .q-btn.",
 ].join("\n");
 
-function visualWorkflowInstruction(hasGrounding: boolean): string {
-  if (hasGrounding) {
-    return [
-      "WORKFLOW (required, in order):",
-      "PHASE 1: survey-page-templates — read ALL template metadata before proceeding",
-      "PHASE 2: Plan — pick primary route OR mix regions from multiple templates; get-page-template(route) or get-page-template(routes=[...])",
-      "PHASE 3: Build mockup — edit captured DOM in place; get-brand-icon for icons; get-rendered-component for modals",
-      "Filesystem MCP is READ-ONLY — do not write files. Output HTML only in RAW_HTML_COMPONENT markers.",
-      "DO NOT rebuild layout from scratch. DO NOT hand-write table CSS.",
-    ].join(" ");
-  }
+function visualWorkflowInstruction(): string {
   return [
-    "WORKFLOW (required, in order):",
-    "1) survey-page-templates → get-page-template OR list-captured-pages + get-captured-page.",
-    "2) list-reusable-components + get-component-source for additional markup.",
-    "3) list-brand-icons + get-brand-icon for every icon.",
-    "Filesystem MCP is READ-ONLY. DO NOT invent components, classes, or icons.",
-  ].join(" ");
+    LEAN_MOCKUP_RUN,
+    "",
+    "OUTPUT: First emit REUSE_MANIFEST_START/END, then RAW_HTML_COMPONENT_START/END with complete HTML.",
+  ].join("\n");
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -369,29 +367,16 @@ function buildSystemPrompt(
     sections.push(
       "VISUAL MOCKUP OUTPUT — REQUIRED:",
       "Generate a complete, pixel-perfect HTML mockup that looks like the real Manager Dashboard.",
-      hasGrounding
-        ? "Survey ALL templates via survey-page-templates before building. YOU pick the base route or mix regions from multiple templates. CSS is AUTO-INJECTED server-side."
-        : "Call survey-page-templates + get-page-template for the mockup base.",
-      "",
-      "TEMPLATE POLICY — MANDATORY:",
-      "PHASE 1: Call survey-page-templates and read the full catalog — understand outbound, inbound, inventory, audit, system, users, reports screens.",
-      "PHASE 2: Choose strategy — (a) single best route as base, or (b) mix-and-match regions/components from 2+ templates.",
-      "PHASE 3: get-page-template(route) or get-page-template(routes=[...]) — edit DOM in place, preserve Quasar classes.",
-      "- Only change visible TEXT: cell values, headers, labels, status chips, stat counts, button labels.",
-      "- Graft table/filter/sub-nav snippets from other routes when the ticket needs a hybrid screen.",
-      "- Add modals only if required (get-rendered-component for q-dialog reference).",
-      "- DO NOT hand-write table CSS or replace q-table with plain <table>.",
-      "- Filesystem MCP tools are READ-ONLY — never write_file/edit_file; output mockup HTML in response markers only.",
+      "PAGE TEMPLATE SURVEY and BRAND ICONS CATALOG are prefetched below — follow LEAN MOCKUP RUN.",
+      LEAN_MOCKUP_RUN,
       CAPTURE_TABLE_RULES,
       "",
-      "COMPONENT REUSE POLICY — for parts NOT covered by captures:",
-      "- Call list-reusable-components(keywords) then get-component-source(name) for additional markup.",
-      "- Only create new structures when no capture AND no existing component fits — declare in manifest.",
-      "- NEVER hallucinate components, props, classes, or icons.",
+      "COMPONENT REUSE POLICY — only when captures do not cover the ticket:",
+      "- get-component-source only if you need extra Vue markup beyond the template",
+      "- Declare new structures in manifest newComponents/newIcons",
       "",
       "ICON POLICY — STRICT:",
-      "- Use ONLY official icons from mdui/public/ via list-brand-icons and get-brand-icon.",
-      "- Mockups run in iframe srcDoc — use get-brand-icon data-uri <img> tags (relative /icons/ paths break).",
+      "- get-brand-icon for every embedded icon (data-uri <img> in iframe srcDoc)",
       "",
       "WRAP the full HTML in these exact markers — do not omit them:",
       "RAW_HTML_COMPONENT_START",
@@ -420,9 +405,9 @@ function buildSystemPrompt(
 
     if (pageTemplateContext) {
       sections.push(
-        "=== PAGE TEMPLATE SURVEY (all routes — read before mockup) ===",
+        "=== PAGE TEMPLATE SURVEY (complete — do NOT call survey-page-templates) ===",
         pageTemplateContext,
-        "Call get-page-template(route) or get-page-template(routes=[...]) after surveying.",
+        "Survey complete. Proceed: get-page-template(routes=[...]) in one call.",
         "=== END PAGE TEMPLATE SURVEY ==="
       );
     }
@@ -438,17 +423,18 @@ function buildSystemPrompt(
 
     if (renderedCaptureContext) {
       sections.push(
-        "=== REAL RENDERED CAPTURES (live-app DOM + CSS via MCP crawler) ===",
+        "=== RENDERED COMPONENT SNAPSHOTS (modals/dialogs only) ===",
         renderedCaptureContext,
-        "Call get-captured-page(route) / get-rendered-component(id) for the real rendered HTML + CSS bundle URL.",
-        "=== END RENDERED CAPTURES ==="
+        "Use get-rendered-component(id) only when the ticket requires a modal not in your template.",
+        "=== END RENDERED COMPONENTS ==="
       );
     }
 
     if (brandIconsContext) {
       sections.push(
-        "=== OFFICIAL BRAND ICONS CATALOG (mdui/public/ via MCP) ===",
+        "=== OFFICIAL BRAND ICONS CATALOG (complete — do NOT call list-brand-icons) ===",
         brandIconsContext,
+        "Use get-brand-icon(path) directly for icons you embed.",
         "=== END BRAND ICONS ==="
       );
     }
@@ -603,8 +589,8 @@ function buildRefinementSystemPrompt(
   const hasGrounding = Boolean(mockupGrounding?.available);
   const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
 
-${hasGrounding ? "Use list-page-templates + get-page-template if you need a captured base. Captured Quasar CSS is AUTO-INJECTED — keep q-table/q-dialog class names. DO NOT hand-write table CSS." : "Reuse existing Vue components via list-reusable-components + get-component-source."}
-ICON POLICY: Use ONLY official icons via list-brand-icons and get-brand-icon (data-uri img tags).`;
+${hasGrounding ? "LEAN MOCKUP RUN applies — get-page-template(routes=[...]) then get-brand-icon. Captured Quasar CSS is AUTO-INJECTED." : "Reuse existing Vue components via list-reusable-components + get-component-source."}
+ICON POLICY: get-brand-icon only (skip list-brand-icons when catalog is in prompt).`;
 
   const parts: string[] = [base];
   if (designContext) {
@@ -653,7 +639,41 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
     `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
     "",
     "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END plus an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END.",
+    "Captured Quasar CSS is AUTO-INJECTED server-side — omit data-md-capture-css style blocks from output.",
   ].join("\n");
+}
+
+/** Inline HTML up to this size; larger mockups are written to disk for the Read tool. */
+const REFINE_HTML_MAX_INLINE_CHARS = 120_000;
+
+function prepareRefinementUserMessage(
+  ticketId: string,
+  currentHtml: string,
+  request: string | undefined,
+  outputDir: string,
+): { userMessage: string; htmlFile?: string } {
+  const slimHtml = stripInjectedCaptureCss(currentHtml);
+  if (slimHtml.length <= REFINE_HTML_MAX_INLINE_CHARS) {
+    return { userMessage: buildRefinementUserMessage(slimHtml, request) };
+  }
+
+  const inputDir = join(outputDir, "refine-input");
+  mkdirSync(inputDir, { recursive: true });
+  const htmlFile = join(inputDir, `${ticketId}-${Date.now()}.html`);
+  writeFileSync(htmlFile, slimHtml, "utf8");
+
+  return {
+    userMessage: [
+      "Current HTML mockup is too large to inline. Read it with the Read tool:",
+      htmlFile,
+      "",
+      `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
+      "",
+      "Return the COMPLETE updated HTML in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END plus REUSE_MANIFEST_START / REUSE_MANIFEST_END.",
+      "Preserve q-table/q-dialog class structure. Captured Quasar CSS is AUTO-INJECTED — do NOT include data-md-capture-css styles.",
+    ].join("\n"),
+    htmlFile,
+  };
 }
 
 /** Correction message after verification finds hallucinated references. */
@@ -670,10 +690,18 @@ function buildCorrectionUserMessage(
 
   if (hasGrounding) {
     lines.push(
-      "CAPTURED PAGE TEMPLATES are available via list-page-templates + get-page-template — preserve q-table/q-dialog class structure.",
+      "Capture-first manifest: list reusedTemplates (routes) and reusedIcons. Preserve q-table/q-dialog classes.",
       "DO NOT hand-write table CSS; Quasar styles are auto-injected server-side.",
       "",
     );
+  }
+
+  if (validation.unknownTemplates?.length) {
+    lines.push("Unknown template routes (must exist in PAGE TEMPLATE SURVEY):");
+    for (const c of validation.unknownTemplates) {
+      lines.push(`  - ${c.ref} → pick a route from the prefetched survey`);
+    }
+    lines.push("");
   }
 
   if (validation.unknownComponents.length) {
@@ -699,10 +727,10 @@ function buildCorrectionUserMessage(
   lines.push(
     "Current mockup to correct:",
     "RAW_HTML_COMPONENT_START",
-    currentHtml,
+    stripInjectedCaptureCss(currentHtml),
     "RAW_HTML_COMPONENT_END",
     "",
-    "Return the COMPLETE corrected HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END and an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END. Every reusedComponents/reusedIcons entry MUST exist in the codebase.",
+    "Return the COMPLETE corrected HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END and an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END. reusedTemplates routes and reusedIcons MUST be valid.",
   );
 
   return lines.join("\n");
@@ -742,6 +770,7 @@ function streamClaudeCode(
       const logger = new SessionLogger(ticketId, "claude-code", model);
       const tmpFile = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
       const designOutputDir = join(homedir(), "claude-ui-designs");
+      let refineHtmlFile: string | undefined;
 
       try {
         send({ thinking: "Starting Claude Code local session…" });
@@ -763,14 +792,25 @@ function streamClaudeCode(
         let systemPrompt: string;
         let userMessage:  string;
 
-        if (isRefinement && currentHtml) {
+        if (isRefinement) {
+          if (!currentHtml?.trim()) {
+            send({ error: "Refinement requires currentHtml — reload the session or regenerate the mockup first." });
+            return;
+          }
           systemPrompt = buildRefinementSystemPrompt(
             designContext,
             brandIconsContext,
             componentCatalogContext,
             mockupGrounding
           );
-          userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
+          const prepared = prepareRefinementUserMessage(
+            ticketId,
+            currentHtml,
+            additionalPmContext,
+            designOutputDir,
+          );
+          userMessage = prepared.userMessage;
+          refineHtmlFile = prepared.htmlFile;
         } else {
           systemPrompt = buildSystemPrompt(
             enableVisualSkill,
@@ -790,9 +830,12 @@ function streamClaudeCode(
             const screenshotNote = screenshots.length
               ? `\n\nProduct screenshots for reference (read these with the Read tool to match the actual UI):\n${screenshots.map((f) => screenshotPath(f)).join("\n")}`
               : "";
-            const wf = visualWorkflowInstruction(Boolean(mockupGrounding?.available));
+            const wf = visualWorkflowInstruction();
+            const ticketText = [jiraData.summary, jiraData.description].filter(Boolean).join("\n");
+            const routeHints = formatRouteHints(ticketText);
 
-            userMessage += `${screenshotNote}\n\n${wf}\n\nOUTPUT: First emit the reuse manifest (REUSE_MANIFEST_START/END), then the complete HTML mockup wrapped in:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
+            userMessage += `${screenshotNote}\n\n${wf}`;
+            if (routeHints) userMessage += `\n\n${routeHints}`;
           }
         }
 
@@ -829,14 +872,25 @@ function streamClaudeCode(
                 text?: string;
                 thinking?: string;
                 name?: string;
+                input?: Record<string, unknown>;
               }> | undefined;
               if (content?.length) {
                 for (const b of content) {
                   if (b.type === "thinking" && b.thinking) {
-                    const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
-                    send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
+                    const entry: ActivityEntry = { kind: "thinking", text: b.thinking, ts: Date.now() };
+                    send({ activity: entry });
+                    send({ thinking: activityToDisplayText(entry) });
                   } else if (b.type === "tool_use" && b.name?.startsWith("mcp__")) {
-                    send({ thinking: `MCP: ${b.name.replace(/^mcp__[^_]+__/, "")}` });
+                    const shortTool = b.name.replace(/^mcp__[^_]+__/, "");
+                    const entry: ActivityEntry = {
+                      kind: "mcp",
+                      text: b.thinking ?? "",
+                      tool: shortTool,
+                      args: b.input,
+                      ts: Date.now(),
+                    };
+                    send({ activity: entry });
+                    send({ thinking: activityToDisplayText(entry) });
                   } else if (b.type === "text" && b.text) {
                     state.allText += b.text;
                   }
@@ -845,6 +899,19 @@ function streamClaudeCode(
             }
           } catch { /* skip malformed lines */ }
           return state.allText;
+        }
+
+        async function writeClaudeStdin(proc: ReturnType<typeof spawn>, data: string): Promise<void> {
+          if (!proc.stdin) return;
+          await new Promise<void>((resolve, reject) => {
+            proc.stdin!.on("error", reject);
+            const onDone = (err?: Error | null) => (err ? reject(err) : resolve());
+            if (!proc.stdin!.write(data, "utf8")) {
+              proc.stdin!.once("drain", () => proc.stdin!.end(onDone));
+            } else {
+              proc.stdin!.end(onDone);
+            }
+          });
         }
 
         // One Claude pass: writes system prompt, spawns, collects text + usage.
@@ -873,8 +940,16 @@ function streamClaudeCode(
             stdio: ["pipe", "pipe", "pipe"],
             cwd: WORKSPACE_ROOT,
           });
-          proc.stdin.write(userMsg, "utf8");
-          proc.stdin.end();
+          try {
+            await writeClaudeStdin(proc, userMsg);
+          } catch (stdinErr) {
+            return {
+              allText: "",
+              exitCode: 1,
+              stderr: `stdin write failed: ${stdinErr instanceof Error ? stdinErr.message : String(stdinErr)}`,
+              usage: null,
+            };
+          }
 
           let buf = "";
           const state = { allText: "", usage: null as ClaudeResultUsage | null };
@@ -932,14 +1007,22 @@ function streamClaudeCode(
 
         for (let attempt = 0; attempt <= MAX_VERIFY_RETRIES; attempt++) {
           logger.beginStep();
-          const label =
-            attempt === 0
+          const label = isRefinement
+            ? (attempt === 0
+              ? `Refining mockup with model ${model}…`
+              : `Fixing refinement references — retry ${attempt}/${MAX_VERIFY_RETRIES}…`)
+            : (attempt === 0
               ? `Analysing ticket with model ${model}…`
-              : `Fixing hallucinated reference(s) — retry ${attempt}/${MAX_VERIFY_RETRIES}…`;
+              : `Fixing hallucinated reference(s) — retry ${attempt}/${MAX_VERIFY_RETRIES}…`);
 
           const { allText, exitCode, stderr } = await runClaudeOnce(systemPrompt, userMessage, label);
           if (exitCode !== 0 && exitCode !== null) {
-            send({ error: `Claude Code exited with code ${exitCode}. ${stderr.slice(0, 400)}` });
+            const detail = stderr.trim() || "no stderr output";
+            send({
+              error:
+                `Claude Code exited with code ${exitCode}. ${detail.slice(0, 1500)}` +
+                ` (prompt: sys ${systemPrompt.length} chars · user ${userMessage.length} chars)`,
+            });
             return;
           }
 
@@ -949,22 +1032,32 @@ function streamClaudeCode(
           const { html } = extractHtmlFromMarkers(allText);
           if (html) finalHtml = html;
 
-          // Verification loop only applies to mockup generation.
-          if (!enableVisualSkill) break;
+          // Verification loop — skip on refinement (CSS re-injected; manifest optional).
+          if (!enableVisualSkill || isRefinement) break;
 
           const validation = await validateUiReferences({
             components: manifest.reusedComponents,
             icons: manifest.reusedIcons,
+            templates: manifest.reusedTemplates,
+            captureComponents: manifest.reusedCaptureComponents,
           });
           lastValidation = validation;
 
           if (validation.valid) {
-            send({ thinking: "✓ All reused components & icons verified against the codebase." });
+            const advisory =
+              (validation.unknownComponents?.length ?? 0) > 0 && (manifest.reusedTemplates?.length ?? 0) > 0;
+            send({
+              thinking: advisory
+                ? "✓ Template routes & icons verified; some vue paths unverified (capture-first — OK)."
+                : "✓ All reused templates, components & icons verified.",
+            });
             break;
           }
 
           const unknownCount =
-            validation.unknownComponents.length + validation.unknownIcons.length;
+            validation.unknownComponents.length +
+            validation.unknownIcons.length +
+            (validation.unknownTemplates?.length ?? 0);
 
           if (attempt === MAX_VERIFY_RETRIES) {
             send({
@@ -1025,6 +1118,7 @@ function streamClaudeCode(
       } finally {
         controller.close();
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
+        if (refineHtmlFile) try { unlinkSync(refineHtmlFile); } catch { /* best-effort */ }
       }
     },
   });
@@ -1068,21 +1162,31 @@ export async function POST(request: Request) {
   }
 
   if (enableVisualSkill) {
-    const [icons, components, pageTemplates, capturedPages, renderedComponents, grounding] = await Promise.all([
-      fetchBrandIconCatalog(),
-      fetchComponentCatalog(jiraData?.summary),
-      fetchTemplateSurvey(),
-      fetchCapturedPageCatalog(),
-      fetchRenderedComponentCatalog(jiraData?.summary),
+    const [grounding] = await Promise.all([
       buildMockupGrounding(),
+      // Refinement only needs CSS re-injection metadata — skip heavy catalogs.
+      ...(isRefinement
+        ? []
+        : [
+            (async () => {
+              const ticketText = [jiraData?.summary, jiraData?.description].filter(Boolean).join("\n");
+              const needsModal = ticketNeedsModalCapture(ticketText);
+              const [icons, components, pageTemplates, renderedComponents] = await Promise.all([
+                fetchBrandIconCatalog(),
+                fetchComponentCatalog(jiraData?.summary),
+                fetchTemplateSurvey(),
+                needsModal ? fetchRenderedComponentCatalog(jiraData?.summary) : Promise.resolve(""),
+              ]);
+              brandIconsContext = icons;
+              componentCatalogContext = components;
+              pageTemplateContext = pageTemplates;
+              if (needsModal && renderedComponents && !/^No (captured|rendered)/.test(renderedComponents.trim())) {
+                renderedCaptureContext = renderedComponents;
+              }
+            })(),
+          ]),
     ]);
-    brandIconsContext = icons;
-    componentCatalogContext = components;
-    pageTemplateContext = pageTemplates;
     mockupGrounding = grounding.available ? grounding : null;
-    renderedCaptureContext = [capturedPages, renderedComponents]
-      .filter((s) => s && !/^No (captured|rendered)/.test(s.trim()))
-      .join("\n\n");
   }
 
   if (mcpContextError && !isRefinement) {

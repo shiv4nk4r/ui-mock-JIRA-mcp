@@ -306,9 +306,8 @@ export function surveyPageTemplates(label: string): string {
     `PAGE TEMPLATE SURVEY (label: ${label}, ${index.templates.length} routes)`,
     index.generatedAt ? `Generated: ${index.generatedAt}` : "",
     "",
-    "REQUIRED: Read this entire survey before building a mockup.",
-    "Then either (a) pick one primary route via get-page-template(route), or",
-    "(b) mix regions/components from multiple routes — call get-page-template(routes=[...]) to load up to 6 candidates.",
+    "REQUIRED: Read this entire survey (already in system prompt when prefetched).",
+    "Pick route(s) then ONE call: get-page-template(routes=[...]) — do NOT call survey-page-templates again.",
     "",
   ].filter(Boolean);
 
@@ -359,4 +358,24 @@ export function getPageTemplatesBatchText(label: string, routes: string[]): stri
     return `---\n${text}`;
   });
   return parts.join("\n\n");
+}
+
+export interface TemplateRouteCheck {
+  ref: string;
+  resolved: boolean;
+  match?: string;
+}
+
+/** Verify routes exist in the template index for a capture label. */
+export function validateTemplateRoutes(label: string, routes: string[]): TemplateRouteCheck[] {
+  const index = readTemplateIndex(label);
+  if (!index?.templates.length) {
+    return routes.map((ref) => ({ ref, resolved: false }));
+  }
+  const normalized = new Set(index.templates.map((t) => normalizeRoute(t.route)));
+  return routes.map((ref) => {
+    const route = normalizeRoute(ref);
+    const resolved = normalized.has(route);
+    return { ref, resolved: resolved, match: resolved ? route : undefined };
+  });
 }
