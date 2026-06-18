@@ -11,6 +11,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import { buildMcpServer } from "./build-server";
+import {
+  defaultFilesystemDirs,
+  initFilesystemAccess,
+} from "./filesystem-tools";
 import { RepoManager } from "./repo-manager";
 import { SessionManager } from "./session-manager";
 import type { SessionContext } from "./session-manager";
@@ -31,17 +35,20 @@ const sessions: Record<string, SessionEntry> = {};
 const app = express();
 app.use(express.json({ limit: "4mb" }));
 
+let filesystemRootsCache: string[] = [];
+
 app.get("/health", (_req, res) => {
   const repoState = repoManager.getCurrentState();
   res.json({
     status: "ok",
     service: "pm-mcp",
-    version: "2.1.0",
+    version: "2.2.0",
     branch: repoState?.branch ?? null,
     commit: repoState?.commit?.slice(0, 7) ?? null,
     defaultBranch: repoManager.getDefaultBranch(),
     activeSessions: sessionManager.getActiveSessionCount(),
     repoRoot: repoManager.getRepoRoot(),
+    filesystemRoots: filesystemRootsCache,
   });
 });
 
@@ -128,6 +135,11 @@ async function main() {
   const repoState = await repoManager.ensureReady();
   console.log(
     `[pm-mcp] Repository ready: ${repoState.branch} @ ${repoState.commit.slice(0, 7)}`
+  );
+
+  console.log("[pm-mcp] Initializing filesystem access…");
+  filesystemRootsCache = await initFilesystemAccess(
+    defaultFilesystemDirs(repoManager.getRepoRoot())
   );
 
   console.log("[pm-mcp] Warming code index cache…");

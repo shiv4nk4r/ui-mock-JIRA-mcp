@@ -14,9 +14,11 @@
     "@babel/traverse": "^7.24.0",
     "@babel/types": "^7.24.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "express": "^5.2.1",
     "fast-glob": "^3.3.2",
     "graphql": "^16.8.1",
+    "minimatch": "^10.0.1",
     "simple-git": "^3.27.0",
     "zod": "^3.22.0"
   },

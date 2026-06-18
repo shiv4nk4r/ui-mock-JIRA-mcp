@@ -12,6 +12,7 @@ import type { NodeKind } from "./parser/types";
 import type { SessionContext } from "./session-manager";
 import type { RepoManager } from "./repo-manager";
 import type { SessionManager } from "./session-manager";
+import { registerFilesystemTools } from "./filesystem-tools";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTEXT_DIR = path.join(__dirname, "context");
@@ -638,6 +639,8 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
       };
     }
   );
+
+  registerFilesystemTools(server);
 
   return server;
 }

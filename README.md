@@ -43,6 +43,7 @@ pm-ui (Next.js)
 pm-mcp (Express + MCP SDK)
   ├── Git sync → greyorange/manager-dashboard (develop by default)
   ├── Per-session branch switching + code-graph re-index
+  ├── Filesystem tools (@modelcontextprotocol/server-filesystem)
   ├── Context resources (architecture, design, sitemap — bundled)
   └── Code-graph tools (search-code-symbols, get-vue-component, …)
 ```
@@ -82,6 +83,24 @@ From Cursor or Claude Desktop, use the MCP tools:
 Example in Cursor chat: *"Use switch-branch to checkout feature/GM-123"*
 
 Code-graph caches are stored per branch at `pm-mcp/.cache/{branch}/code-graph.json`.
+
+## Filesystem access
+
+pm-mcp integrates [`@modelcontextprotocol/server-filesystem`](https://www.npmjs.com/package/@modelcontextprotocol/server-filesystem) so MCP clients can read and browse source files directly.
+
+**Allowed directories (default):**
+- The synced repo clone (`mdui/`, `mdbff/`, etc.)
+- Bundled context docs + product screenshots (`pm-mcp/src/context/`)
+
+**Tools available:** `read_text_file`, `read_multiple_files`, `read_media_file`, `list_directory`, `directory_tree`, `search_files`, `get_file_info`, `write_file`, `edit_file`, `move_file`, `create_directory`, `list_allowed_directories`, and more.
+
+Use `list_allowed_directories` first to see exact paths, then `read_text_file` to read source:
+
+```
+read_text_file { "path": "/path/to/mdui/src/pages/..." }
+```
+
+Optional: add extra allowed paths via `FS_ALLOWED_DIRS` in `pm-mcp/.env` (comma-separated).
 
 ## Cursor / Claude Desktop MCP config
 
