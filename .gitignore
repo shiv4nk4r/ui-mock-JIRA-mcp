@@ -1,6 +1,7 @@
 # Parser cache (rebuild with: npm run index -w pm-mcp)
 .cache/
 pm-mcp/.cache/
+pm-mcp/.repos/
 
 # Dependencies
 node_modules/

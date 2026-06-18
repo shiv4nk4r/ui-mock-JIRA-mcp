@@ -283,6 +283,8 @@ export interface CacheHeader {
   version?: string;
   savedAt?: string;
   repoRoot?: string;
+  branch?: string;
+  commit?: string;
 }
 
 interface CacheFile extends CacheHeader {

@@ -1,6 +1,5 @@
 /**
- * MCP server factory — resources, context tools, and code-graph tools.
- * Shared by the standalone HTTP server (pm-mcp) and consumed over Streamable HTTP.
+ * MCP server factory — session-scoped code graph + bundled context resources.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -9,24 +8,17 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { codeGraph } from "./parser/graph-store";
-import {
-  buildIndex,
-  defaultConfig,
-  tryLoadCache,
-  defaultCachePath,
-} from "./parser/indexer";
 import type { NodeKind } from "./parser/types";
+import type { SessionContext } from "./session-manager";
+import type { RepoManager } from "./repo-manager";
+import type { SessionManager } from "./session-manager";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTEXT_DIR = path.join(__dirname, "context");
 
-function resolveRepoRoot(): string {
-  if (process.env.REPO_ROOT) {
-    return path.resolve(process.env.REPO_ROOT);
-  }
-  // pm-mcp/src → pm-mcp → poc-mcp → manager-dashboard
-  return path.resolve(__dirname, "../../..");
+export interface McpServerDeps {
+  repoManager: RepoManager;
+  sessionManager: SessionManager;
 }
 
 function loadCtx(filename: string): string {
@@ -100,37 +92,12 @@ const DESIGN_TOKENS: Record<string, string> = {
     "q-card-section class='bg-primary text-white row items-center q-pa-md' + close q-btn",
 };
 
-let indexReady = false;
-let indexStatus = "Not yet indexed. Call rebuild-code-index first.";
-let repoRoot = resolveRepoRoot();
+export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpServer {
+  const { repoManager, sessionManager } = deps;
+  const repoRoot = repoManager.getRepoRoot();
+  const { graph } = ctx;
 
-function ensureIndexed(): void {
-  if (indexReady) return;
-
-  const cachePath = defaultCachePath(repoRoot);
-  const cacheResult = tryLoadCache(codeGraph, cachePath);
-  if (cacheResult.loaded && cacheResult.meta) {
-    const ageSec = Math.round((cacheResult.ageMs ?? 0) / 1000);
-    const stats = codeGraph.stats();
-    indexReady = true;
-    indexStatus = `Loaded from cache (${ageSec}s old) | ${stats.totalNodes} nodes | ${stats.totalEdges} edges`;
-    return;
-  }
-
-  indexStatus = "Building index (first run or cache expired)…";
-  buildIndex(codeGraph, defaultConfig(repoRoot))
-    .then((r) => {
-      indexReady = true;
-      indexStatus = `Indexed ${r.filesIndexed} files | ${r.totalNodes} nodes | ${r.totalEdges} edges | ${r.durationMs}ms | saved to cache`;
-    })
-    .catch((e) => {
-      indexStatus = `Index error: ${(e as Error).message}`;
-    });
-}
-
-export function buildMcpServer(): McpServer {
-  repoRoot = resolveRepoRoot();
-  const server = new McpServer({ name: "pm-context-server", version: "2.0.0" });
+  const server = new McpServer({ name: "pm-context-server", version: "2.1.0" });
 
   server.registerResource(
     "architecture-context",
@@ -184,6 +151,98 @@ export function buildMcpServer(): McpServer {
         },
       ],
     })
+  );
+
+  server.tool(
+    "get-repo-status",
+    "Returns the active git branch, commit SHA, index status, and last sync time for this session.",
+    async () => {
+      const repoState = repoManager.getCurrentState();
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              "## Repository Status",
+              `- **Session branch:** ${ctx.branch}`,
+              `- **Session commit:** ${ctx.commit}`,
+              `- **Clone path:** ${repoRoot}`,
+              `- **Index ready:** ${ctx.indexReady}`,
+              `- **Index status:** ${ctx.indexStatus}`,
+              repoState
+                ? `- **Repo HEAD:** ${repoState.branch} @ ${repoState.commit.slice(0, 7)}`
+                : "",
+              repoState ? `- **Last synced:** ${repoState.lastSyncedAt}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "switch-branch",
+    {
+      branch: z.string().describe("Branch name to checkout (e.g. develop, feature/GM-123)"),
+      forcePull: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("Pull latest from origin after checkout"),
+    },
+    async ({ branch, forcePull }) => {
+      try {
+        await sessionManager.switchBranch(ctx, branch, forcePull);
+        return {
+          content: [
+            {
+              type: "text",
+              text: [
+                `✓ Switched session to branch **${ctx.branch}** @ ${ctx.commit.slice(0, 7)}`,
+                ctx.indexReady
+                  ? `Index ready: ${ctx.indexStatus}`
+                  : `Index status: ${ctx.indexStatus}`,
+              ].join("\n"),
+            },
+          ],
+        };
+      } catch (e) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to switch branch: ${(e as Error).message}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "list-branches",
+    "Lists remote branches available on origin.",
+    async () => {
+      try {
+        const branches = await repoManager.listBranches();
+        return {
+          content: [
+            {
+              type: "text",
+              text: branches.length
+                ? `Remote branches (${branches.length}):\n${branches.map((b) => `  • ${b}`).join("\n")}`
+                : "No remote branches found.",
+            },
+          ],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text", text: `Error listing branches: ${(e as Error).message}` }],
+        };
+      }
+    }
   );
 
   server.tool(
@@ -304,7 +363,7 @@ export function buildMcpServer(): McpServer {
       ticketDescription: z.string().describe("Jira ticket description"),
     },
     async ({ ticketSummary, ticketDescription }) => {
-      const ctx = loadCtx("context.md");
+      const doc = loadCtx("context.md");
       return {
         content: [
           {
@@ -313,11 +372,11 @@ export function buildMcpServer(): McpServer {
               `## Layer Impact Analysis — ${ticketSummary}`,
               `**Description excerpt:** ${ticketDescription.slice(0, 400)}`,
               "",
-              extractSection(ctx, "## 3. Architecture"),
+              extractSection(doc, "## 3. Architecture"),
               "",
-              extractSection(ctx, "## 6. Frontend (mdui/)"),
+              extractSection(doc, "## 6. Frontend (mdui/)"),
               "",
-              extractSection(ctx, "## 7. Backend BFF (mdbff/)"),
+              extractSection(doc, "## 7. Backend BFF (mdbff/)"),
             ].join("\n"),
           },
         ],
@@ -379,28 +438,18 @@ export function buildMcpServer(): McpServer {
     }
   );
 
-  ensureIndexed();
+  void sessionManager.ensureIndexed(ctx);
 
   server.tool(
     "rebuild-code-index",
-    "Re-index the mdui/ and mdbff/ source trees.",
+    "Re-index the mdui/ and mdbff/ source trees for this session's active branch.",
     async () => {
-      indexReady = false;
-      indexStatus = "Rebuilding…";
       try {
-        const r = await buildIndex(codeGraph, defaultConfig(repoRoot));
-        indexReady = true;
-        indexStatus = `Indexed ${r.filesIndexed} files | ${r.totalNodes} nodes | ${r.totalEdges} edges`;
+        const status = await sessionManager.rebuildIndex(ctx);
         return {
-          content: [
-            {
-              type: "text",
-              text: `✓ Index complete in ${r.durationMs}ms — ${r.totalNodes} nodes, ${r.totalEdges} edges`,
-            },
-          ],
+          content: [{ type: "text", text: `✓ ${status}` }],
         };
       } catch (e) {
-        indexStatus = `Index error: ${(e as Error).message}`;
         return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }] };
       }
     }
@@ -425,10 +474,10 @@ export function buildMcpServer(): McpServer {
     },
     async ({ query, kind, limit: rawLimit }) => {
       const limit = rawLimit ?? 20;
-      if (!indexReady) {
-        return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
-      const results = codeGraph.searchByName(query, limit, kind as NodeKind | undefined);
+      const results = graph.searchByName(query, limit, kind as NodeKind | undefined);
       if (results.length === 0) {
         return {
           content: [{ type: "text", text: `No symbols found matching "${query}".` }],
@@ -442,7 +491,7 @@ export function buildMcpServer(): McpServer {
         content: [
           {
             type: "text",
-            text: `Found ${results.length} symbol(s):\n${lines.join("\n")}`,
+            text: `Found ${results.length} symbol(s) on **${ctx.branch}**:\n${lines.join("\n")}`,
           },
         ],
       };
@@ -456,11 +505,11 @@ export function buildMcpServer(): McpServer {
       filePath: z.string().describe("Relative path from repo root, e.g. mdui/src/pages/..."),
     },
     async ({ filePath }) => {
-      if (!indexReady) {
-        return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
       const absPath = path.isAbsolute(filePath) ? filePath : path.join(repoRoot, filePath);
-      const struct = codeGraph.getFileStructure(absPath);
+      const struct = graph.getFileStructure(absPath);
       if (!struct) {
         return {
           content: [{ type: "text", text: `File not found in index: ${filePath}` }],
@@ -474,7 +523,7 @@ export function buildMcpServer(): McpServer {
           {
             type: "text",
             text: [
-              `FILE: ${path.relative(repoRoot, struct.file.filePath)}`,
+              `FILE: ${path.relative(repoRoot, struct.file.filePath)} (branch: ${ctx.branch})`,
               "",
               `SYMBOLS (${struct.children.length}):`,
               ...symbolLines,
@@ -493,12 +542,12 @@ export function buildMcpServer(): McpServer {
       exact: z.boolean().optional().default(false),
     },
     async ({ functionName, exact }) => {
-      if (!indexReady) {
-        return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
       const targets = exact
-        ? codeGraph.getNodesByName(functionName)
-        : codeGraph
+        ? graph.getNodesByName(functionName)
+        : graph
             .searchByName(functionName, 10)
             .filter((n) => n.kind === "function" || n.kind === "method");
 
@@ -510,7 +559,7 @@ export function buildMcpServer(): McpServer {
 
       const sections: string[] = [];
       for (const target of targets) {
-        const callers = codeGraph.getCallers(target.id);
+        const callers = graph.getCallers(target.id);
         sections.push(
           `TARGET: ${target.scopePath}`,
           callers.length
@@ -527,10 +576,10 @@ export function buildMcpServer(): McpServer {
     "Get the API surface of a Vue SFC component.",
     { name: z.string().describe("Component name or partial path") },
     async ({ name }) => {
-      if (!indexReady) {
-        return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
-      const candidates = codeGraph
+      const candidates = graph
         .searchByName(name, 20)
         .filter((n) => n.kind === "vue-component" || n.filePath.endsWith(".vue"));
 
@@ -561,10 +610,10 @@ export function buildMcpServer(): McpServer {
     "Look up GraphQL resolver functions in the BFF.",
     { name: z.string().describe("Resolver field name or partial match") },
     async ({ name }) => {
-      if (!indexReady) {
-        return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
       }
-      const resolvers = codeGraph
+      const resolvers = graph
         .searchByName(name, 30, "graphql-resolver")
         .filter((n) => n.filePath.includes("mdbff"));
 

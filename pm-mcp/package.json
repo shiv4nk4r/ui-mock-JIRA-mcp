@@ -17,6 +17,7 @@
     "express": "^5.2.1",
     "fast-glob": "^3.3.2",
     "graphql": "^16.8.1",
+    "simple-git": "^3.27.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

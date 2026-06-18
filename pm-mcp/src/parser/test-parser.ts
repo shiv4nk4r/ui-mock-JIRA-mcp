@@ -199,7 +199,7 @@ const REPO_ROOT_FULL = path.resolve(__dirname, '../../..');  // manager-dashboar
 
 async function runFullIndex(fromCache: boolean) {
   const fullStore  = new GraphStore();
-  const cachePath  = defaultCachePath(REPO_ROOT_FULL);
+  const cachePath  = defaultCachePath('develop');
 
   if (fromCache) {
     header('TEST 3 — Load from cache');
@@ -220,7 +220,7 @@ async function runFullIndex(fromCache: boolean) {
     header('TEST 3 — Full codebase index (mdui + mdbff)');
     console.log(`${DIM}This may take 10–30 seconds for ~1 000 files...${RESET}`);
 
-    const indexResult = await buildIndex(fullStore, defaultConfig(REPO_ROOT_FULL));
+    const indexResult = await buildIndex(fullStore, defaultConfig(REPO_ROOT_FULL, 'develop'));
 
     console.log(`\n  ${BOLD}Files indexed:${RESET}  ${GREEN}${indexResult.filesIndexed}${RESET}`);
     console.log(`  ${BOLD}Files errored:${RESET}  ${indexResult.filesErrored > 0 ? RED : GREEN}${indexResult.filesErrored}${RESET}`);

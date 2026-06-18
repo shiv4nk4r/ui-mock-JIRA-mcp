@@ -4,22 +4,22 @@ overview: "Add a Git-backed repo manager to pm-mcp that clones/pulls greyorange/
 todos:
   - id: repo-manager
     content: Add simple-git + RepoManager (clone/pull/checkout via SSH, .repos/manager-dashboard)
-    status: in_progress
+    status: completed
   - id: session-manager
     content: Add SessionManager with per-session GraphStore, branch state, checkout mutex
-    status: pending
+    status: completed
   - id: cache-paths
     content: Move cache to pm-mcp/.cache/{branch}/ and include branch+commit in CacheHeader
-    status: pending
+    status: completed
   - id: refactor-build-server
     content: Refactor buildMcpServer(ctx) — session-scoped tools, add get-repo-status + switch-branch
-    status: pending
+    status: completed
   - id: stateful-transport
     content: Enable stateful MCP sessions in index.ts with session map + startup sync
-    status: pending
+    status: completed
   - id: docs-env
     content: Update .env.example, .gitignore, and README with SSH setup and branch-switch usage
-    status: pending
+    status: completed
 isProject: false
 ---
 

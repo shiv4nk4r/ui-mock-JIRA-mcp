@@ -22,6 +22,7 @@ import fs       from 'fs';
 import { parseFile }              from './parser';
 import { GraphStore }             from './graph-store';
 import type { CacheHeader }       from './graph-store';
+import { cachePathForBranch }     from '../paths';
 import type {
   CodeEdge,
   CodeNode,
@@ -128,7 +129,11 @@ export async function buildIndex(
 
   // Auto-save to cache if path is configured
   if (config.cachePath) {
-    store.saveToFile(config.cachePath, { repoRoot });
+    store.saveToFile(config.cachePath, {
+      repoRoot,
+      branch: config.branch,
+      commit: config.commit,
+    });
   }
 
   return result;
@@ -143,27 +148,39 @@ export interface CacheLoadResult {
   ageMs?:   number;
 }
 
+export interface CacheLoadOptions {
+  maxAgeMs?: number;
+  commit?: string;
+}
+
 /**
  * Try to load a previously saved graph from `cachePath`.
  * Returns { loaded: true, meta, ageMs } on success.
  * Returns { loaded: false } if the file is missing, corrupt, or too old.
- *
- * @param maxAgeMs  Reject caches older than this many ms (default: 24h).
  */
 export function tryLoadCache(
   store:    GraphStore,
   cachePath: string,
-  maxAgeMs = 24 * 60 * 60 * 1000,
+  options: CacheLoadOptions | number = {},
 ): CacheLoadResult {
+  const opts: CacheLoadOptions =
+    typeof options === 'number' ? { maxAgeMs: options } : options;
+  const maxAgeMs = opts.maxAgeMs ?? 24 * 60 * 60 * 1000;
+
   const meta = store.loadFromFile(cachePath);
   if (!meta) return { loaded: false, meta: null };
+
+  if (opts.commit && meta.commit && meta.commit !== opts.commit) {
+    store.clear();
+    return { loaded: false, meta, ageMs: 0 };
+  }
 
   const ageMs = meta.savedAt
     ? Date.now() - new Date(meta.savedAt).getTime()
     : Infinity;
 
   if (ageMs > maxAgeMs) {
-    store.clear(); // discard the stale data
+    store.clear();
     return { loaded: false, meta, ageMs };
   }
 
@@ -342,10 +359,11 @@ function commonAncestor(paths: string[]): string {
 
 // ─── Default config for this monorepo ────────────────────────────────────────
 
-export function defaultConfig(repoRoot: string): IndexerConfig {
+export function defaultConfig(repoRoot: string, branch = 'develop'): IndexerConfig {
   return {
     repoRoot,
-    cachePath: path.join(repoRoot, 'poc-mcp', 'pm-mcp', '.cache', 'code-graph.json'),
+    branch,
+    cachePath: cachePathForBranch(branch),
     roots: [
       path.join(repoRoot, 'mdui'),
       path.join(repoRoot, 'mdbff'),
@@ -359,7 +377,9 @@ export function defaultConfig(repoRoot: string): IndexerConfig {
   };
 }
 
-/** Default cache file path for this monorepo */
-export function defaultCachePath(repoRoot: string): string {
-  return path.join(repoRoot, 'poc-mcp', 'pm-mcp', '.cache', 'code-graph.json');
+/** Default cache file path for a branch */
+export function defaultCachePath(branch: string): string {
+  return cachePathForBranch(branch);
 }
+
+export { cachePathForBranch };

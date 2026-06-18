@@ -17,6 +17,9 @@ npm install
 cp pm-ui/.env.example pm-ui/.env.local
 cp pm-mcp/.env.example pm-mcp/.env
 
+# Verify SSH access to GitHub (required for pm-mcp repo sync)
+ssh -T git@github.com
+
 # Run both MCP server and UI together
 npm run dev
 ```
@@ -24,7 +27,7 @@ npm run dev
 Or run them separately:
 
 ```bash
-npm run dev:mcp   # MCP server on :3100
+npm run dev:mcp   # MCP server on :3100 (clones/pulls develop first)
 npm run dev:ui    # Next.js UI on :3000
 ```
 
@@ -38,13 +41,47 @@ pm-ui (Next.js)
   └── /api/config
 
 pm-mcp (Express + MCP SDK)
-  ├── Context resources (architecture, design, sitemap)
-  ├── PM tools (query-architecture, estimate-effort, …)
+  ├── Git sync → greyorange/manager-dashboard (develop by default)
+  ├── Per-session branch switching + code-graph re-index
+  ├── Context resources (architecture, design, sitemap — bundled)
   └── Code-graph tools (search-code-symbols, get-vue-component, …)
 ```
 
 The UI connects to MCP via `MCP_SERVER_URL` (default `http://127.0.0.1:3100/mcp`).
 Skills stay in **pm-ui** only; all MCP resources and tools live in **pm-mcp**.
+
+## pm-mcp: Repository sync
+
+On startup, pm-mcp:
+
+1. Clones `git@github.com:greyorange/manager-dashboard.git` into `pm-mcp/.repos/manager-dashboard/` (if missing)
+2. Fetches and pulls the latest `develop` branch
+3. Warms the code-graph cache for that branch before accepting MCP traffic
+
+First run can take 30–60 seconds (clone + index). Subsequent starts use the branch cache when the commit SHA matches.
+
+### Environment variables (pm-mcp/.env)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REPO_URL` | `git@github.com:greyorange/manager-dashboard.git` | Git remote (SSH) |
+| `REPO_DEFAULT_BRANCH` | `develop` | Branch to pull on startup |
+| `REPO_AUTO_PULL` | `true` | Pull latest on startup |
+| `REPO_CLONE_DIR` | `.repos/manager-dashboard` | Local clone path (relative to pm-mcp) |
+| `REPO_ROOT` | _(unset)_ | Optional override — use existing checkout, skip clone |
+
+### Branch switching (per MCP session)
+
+From Cursor or Claude Desktop, use the MCP tools:
+
+- **`get-repo-status`** — current branch, commit, index status for this session
+- **`list-branches`** — remote branches on origin
+- **`switch-branch`** — checkout a branch, pull, and re-index for this session only
+- **`rebuild-code-index`** — force re-scan of mdui/ + mdbff/ for the session's branch
+
+Example in Cursor chat: *"Use switch-branch to checkout feature/GM-123"*
+
+Code-graph caches are stored per branch at `pm-mcp/.cache/{branch}/code-graph.json`.
 
 ## Cursor / Claude Desktop MCP config
 
@@ -60,12 +97,10 @@ Point your MCP client at the standalone server:
 }
 ```
 
-## Code index
-
-Rebuild the code-graph index (scans `mdui/` and `mdbff/` in the parent monorepo):
+## Code index (manual rebuild)
 
 ```bash
 npm run index -w pm-mcp
 ```
 
-Set `REPO_ROOT` in `pm-mcp/.env` if the Manager Dashboard monorepo is not at `../../` relative to pm-mcp.
+Uses `REPO_ROOT` or the cloned repo. Cache goes to `pm-mcp/.cache/develop/` by default.

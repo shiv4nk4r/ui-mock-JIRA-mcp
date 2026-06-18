@@ -140,6 +140,10 @@ export interface IndexerConfig {
   aliases?: Record<string, string>;
   /** Max files to parse concurrently */
   concurrency?: number;
+  /** Git branch this index was built from */
+  branch?: string;
+  /** Git commit SHA this index was built from */
+  commit?: string;
 }
 
 // ─── Graph query helpers (returned by GraphStore methods) ────────────────────
