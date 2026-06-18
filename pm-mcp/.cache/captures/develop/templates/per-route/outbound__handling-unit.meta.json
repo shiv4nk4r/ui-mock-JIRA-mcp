@@ -1,0 +1,18 @@
+{
+  "route": "/outbound/handling-unit",
+  "slug": "outbound__handling-unit",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-drawer",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 35293,
+  "shellByteSize": 20787,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 12289,
+  "cssBundleId": "c270a5101f5c"
+}

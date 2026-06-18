@@ -1,0 +1,17 @@
+{
+  "route": "/exception/reserved-listing",
+  "slug": "exception__reserved-listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 36897,
+  "shellByteSize": 19113,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 16670,
+  "cssBundleId": "c270a5101f5c"
+}

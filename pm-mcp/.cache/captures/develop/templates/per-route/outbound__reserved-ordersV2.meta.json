@@ -1,0 +1,18 @@
+{
+  "route": "/outbound/reserved-ordersV2",
+  "slug": "outbound__reserved-ordersV2",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-drawer",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 67128,
+  "shellByteSize": 20787,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 45227,
+  "cssBundleId": "21211a651913"
+}

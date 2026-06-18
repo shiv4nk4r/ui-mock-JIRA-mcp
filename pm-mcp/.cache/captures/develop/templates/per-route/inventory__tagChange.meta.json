@@ -1,0 +1,15 @@
+{
+  "route": "/inventory/tagChange",
+  "slug": "inventory__tagChange",
+  "archetype": "other",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 25847,
+  "shellByteSize": 20985,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 3748,
+  "cssBundleId": "2c6f6d1fe6fd"
+}

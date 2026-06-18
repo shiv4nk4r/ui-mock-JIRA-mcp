@@ -1,0 +1,16 @@
+{
+  "route": "/reports/operations-log",
+  "slug": "reports__operations-log",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 28076,
+  "shellByteSize": 19249,
+  "subNavByteSize": 12860,
+  "mainContentByteSize": 7713,
+  "cssBundleId": "904e63caddec"
+}

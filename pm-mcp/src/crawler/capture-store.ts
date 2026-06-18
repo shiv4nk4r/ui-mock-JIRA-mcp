@@ -11,6 +11,11 @@
  *   components/<id>.json   one CapturedComponent per rendered component/modal
  *   styles/<hash>.css      compiled global CSS bundles, deduped by content hash
  *   screenshots/*.png      page + component screenshots
+ *   templates/
+ *     per-route/<slug>.html       stripped DOM template per route
+ *     per-route/<slug>.meta.json  region metadata
+ *     archetypes/<archetype>.html canonical archetype base
+ *     analysis.json               cross-page pattern summary
  */
 
 import crypto from "node:crypto";
@@ -89,6 +94,55 @@ export interface PageSummary {
   modalCount: number;
 }
 
+export type PageArchetype = "listing-table" | "dashboard-tabs" | "form" | "other";
+
+export interface PageTemplateMeta {
+  route: string;
+  slug: string;
+  archetype: PageArchetype;
+  detectedComponents: string[];
+  strippedByteSize: number;
+  shellByteSize: number;
+  subNavByteSize: number;
+  mainContentByteSize: number;
+  cssBundleId?: string;
+}
+
+export interface TemplateAnalysis {
+  generatedAt: string;
+  label: string;
+  pageCount: number;
+  archetypes: Record<
+    PageArchetype,
+    {
+      routes: string[];
+      canonicalRoute?: string;
+      canonicalSlug?: string;
+      commonPatterns: {
+        tableClasses?: string;
+        filterBarSnippet?: string;
+        sectionBannerSnippet?: string;
+      };
+    }
+  >;
+  shellVariants: Array<{ hash: string; routeCount: number; sampleRoute: string }>;
+}
+
+export interface TemplateIndexEntry {
+  route: string;
+  slug: string;
+  archetype: PageArchetype;
+  detectedComponents: string[];
+  strippedByteSize: number;
+  cssBundleId?: string;
+}
+
+export interface TemplateIndex {
+  label: string;
+  generatedAt: string;
+  templates: TemplateIndexEntry[];
+}
+
 export interface CaptureManifest {
   version: string;
   label: string;
@@ -100,16 +154,42 @@ export interface CaptureManifest {
   pages: PageSummary[];
   componentIds: string[];
   cssBundleIds: string[];
+  templatesGeneratedAt?: string;
+  archetypes?: PageArchetype[];
 }
 
 // ── Directory helpers ─────────────────────────────────────────────────────────
 
 export function ensureCaptureDirs(label: string): string {
   const dir = captureDir(label);
-  for (const sub of ["pages", "components", "styles", "screenshots"]) {
+  for (const sub of ["pages", "components", "styles", "screenshots", "templates/per-route", "templates/archetypes"]) {
     fs.mkdirSync(path.join(dir, sub), { recursive: true });
   }
   return dir;
+}
+
+export function templatesDir(label: string): string {
+  return path.join(captureDir(label), "templates");
+}
+
+export function perRouteTemplatePath(label: string, slug: string): string {
+  return path.join(templatesDir(label), "per-route", `${slug}.html`);
+}
+
+export function perRouteMetaPath(label: string, slug: string): string {
+  return path.join(templatesDir(label), "per-route", `${slug}.meta.json`);
+}
+
+export function archetypeTemplatePath(label: string, archetype: PageArchetype): string {
+  return path.join(templatesDir(label), "archetypes", `${archetype}.html`);
+}
+
+export function templateAnalysisPath(label: string): string {
+  return path.join(templatesDir(label), "analysis.json");
+}
+
+export function templateIndexPath(label: string): string {
+  return path.join(templatesDir(label), "index.json");
 }
 
 export function manifestPath(label: string): string {
@@ -257,4 +337,69 @@ export function writeScreenshot(label: string, name: string, data: Buffer): stri
   const p = path.join(captureDir(label), "screenshots", fileName);
   fs.writeFileSync(p, data);
   return fileName;
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+export function writePageTemplate(label: string, slug: string, html: string, meta: PageTemplateMeta): void {
+  ensureCaptureDirs(label);
+  fs.writeFileSync(perRouteTemplatePath(label, slug), html, "utf-8");
+  fs.writeFileSync(perRouteMetaPath(label, slug), JSON.stringify(meta, null, 2), "utf-8");
+}
+
+export function readPageTemplate(label: string, slug: string): string | null {
+  const p = perRouteTemplatePath(label, slug);
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf-8");
+}
+
+export function readPageTemplateMeta(label: string, slug: string): PageTemplateMeta | null {
+  const p = perRouteMetaPath(label, slug);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8")) as PageTemplateMeta;
+  } catch {
+    return null;
+  }
+}
+
+export function writeArchetypeTemplate(label: string, archetype: PageArchetype, html: string): void {
+  ensureCaptureDirs(label);
+  fs.writeFileSync(archetypeTemplatePath(label, archetype), html, "utf-8");
+}
+
+export function readArchetypeTemplate(label: string, archetype: PageArchetype): string | null {
+  const p = archetypeTemplatePath(label, archetype);
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf-8");
+}
+
+export function writeTemplateAnalysis(label: string, analysis: TemplateAnalysis): void {
+  ensureCaptureDirs(label);
+  fs.writeFileSync(templateAnalysisPath(label), JSON.stringify(analysis, null, 2), "utf-8");
+}
+
+export function readTemplateAnalysis(label: string): TemplateAnalysis | null {
+  const p = templateAnalysisPath(label);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8")) as TemplateAnalysis;
+  } catch {
+    return null;
+  }
+}
+
+export function writeTemplateIndex(label: string, index: TemplateIndex): void {
+  ensureCaptureDirs(label);
+  fs.writeFileSync(templateIndexPath(label), JSON.stringify(index, null, 2), "utf-8");
+}
+
+export function readTemplateIndex(label: string): TemplateIndex | null {
+  const p = templateIndexPath(label);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8")) as TemplateIndex;
+  } catch {
+    return null;
+  }
 }

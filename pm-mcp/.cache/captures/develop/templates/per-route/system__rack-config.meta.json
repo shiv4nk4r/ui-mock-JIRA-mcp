@@ -1,0 +1,15 @@
+{
+  "route": "/system/rack-config",
+  "slug": "system__rack-config",
+  "archetype": "other",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 22288,
+  "shellByteSize": 21003,
+  "subNavByteSize": 12817,
+  "mainContentByteSize": 171,
+  "cssBundleId": "904e63caddec"
+}

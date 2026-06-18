@@ -1,0 +1,16 @@
+{
+  "route": "/inventory/recall",
+  "slug": "inventory__recall",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 29252,
+  "shellByteSize": 20817,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 7321,
+  "cssBundleId": "43bf3e282bdb"
+}

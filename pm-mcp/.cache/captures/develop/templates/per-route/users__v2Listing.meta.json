@@ -1,0 +1,16 @@
+{
+  "route": "/users/v2Listing",
+  "slug": "users__v2Listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 46709,
+  "shellByteSize": 22031,
+  "subNavByteSize": 12860,
+  "mainContentByteSize": 23564,
+  "cssBundleId": "904e63caddec"
+}

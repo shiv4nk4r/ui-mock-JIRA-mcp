@@ -80,6 +80,8 @@ export interface CrawlConfig {
   usernameSelector?: string;
   passwordSelector?: string;
   submitSelector?: string;
+  /** Run post-crawl template analyzer after pages are captured. */
+  analyzeTemplates: boolean;
 }
 
 function envBool(name: string, fallback: boolean): boolean {
@@ -137,6 +139,7 @@ export function loadCrawlConfig(): CrawlConfig {
     usernameSelector: process.env.CRAWL_USERNAME_SELECTOR,
     passwordSelector: process.env.CRAWL_PASSWORD_SELECTOR,
     submitSelector: process.env.CRAWL_SUBMIT_SELECTOR,
+    analyzeTemplates: envBool("CRAWL_ANALYZE_TEMPLATES", true),
   };
 }
 

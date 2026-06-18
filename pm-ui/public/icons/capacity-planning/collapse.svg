@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icons/Collapse (H)</title>
+    <defs>
+        <path d="M9,10.000375 L4.5,15.000375 L0,10.000375 L1.799,10 L4.5,13.000375 L7.201,10 L9,10.000375 Z" id="path-1"></path>
+        <path d="M24,10.000375 L19.5,15.000375 L15,10.000375 L16.799,10 L19.5,13.000375 L22.201,10 L24,10.000375 Z" id="path-3"></path>
+    </defs>
+    <g id="Icons/Collapse-(H)" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <mask id="mask-2" fill="white">
+            <use xlink:href="#path-1"></use>
+        </mask>
+        <use id="Combined-Shape-Copy" fill="#101A5C" transform="translate(4.5, 12.5002) rotate(-90) translate(-4.5, -12.5002)" xlink:href="#path-1"></use>
+        <rect id="Rectangle" fill="#101A5C" x="11" y="4" width="2" height="17"></rect>
+        <mask id="mask-4" fill="white">
+            <use xlink:href="#path-3"></use>
+        </mask>
+        <use id="Combined-Shape-Copy-2" fill="#101A5C" transform="translate(19.5, 12.5002) rotate(-270) translate(-19.5, -12.5002)" xlink:href="#path-3"></use>
+    </g>
+</svg>

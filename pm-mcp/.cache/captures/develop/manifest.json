@@ -3,7 +3,7 @@
   "label": "develop",
   "baseUrl": "http://localhost:8080",
   "createdAt": "2026-06-18T07:56:46.274Z",
-  "updatedAt": "2026-06-18T07:56:46.274Z",
+  "updatedAt": "2026-06-18T08:37:16.880Z",
   "pages": [
     {
       "route": "/overview/v2",
@@ -339,5 +339,12 @@
     "14d42907392b",
     "904e63caddec",
     "e09ea603bd74"
+  ],
+  "templatesGeneratedAt": "2026-06-18T08:37:16.880Z",
+  "archetypes": [
+    "listing-table",
+    "dashboard-tabs",
+    "form",
+    "other"
   ]
 }

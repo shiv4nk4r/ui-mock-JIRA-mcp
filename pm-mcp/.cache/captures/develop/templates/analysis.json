@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-06-18T08:37:16.880Z",
+  "label": "develop",
+  "pageCount": 31,
+  "archetypes": {
+    "listing-table": {
+      "routes": [
+        "/audit/audit",
+        "/audit/gtp-audit/create",
+        "/audit/reserved-audit",
+        "/downloads",
+        "/exception/listing",
+        "/exception/reserved-listing",
+        "/inbound/listing",
+        "/inbound/transfer-orders",
+        "/inventory/gtp-master-product",
+        "/inventory/products",
+        "/inventory/recall",
+        "/inventory/stale-inventories",
+        "/inventory/storage-utilisation",
+        "/notification/listing",
+        "/outbound/capacity-planning",
+        "/outbound/containers",
+        "/outbound/handling-unit",
+        "/outbound/orders",
+        "/outbound/ordersV2",
+        "/outbound/ra-orders",
+        "/outbound/reserved-ordersV2",
+        "/reports/operations-log",
+        "/system/station-management",
+        "/system/zones",
+        "/users/v2Listing"
+      ],
+      "canonicalRoute": "/downloads",
+      "canonicalSlug": "downloads",
+      "commonPatterns": {
+        "tableClasses": "<div class=\"q-table__container q-table--horizontal-separator column no-wrap q-table__card q-table--no-wrap q-ma-none no-shadow scroll md-table\" style=\"height: 65vh;\">",
+        "filterBarSnippet": "",
+        "sectionBannerSnippet": "<header class=\"q-header q-layout__section--marginal fixed-top\"><div class=\"q-toolbar row no-wrap items-center bg-white shadow-1 text-primary\"><div role=\"img\" class=\"q-img overflow-hidden\" style=\"height: 25px; max-width: 130px;\"><div style=\"padding-bottom: 27.6596%;\"></div>"
+      }
+    },
+    "dashboard-tabs": {
+      "routes": [
+        "/overview/v2",
+        "/transport/listing"
+      ],
+      "canonicalRoute": "/overview/v2",
+      "canonicalSlug": "overview__v2",
+      "commonPatterns": {
+        "tableClasses": "",
+        "filterBarSnippet": "",
+        "sectionBannerSnippet": "<header class=\"q-header q-layout__section--marginal fixed-top\"><div class=\"q-toolbar row no-wrap items-center bg-white shadow-1 text-primary\"><div role=\"img\" class=\"q-img overflow-hidden\" style=\"height: 25px; max-width: 130px;\"><div style=\"padding-bottom: 27.6596%;\"></div>"
+      }
+    },
+    "form": {
+      "routes": [
+        "/users/access-control"
+      ],
+      "canonicalRoute": "/users/access-control",
+      "canonicalSlug": "users__access-control",
+      "commonPatterns": {
+        "tableClasses": "",
+        "filterBarSnippet": "",
+        "sectionBannerSnippet": ""
+      }
+    },
+    "other": {
+      "routes": [
+        "/inventory/tagChange",
+        "/system/hardware-status",
+        "/system/rack-config"
+      ],
+      "commonPatterns": {}
+    }
+  },
+  "shellVariants": [
+    {
+      "hash": "341ceb04c725",
+      "routeCount": 1,
+      "sampleRoute": "/audit/audit"
+    },
+    {
+      "hash": "8212ca161b8c",
+      "routeCount": 2,
+      "sampleRoute": "/audit/gtp-audit/create"
+    },
+    {
+      "hash": "faed254f576e",
+      "routeCount": 1,
+      "sampleRoute": "/downloads"
+    },
+    {
+      "hash": "03e7ee4f0954",
+      "routeCount": 1,
+      "sampleRoute": "/exception/listing"
+    },
+    {
+      "hash": "2416f039a607",
+      "routeCount": 1,
+      "sampleRoute": "/exception/reserved-listing"
+    },
+    {
+      "hash": "c83b18584f23",
+      "routeCount": 1,
+      "sampleRoute": "/inbound/listing"
+    },
+    {
+      "hash": "cd9fccaf4424",
+      "routeCount": 1,
+      "sampleRoute": "/inbound/transfer-orders"
+    },
+    {
+      "hash": "1d3054f1b220",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/gtp-master-product"
+    },
+    {
+      "hash": "e3f01341475e",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/products"
+    },
+    {
+      "hash": "df178d3dcada",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/recall"
+    },
+    {
+      "hash": "4a9d814f5e99",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/stale-inventories"
+    },
+    {
+      "hash": "699defb4afa6",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/storage-utilisation"
+    },
+    {
+      "hash": "80c23246eb5a",
+      "routeCount": 1,
+      "sampleRoute": "/inventory/tagChange"
+    },
+    {
+      "hash": "32e37e194e2b",
+      "routeCount": 1,
+      "sampleRoute": "/notification/listing"
+    },
+    {
+      "hash": "8c1faa87a5b4",
+      "routeCount": 1,
+      "sampleRoute": "/outbound/capacity-planning"
+    },
+    {
+      "hash": "3829021224bd",
+      "routeCount": 1,
+      "sampleRoute": "/outbound/containers"
+    },
+    {
+      "hash": "a0118964079f",
+      "routeCount": 1,
+      "sampleRoute": "/outbound/handling-unit"
+    },
+    {
+      "hash": "854af4da5e4f",
+      "routeCount": 2,
+      "sampleRoute": "/outbound/orders"
+    },
+    {
+      "hash": "ec02d1d21ba5",
+      "routeCount": 2,
+      "sampleRoute": "/outbound/ra-orders"
+    },
+    {
+      "hash": "92b70a0aed67",
+      "routeCount": 1,
+      "sampleRoute": "/overview/v2"
+    },
+    {
+      "hash": "6a2b5c22faef",
+      "routeCount": 1,
+      "sampleRoute": "/reports/operations-log"
+    },
+    {
+      "hash": "d0768ed881a1",
+      "routeCount": 1,
+      "sampleRoute": "/system/hardware-status"
+    },
+    {
+      "hash": "54d98c457c55",
+      "routeCount": 1,
+      "sampleRoute": "/system/rack-config"
+    },
+    {
+      "hash": "3d8238cd2a82",
+      "routeCount": 1,
+      "sampleRoute": "/system/station-management"
+    },
+    {
+      "hash": "d9ac08bce066",
+      "routeCount": 1,
+      "sampleRoute": "/system/zones"
+    },
+    {
+      "hash": "9f88d5e7ff86",
+      "routeCount": 1,
+      "sampleRoute": "/transport/listing"
+    },
+    {
+      "hash": "cdd1d6c50da4",
+      "routeCount": 1,
+      "sampleRoute": "/users/access-control"
+    },
+    {
+      "hash": "01d18c4b357b",
+      "routeCount": 1,
+      "sampleRoute": "/users/v2Listing"
+    }
+  ]
+}

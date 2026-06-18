@@ -1,0 +1,16 @@
+{
+  "route": "/system/station-management",
+  "slug": "system__station-management",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 31859,
+  "shellByteSize": 20877,
+  "subNavByteSize": 12817,
+  "mainContentByteSize": 9868,
+  "cssBundleId": "14d42907392b"
+}

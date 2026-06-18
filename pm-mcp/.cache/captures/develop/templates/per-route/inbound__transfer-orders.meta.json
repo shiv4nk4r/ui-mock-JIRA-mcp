@@ -1,0 +1,16 @@
+{
+  "route": "/inbound/transfer-orders",
+  "slug": "inbound__transfer-orders",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 29315,
+  "shellByteSize": 19115,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 9086,
+  "cssBundleId": "c270a5101f5c"
+}

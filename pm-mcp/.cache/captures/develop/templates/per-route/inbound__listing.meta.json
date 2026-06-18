@@ -1,0 +1,16 @@
+{
+  "route": "/inbound/listing",
+  "slug": "inbound__listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 40042,
+  "shellByteSize": 19160,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 19768,
+  "cssBundleId": "c270a5101f5c"
+}

@@ -1,0 +1,16 @@
+{
+  "route": "/inventory/gtp-master-product",
+  "slug": "inventory__gtp-master-product",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 28447,
+  "shellByteSize": 20985,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 6348,
+  "cssBundleId": "7c3156e267d1"
+}

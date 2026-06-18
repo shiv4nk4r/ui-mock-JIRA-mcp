@@ -1,0 +1,17 @@
+{
+  "route": "/exception/listing",
+  "slug": "exception__listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 37618,
+  "shellByteSize": 19155,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 16671,
+  "cssBundleId": "c270a5101f5c"
+}

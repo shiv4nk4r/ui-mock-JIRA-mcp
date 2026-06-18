@@ -1,0 +1,15 @@
+{
+  "route": "/users/access-control",
+  "slug": "users__access-control",
+  "archetype": "form",
+  "detectedComponents": [
+    "q-card",
+    "q-toolbar",
+    "q-form"
+  ],
+  "strippedByteSize": 3547,
+  "shellByteSize": 3547,
+  "subNavByteSize": 0,
+  "mainContentByteSize": 929,
+  "cssBundleId": "e09ea603bd74"
+}

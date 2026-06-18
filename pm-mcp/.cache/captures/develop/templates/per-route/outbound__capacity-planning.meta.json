@@ -1,0 +1,18 @@
+{
+  "route": "/outbound/capacity-planning",
+  "slug": "outbound__capacity-planning",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top",
+    "q-expansion-item"
+  ],
+  "strippedByteSize": 28720,
+  "shellByteSize": 20829,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 6777,
+  "cssBundleId": "aa796fec88cc"
+}

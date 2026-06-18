@@ -20,6 +20,7 @@ import { capturePage, captureCurrent } from "./capture-page";
 import { captureInteractions } from "./capture-interactions";
 import { mapToSource } from "./extract-components";
 import { automatedLogin, isOnLoginPage } from "./login";
+import { analyzeCaptures } from "./analyze-captures";
 import {
   CAPTURE_VERSION,
   type CaptureManifest,
@@ -277,6 +278,11 @@ async function main() {
       `[crawl] Done. ${pages.length} page(s), ${allComponentIds.length} component(s), ` +
         `${allCssBundleIds.size} css bundle(s) → .cache/captures/${config.label}`
     );
+
+    if (config.analyzeTemplates && pages.length > 0) {
+      console.log("[crawl] Analyzing captures into page templates…");
+      analyzeCaptures({ label: config.label, sanitize: config.sanitize });
+    }
   } finally {
     await browser.close();
   }

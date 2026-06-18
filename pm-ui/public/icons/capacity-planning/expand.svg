@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icons/Expand (H)</title>
+    <g id="Icons/Expand-(H)" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M4,21.99995 L4,20.499975 L19.49995,20.499975 L19.49995,21.99995 L4,21.99995 Z M11.749975,19.30765 L8.09615,15.653825 L9.149975,14.6 L11,16.41925 L11,8.5807 L9.149975,10.39995 L8.09615,9.346125 L11.749975,5.6923 L15.4038,9.346125 L14.349975,10.39995 L12.49995,8.5807 L12.49995,16.41925 L14.349975,14.6 L15.4038,15.653825 L11.749975,19.30765 Z M4,4.499975 L4,3 L19.49995,3 L19.49995,4.499975 L4,4.499975 Z" id="Shape" fill="#101A5C" fill-rule="nonzero" transform="translate(11.75, 12.5) rotate(-270) translate(-11.75, -12.5)"></path>
+    </g>
+</svg>

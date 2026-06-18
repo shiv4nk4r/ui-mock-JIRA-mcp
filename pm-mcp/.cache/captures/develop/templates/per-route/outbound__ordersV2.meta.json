@@ -1,0 +1,18 @@
+{
+  "route": "/outbound/ordersV2",
+  "slug": "outbound__ordersV2",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-drawer",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 52898,
+  "shellByteSize": 20826,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 30279,
+  "cssBundleId": "21211a651913"
+}

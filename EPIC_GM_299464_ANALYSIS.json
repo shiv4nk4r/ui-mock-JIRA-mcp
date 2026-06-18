@@ -1,0 +1,1116 @@
+{
+  "epicMetadata": {
+    "ticketId": "GM-299464",
+    "title": "Enhance MD Handling Unit and RA Mission Views for Improved Inventory Journey Visibility",
+    "status": "PRD Completed",
+    "priority": "Medium",
+    "type": "Epic",
+    "labels": ["GoLiveBlocker"],
+    "objective": "End-to-end visibility of inventory movement across flows",
+    "analysisDate": "2026-06-18",
+    "analysisScope": "Terminology changes, UI navigation, data fields, state transitions, affected pages, integration complexity"
+  },
+  "terminologyChanges": [
+    {
+      "oldTerm": "Handling Unit",
+      "newTerm": "Carrying Unit",
+      "affectedPages": [
+        "/outbound/handling-unit",
+        "/outbound/ordersV2",
+        "/outbound/orders",
+        "/inbound/listing",
+        "/inbound/transfer-orders",
+        "/inventory/*"
+      ],
+      "affectedComponents": [
+        "mdui/src/components/outbound/handling-unit/order-list/List.vue",
+        "mdui/src/components/outbound/handling-unit/order-detail/*",
+        "mdui/src/components/inbound/listing/SubInfo.vue",
+        "mdui/src/components/inbound/modals/OrderPutLineViewDetailsDialog.vue",
+        "mdui/src/components/audit/modals/ViewImpactedOrder.vue"
+      ],
+      "dataModel": {
+        "graphqlType": "HandlingUnit",
+        "backendType": "mdbff/src/typeDefs/handlingUnit.mjs",
+        "storeModule": "mdui/src/store/modules/handlingUnit.store.js",
+        "i18nKey": "carryingUnit",
+        "translationKeys": {
+          "en-us": "carryingUnit",
+          "es": "carryingUnit",
+          "he": "carryingUnit",
+          "ja": "carryingUnit",
+          "ko-kr": "carryingUnit"
+        },
+        "conditionalDisplay": "When isRangerAssistEnabled = true, display 'Handling Unit', else 'Carrying Unit'"
+      },
+      "complexity": "HIGH - Requires search/replace in 40+ files including GraphQL, Vue components, i18n, tests"
+    }
+  ],
+  "navigationFlows": [
+    {
+      "from": "Orders List",
+      "to": "Carrying Units (Order Detail)",
+      "linkType": "DRILL_DOWN",
+      "displayText": "Order ID / External Service Request ID",
+      "routePath": "/outbound/orders/:orderId/",
+      "queryParams": {
+        "orderType": "PICK|PUT|RECALL",
+        "fulfillmentArea": "GTP|RESERVE|CROSSDOCK"
+      },
+      "dataDisplayed": {
+        "primary": "externalServiceRequestId",
+        "secondary": ["status", "businessState", "createdOn", "carryingUnits"]
+      },
+      "implementation": {
+        "component": "mdui/src/components/outbound/handling-unit/order-list/List.vue (line ~350)",
+        "graphqlQuery": "HANDLING_UNIT_DETAIL_QUERY",
+        "methodCall": "router.push({ path: '/outbound/orders/:orderId/' })"
+      }
+    },
+    {
+      "from": "Carrying Units Detail",
+      "to": "RA Missions",
+      "linkType": "REFERENCE_LINK",
+      "displayText": "raPickCarrierId (Mission ID) / raPickDeliveryNumber",
+      "routePath": "/outbound/ra-orders/:missionId/",
+      "queryParams": {
+        "carrierId": "raPickCarrierId",
+        "deliveryNumber": "raPickDeliveryNumber"
+      },
+      "dataDisplayed": {
+        "primary": "raPickCarrierId",
+        "secondary": ["raPickDeliveryNumber", "raPutBinId", "raExpectationAisle", "totalOrderQuantity"]
+      },
+      "implementation": {
+        "component": "mdui/src/pages/outbound/handling-unit/Listing.vue",
+        "graphqlQuery": "HANDLING_UNIT_DETAIL_QUERY",
+        "fieldsRequired": ["raPickCarrierId", "raPickDeliveryNumber", "raPutBinId"]
+      }
+    },
+    {
+      "from": "Inbound Orders",
+      "to": "Carrying Units (PUT Orders)",
+      "linkType": "DRILL_DOWN",
+      "displayText": "putCarryingUnit / Order ID",
+      "routePath": "/inbound/orders/:orderId/",
+      "queryParams": {
+        "orderType": "PUT",
+        "displayMode": "INBOUND"
+      },
+      "dataDisplayed": {
+        "primary": "putCarryingUnit",
+        "secondary": ["status", "businessState", "createdOn", "orderId"]
+      },
+      "implementation": {
+        "component": "mdui/src/components/inbound/listing/SubInfo.vue",
+        "graphqlQuery": "INBOUND_ORDER_DETAIL_QUERY",
+        "conditionalDisplay": "isRangerAssistEnabled ? 'Handling Unit' : 'Carrying Unit'"
+      }
+    },
+    {
+      "from": "Audit Impact View",
+      "to": "Carrying Units",
+      "linkType": "RELATED_ITEMS",
+      "displayText": "carryingUnits array display",
+      "routePath": "MODAL_ONLY",
+      "dataDisplayed": {
+        "primary": "attributes.carryingUnits[]",
+        "secondary": []
+      },
+      "implementation": {
+        "component": "mdui/src/components/audit/modals/ViewImpactedOrder.vue",
+        "condition": "v-if='props.row.attributes.carryingUnits.length'"
+      }
+    }
+  ],
+  "dataFieldsPerPage": {
+    "handlingUnitListing": {
+      "pageRoute": "/outbound/handling-unit",
+      "fields": [
+        {
+          "fieldName": "externalServiceRequestId",
+          "displayLabel": "Order ID",
+          "dataType": "String",
+          "source": "servicerequest.externalServiceRequestId",
+          "searchable": true,
+          "sortable": true,
+          "required": true
+        },
+        {
+          "fieldName": "carryingUnits",
+          "displayLabel": "Carrying Units",
+          "dataType": "Array<String>",
+          "source": "attributes.tote_id | attributes.packing_box_id | attributes.rollcage_id",
+          "derivedFrom": "getOutboundCarryingUnits()",
+          "searchable": true,
+          "sortable": false,
+          "elasticField": "attributes.tote_id.keyword"
+        },
+        {
+          "fieldName": "status",
+          "displayLabel": "Status",
+          "dataType": "String",
+          "source": "status",
+          "enum": ["CREATED", "PROCESSING", "PAUSED", "WAITING", "PROCESSED", "FAILED", "CANCELLED"],
+          "sortable": true
+        },
+        {
+          "fieldName": "businessState",
+          "displayLabel": "Business State",
+          "dataType": "String",
+          "source": "business_state",
+          "enum": ["Created", "In Progress", "In Progress | Picking from Rack", "In Progress | Picking from Tote", "Completed", "Completed - Short picked", "Released", "Failed", "Cancelled"],
+          "derivedFrom": "businessState resolver with config-based transformation",
+          "sortable": true
+        },
+        {
+          "fieldName": "currentLocation",
+          "displayLabel": "Current Location",
+          "dataType": "Object",
+          "source": "attributes.location",
+          "subFields": {
+            "displayName": "String",
+            "aisle": "String (from expectations.containers[0].products[0].productAttributes.location.addressFields.aisle)",
+            "barcode": "String (from expectations.containers[0].products[0].productAttributes.location.barcode)"
+          },
+          "sortable": false
+        },
+        {
+          "fieldName": "raPickCarrierId",
+          "displayLabel": "RA Carrier ID",
+          "dataType": "String",
+          "source": "attributes.shipping_method",
+          "navigation": "LINK_TO_MISSION",
+          "sortable": true
+        },
+        {
+          "fieldName": "raPickDeliveryNumber",
+          "displayLabel": "RA Delivery Number",
+          "dataType": "String",
+          "source": "attributes.RequirementNumber",
+          "navigation": "LINK_TO_MISSION",
+          "sortable": true
+        },
+        {
+          "fieldName": "raPutBinId",
+          "displayLabel": "RA Put Bin ID",
+          "dataType": "String",
+          "source": "expectations.containers[0].products[0].productAttributes.location.barcode",
+          "sortable": false
+        },
+        {
+          "fieldName": "raExpectationAisle",
+          "displayLabel": "Expected Aisle",
+          "dataType": "String",
+          "source": "expectations.containers[0].products[0].productAttributes.location.addressFields.aisle",
+          "sortable": false
+        },
+        {
+          "fieldName": "stationId",
+          "displayLabel": "Station / PPS",
+          "dataType": "Array<String>",
+          "source": "attributes.pps_id",
+          "sortable": true,
+          "filterField": true
+        },
+        {
+          "fieldName": "stagingLane",
+          "displayLabel": "Staging Lane",
+          "dataType": "String",
+          "source": "attributes.order_options.current_seat_location",
+          "alias": "ppsSeatType",
+          "sortable": false,
+          "filterField": true
+        },
+        {
+          "fieldName": "missionJourney",
+          "displayLabel": "Mission Journey",
+          "dataType": "String",
+          "source": "Composite: raPickCarrierId + raPickDeliveryNumber + totalOrderQuantity + orderProgress",
+          "components": ["carrierId", "deliveryNumber", "itemCount", "progressPercent"],
+          "sortable": false
+        },
+        {
+          "fieldName": "totalOrderQuantity",
+          "displayLabel": "Total Items",
+          "dataType": "Integer",
+          "source": "sr_products_counts.expectations",
+          "sortable": true,
+          "aggregatable": true
+        },
+        {
+          "fieldName": "createdOn",
+          "displayLabel": "Created Date",
+          "dataType": "DateTime",
+          "source": "createdOn",
+          "format": "@formatDate directive",
+          "sortable": true
+        },
+        {
+          "fieldName": "updatedOn",
+          "displayLabel": "Updated Date",
+          "dataType": "DateTime",
+          "source": "updatedOn",
+          "format": "@formatDate directive",
+          "sortable": true
+        },
+        {
+          "fieldName": "orderProgress",
+          "displayLabel": "Progress",
+          "dataType": "Object",
+          "source": "sr_products_counts",
+          "subFields": {
+            "progressPercent": "Integer (actuals / expectations * 100)",
+            "progressLabel": "String (e.g., '5/10')",
+            "showProgressBar": "Boolean"
+          },
+          "visualization": "PROGRESS_BAR",
+          "sortable": false
+        },
+        {
+          "fieldName": "isBreached",
+          "displayLabel": "Breached",
+          "dataType": "Boolean",
+          "source": "Computed: status + pick_before_time + updatedOn",
+          "logic": "if status in [PROCESSING, PAUSED, WAITING, CREATED] and pick_before_time < now, or if status in [PROCESSED, FAILED, CANCELLED] and updatedOn > pick_before_time",
+          "filterField": true,
+          "sortable": false
+        }
+      ],
+      "sourceQuery": "HANDLING_UNIT_LIST_QUERY / handlingUnitList",
+      "elasticIndex": "servicerequest",
+      "paginationSupport": true,
+      "sortOptions": "Configurable via config.handlingUnit.listing.sortFields"
+    },
+    "handlingUnitDetail": {
+      "pageRoute": "/outbound/orders/:orderId/",
+      "fields": [
+        {
+          "fieldName": "order",
+          "displayLabel": "Master Order",
+          "dataType": "HandlingUnit",
+          "sections": ["order", "subOrders", "orderLines", "containers"]
+        },
+        {
+          "fieldName": "subOrders",
+          "displayLabel": "Sub Orders",
+          "dataType": "Array<HandlingUnit>",
+          "visibility": "Conditional - shown if subOrders.length > 0"
+        },
+        {
+          "fieldName": "orderLines",
+          "displayLabel": "Order Lines",
+          "dataType": "Array<HandlingUnit>",
+          "visibility": "Conditional - shown if orderLines.length > 0"
+        },
+        {
+          "fieldName": "containers",
+          "displayLabel": "Containers",
+          "dataType": "Array<OrderContainer>",
+          "visibility": "Conditional - shown if containers.length > 0",
+          "fields": ["id", "status", "totalQuantity"]
+        },
+        {
+          "fieldName": "skusOutbound",
+          "displayLabel": "SKU Details",
+          "dataType": "Array<HandlingUnitSkuDetail>",
+          "subFields": ["skuId", "quantity", "uom", "attributes[]"]
+        },
+        {
+          "fieldName": "stages",
+          "displayLabel": "Order Stages",
+          "dataType": "Array<HandlingUnitStage>",
+          "subFields": ["label (transactionType)", "hasError (transactionStatus === FAILED)", "color", "ordering"]
+        },
+        {
+          "fieldName": "exceptions",
+          "displayLabel": "Exceptions",
+          "dataType": "Array<HandlingUnitException>",
+          "visibility": "Conditional"
+        },
+        {
+          "fieldName": "customAttributes",
+          "displayLabel": "Site-Specific Attributes",
+          "dataType": "Array<HandlingUnitCustomAttributes>",
+          "configurable": true,
+          "source": "config.handlingUnit.listing.siteSpecificAttributesColumn"
+        }
+      ],
+      "sourceQuery": "HANDLING_UNIT_DETAIL_QUERY / handlingUnitDetail"
+    },
+    "inboundOrderListing": {
+      "pageRoute": "/inbound/listing",
+      "fields": [
+        {
+          "fieldName": "putCarryingUnit",
+          "displayLabel": "Carrying Unit (PUT)",
+          "dataType": "String",
+          "source": "attributes.tote_id | attributes.rollcage_bin_id",
+          "derivedFrom": "getPutCarryingUnit()",
+          "searchable": true,
+          "sortable": false,
+          "conditionalDisplay": "isRangerAssistEnabled ? 'Handling Unit' : 'Carrying Unit'"
+        },
+        {
+          "fieldName": "orderId",
+          "displayLabel": "Order ID",
+          "dataType": "String",
+          "searchable": true,
+          "sortable": true
+        },
+        {
+          "fieldName": "status",
+          "displayLabel": "Status",
+          "dataType": "String",
+          "sortable": true
+        },
+        {
+          "fieldName": "businessState",
+          "displayLabel": "Business State",
+          "dataType": "String",
+          "sortable": true
+        },
+        {
+          "fieldName": "currentLocation",
+          "displayLabel": "Current Location",
+          "dataType": "String",
+          "source": "attributes.location"
+        }
+      ],
+      "sourceQuery": "INBOUND_ORDER_LIST_QUERY / inboundOrderList",
+      "conditionalDisplay": "Elements toggle based on isRangerAssistEnabled flag"
+    },
+    "raMissionView": {
+      "pageRoute": "/outbound/ra-orders/:missionId/",
+      "fields": [
+        {
+          "fieldName": "missionId",
+          "displayLabel": "Mission ID",
+          "dataType": "String",
+          "source": "missionId",
+          "primary": true
+        },
+        {
+          "fieldName": "botId",
+          "displayLabel": "Bot ID",
+          "dataType": "String",
+          "source": "botId"
+        },
+        {
+          "fieldName": "status",
+          "displayLabel": "Mission Status",
+          "dataType": "String",
+          "enum": ["CREATED", "IN_PROGRESS", "COMPLETED", "FAILED", "CANCELLED"],
+          "source": "status",
+          "sortable": true
+        },
+        {
+          "fieldName": "orderCount",
+          "displayLabel": "Order Count",
+          "dataType": "Integer",
+          "source": "orderCount"
+        },
+        {
+          "fieldName": "itemCount",
+          "displayLabel": "Item Count",
+          "dataType": "Integer",
+          "source": "itemCount"
+        },
+        {
+          "fieldName": "orderlinesCount",
+          "displayLabel": "Order Lines Count",
+          "dataType": "Integer",
+          "source": "orderlinesCount"
+        },
+        {
+          "fieldName": "containers",
+          "displayLabel": "Carrying Units in Mission",
+          "dataType": "Array<RAMissionContainer>",
+          "subFields": {
+            "externalSRId": "String (links back to carrying unit order)",
+            "extra_info.tote_id": "String"
+          },
+          "bidirectionalLink": "FROM carrying unit raPickCarrierId + raPickDeliveryNumber"
+        },
+        {
+          "fieldName": "createdAt",
+          "displayLabel": "Created Date",
+          "dataType": "DateTime",
+          "format": "@formatDate directive"
+        },
+        {
+          "fieldName": "updatedAt",
+          "displayLabel": "Updated Date",
+          "dataType": "DateTime",
+          "format": "@formatDate directive"
+        },
+        {
+          "fieldName": "missionInventoryShortages",
+          "displayLabel": "Inventory Shortages",
+          "dataType": "Array<InventoryShortage>",
+          "subFields": {
+            "productSku": "String",
+            "storageLocation": "String",
+            "requestedQuantity": "Integer",
+            "availableQuantity": "Integer"
+          },
+          "sourceQuery": "outboundRAMissionInventoryShortages"
+        }
+      ],
+      "sourceQuery": "RAMissionList / outboundRAMissionList"
+    }
+  },
+  "stateTransitions": [
+    {
+      "state": "CREATED",
+      "allowedTransitions": ["PROCESSING", "CANCELLED"],
+      "visibility": "VISIBLE_IN_OPEN_REQUESTS",
+      "displayLabel": "Created",
+      "userActionAllowed": ["CANCEL_ORDER", "HOLD_ORDER"],
+      "duration": "Initial state - waiting for processing"
+    },
+    {
+      "state": "PROCESSING",
+      "allowedTransitions": ["PAUSED", "WAITING", "PROCESSED", "FAILED"],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "In Progress",
+      "userActionAllowed": ["PAUSE_ORDER", "HOLD_ORDER", "CANCEL_ORDER"],
+      "breachDetection": true,
+      "breachLogic": "pick_before_time < NOW && status in [PROCESSING, PAUSED, WAITING]"
+    },
+    {
+      "state": "PAUSED",
+      "allowedTransitions": ["PROCESSING", "CANCELLED", "FAILED"],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "In Progress",
+      "userActionAllowed": ["RESUME_ORDER", "CANCEL_ORDER"],
+      "breachDetection": true
+    },
+    {
+      "state": "WAITING",
+      "allowedTransitions": ["PROCESSING", "CANCELLED", "FAILED"],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "In Progress",
+      "userActionAllowed": ["RESUME_ORDER", "CANCEL_ORDER"],
+      "breachDetection": true
+    },
+    {
+      "state": "PROCESSED",
+      "allowedTransitions": [],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "Completed",
+      "userActionAllowed": [],
+      "breachDetection": true,
+      "breachLogic": "updatedOn > pick_before_time"
+    },
+    {
+      "state": "FAILED",
+      "allowedTransitions": [],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "Failed",
+      "userActionAllowed": ["RETRY_ORDER"],
+      "breachDetection": true
+    },
+    {
+      "state": "CANCELLED",
+      "allowedTransitions": [],
+      "visibility": "VISIBLE_IN_ALL",
+      "displayLabel": "Cancelled",
+      "userActionAllowed": [],
+      "breachDetection": false
+    }
+  ],
+  "visibilityRules": {
+    "breachedOrders": {
+      "description": "Orders where pick_before_time has passed",
+      "logic": "((status in [PROCESSING, PAUSED, WAITING, CREATED] AND pick_before_time < NOW) OR (status in [PROCESSED, FAILED, CANCELLED] AND updatedOn > pick_before_time))",
+      "displayIndicator": "Red border / badge",
+      "filterLabel": "Breached Orders",
+      "isBreachedField": "Computed boolean returned with every order"
+    },
+    "shortPickedOrders": {
+      "description": "Orders with exceptions",
+      "logic": "exceptions_map[<state>] >= 1",
+      "states": ["missing", "damaged", "unscannable", "mismatch"],
+      "displayIndicator": "Exception badge with count",
+      "visibleInPicker": true
+    },
+    "multiAreaOrders": {
+      "description": "Orders in both GTP and Reserve",
+      "logic": "fulfillmentArea.includes('gtp') AND fulfillmentArea.includes('reserve')",
+      "displayLabel": "GTP, Reserve",
+      "storeModel": "Affects UI display toggle between GTP/Reserve views"
+    },
+    "conditionalRangerAssist": {
+      "description": "Display terminology based on system capability",
+      "logic": "isRangerAssistEnabled = true ? show 'Handling Unit' : show 'Carrying Unit'",
+      "affectedComponents": [
+        "inbound/listing/SubInfo.vue",
+        "inbound/modals/OrderPutLineViewDetailsDialog.vue",
+        "inbound/listing/OrderViewDetail.vue"
+      ]
+    }
+  },
+  "affectedLayers": {
+    "frontend": {
+      "pages": [
+        "mdui/src/pages/outbound/handling-unit/Listing.vue",
+        "mdui/src/pages/outbound/listing/OrderViewDetail.vue",
+        "mdui/src/pages/outbound/listing/OrderLineViewDetail.vue",
+        "mdui/src/pages/outbound/listing/RAOrderViewDetail.vue",
+        "mdui/src/pages/inbound/Listing.vue",
+        "mdui/src/pages/inbound/OrderViewDetail.vue"
+      ],
+      "components": [
+        "mdui/src/components/outbound/handling-unit/order-list/List.vue (~2000 lines, displays carryingUnits)",
+        "mdui/src/components/outbound/handling-unit/order-detail/OrderDetail.vue",
+        "mdui/src/components/outbound/handling-unit/order-detail/OrderLineDetail.vue",
+        "mdui/src/components/inbound/listing/SubInfo.vue (putCarryingUnit display)",
+        "mdui/src/components/inbound/listing/TransferSubInfo.vue (carryingUnit display)",
+        "mdui/src/components/inbound/listing/OrderViewDetail.vue (putCarryingUnit display)",
+        "mdui/src/components/inbound/modals/OrderPutLineViewDetailsDialog.vue",
+        "mdui/src/components/audit/modals/ViewImpactedOrder.vue"
+      ],
+      "graphqlQueries": [
+        "mdui/src/graphql/queries/outbound/handling-unit-list-details.js (HANDLING_UNIT_LIST_QUERY, HANDLING_UNIT_TOP_FILTER_DATA_QUERY)",
+        "mdui/src/graphql/queries/outbound/handling-unit-detail.js (HANDLING_UNIT_DETAIL_QUERY)",
+        "mdui/src/graphql/queries/inbound/order-list-details.js (putCarryingUnit field)",
+        "mdui/src/graphql/queries/inbound/order-detail.js (putCarryingUnit field)"
+      ],
+      "storeModules": [
+        "mdui/src/store/modules/handlingUnit.store.js",
+        "mdui/src/store/modules/outbound/handlingUnit/* (setHandlingOrderListFilters, etc.)"
+      ],
+      "i18nKeys": [
+        "carryingUnit (in all locale files: en-us, es, he, ja, ko-kr)"
+      ]
+    },
+    "backend": {
+      "typeDefs": [
+        "mdbff/src/typeDefs/handlingUnit.mjs (HandlingUnit, HandlingUnitAttributes, HandlingUnitListDetails)",
+        "mdbff/src/typeDefs/mission.mjs (RAMission, RAMissionContainer, InventoryShortage)",
+        "mdbff/src/typeDefs/order.mjs (carryingUnits field)"
+      ],
+      "resolvers": [
+        "mdbff/src/resolvers/resources/handlingUnitMapping.mjs",
+        "mdbff/src/resolvers/order/outbound/handlingUnitList.mjs",
+        "mdbff/src/resolvers/mission/missionList.mjs",
+        "mdbff/src/resolvers/mission/missionDetail.mjs"
+      ],
+      "models": [
+        "mdbff/src/models/order/handlingUnitList.mjs (getHandlingUnitList, getHandlingUnitTopFilterData)",
+        "mdbff/src/models/order/handlingUnitFilters.mjs",
+        "mdbff/src/models/order/handlingUnitReport.mjs",
+        "mdbff/src/models/mission/missionList.mjs",
+        "mdbff/src/models/mission/mission.mjs"
+      ],
+      "utilities": [
+        "mdbff/src/utils/orders.mjs (getOutboundCarryingUnits, getPutCarryingUnit, getOutboundContainerIds)",
+        "mdbff/src/utils/date.mjs (@formatDate directive)"
+      ],
+      "constants": [
+        "mdbff/src/constants/handlingUnit.mjs (tableFieldToElasticMap, searchFieldToElasticMap, handlingUnitFiltersDetail)",
+        "mdbff/src/constants/order.mjs"
+      ],
+      "apis": [
+        "mdbff/src/apis/order.mjs (Order service calls)",
+        "mdbff/src/apis/mission.mjs (RA Mission service calls)"
+      ]
+    },
+    "data": {
+      "elasticIndex": "servicerequest",
+      "elasticFields": {
+        "carryingUnit_search": "attributes.tote_id.keyword",
+        "carryingUnit_aggregation": "attributes.tote_id.keyword",
+        "raCarrierId": "attributes.shipping_method.keyword",
+        "raDeliveryNumber": "attributes.RequirementNumber",
+        "status": "status.keyword",
+        "businessState": "business_state.keyword",
+        "pickBeforeTime": "attributes.pick_before_time",
+        "station": "attributes.pps_id.keyword",
+        "stagingLane": "attributes.order_options.current_seat_location.keyword"
+      },
+      "externalSystems": {
+        "raService": {
+          "endpoint": "RA SAM service",
+          "dataProvided": ["missionId", "botId", "status", "containers", "createdAt", "updatedAt"],
+          "dataRequired": ["raPickCarrierId", "raPickDeliveryNumber"]
+        },
+        "orderService": {
+          "endpoint": "Order service",
+          "dataProvided": ["order attributes", "carrying units", "stages", "exceptions"],
+          "dataRequired": ["orderId", "orderType"]
+        }
+      }
+    }
+  },
+  "integrationPoints": [
+    {
+      "system": "RA SAM (Robotics Automation Service)",
+      "dataRequired": [
+        "raPickCarrierId (from attributes.shipping_method)",
+        "raPickDeliveryNumber (from attributes.RequirementNumber)",
+        "missionId (to link to mission view)"
+      ],
+      "dataReturned": [
+        "missionStatus",
+        "botId",
+        "containers[] (carrying units in mission)",
+        "itemCount",
+        "orderCount",
+        "inventoryShortages"
+      ],
+      "currentStatus": "IMPLEMENTED - RAMission type defined, queries available",
+      "apiEndpoint": "mdbff/src/apis/mission.mjs",
+      "queryResolver": "mdbff/src/resolvers/mission/missionList.mjs",
+      "complexity": "MEDIUM - Two-step navigation from order to mission"
+    },
+    {
+      "system": "Order Service",
+      "dataRequired": [
+        "orderId / externalServiceRequestId",
+        "orderType (PICK, PUT, RECALL)"
+      ],
+      "dataReturned": [
+        "carrying units (tote_id, packing_box_id, rollcage_id)",
+        "current location",
+        "status, businessState",
+        "stages, exceptions",
+        "RA metadata (raPickCarrierId, raPickDeliveryNumber, raPutBinId, raExpectationAisle)"
+      ],
+      "currentStatus": "IMPLEMENTED",
+      "apiEndpoint": "mdbff/src/apis/order.mjs",
+      "queryResolver": "mdbff/src/resolvers/order/outbound/handlingUnitList.mjs",
+      "complexity": "HIGH - Complex nested queries for order hierarchy"
+    },
+    {
+      "system": "Elasticsearch (Analytics Index)",
+      "dataRequired": [
+        "servicerequest index",
+        "filtering by carrying unit, status, business state, RA metadata"
+      ],
+      "dataReturned": [
+        "All order/handling unit records matching criteria",
+        "Aggregations for filter counts",
+        "Full-text search across order fields"
+      ],
+      "currentStatus": "IMPLEMENTED - Complex DSL queries in place",
+      "queryBuilder": "mdbff/src/models/order/handlingUnitList.mjs (bodybuilder DSL)",
+      "complexity": "MEDIUM - 600+ line constants file with comprehensive filter definitions"
+    },
+    {
+      "system": "Consul (Configuration Service)",
+      "dataRequired": [
+        "config.handlingUnit.listing.* (sort fields, site attributes, pick/pass phase)",
+        "config.outbound.listing.* (allowed actions, order types)"
+      ],
+      "dataReturned": [
+        "Runtime configuration for UI behavior",
+        "Feature flags for Ranger Assist integration"
+      ],
+      "currentStatus": "IMPLEMENTED - Config watcher in place",
+      "complexity": "LOW - Read-only configuration"
+    }
+  ],
+  "estimatedComplexity": {
+    "frontend": {
+      "terminologyReplacement": {
+        "effort": "MEDIUM",
+        "estimate": "16-20 hours",
+        "files": 40,
+        "tasks": [
+          "Replace 'Handling Unit' with 'Carrying Unit' in component templates",
+          "Update i18n keys across 5 locales",
+          "Update GraphQL query field names",
+          "Update test fixtures and test files",
+          "Update component documentation"
+        ]
+      },
+      "navigationImplementation": {
+        "effort": "HIGH",
+        "estimate": "24-32 hours",
+        "tasks": [
+          "Implement hyperlinks from order listing to order detail",
+          "Implement hyperlinks from order detail to RA mission view",
+          "Add bidirectional navigation (back buttons)",
+          "Implement mission detail modal with carrying unit references",
+          "Add navigation state management (breadcrumbs, history)"
+        ]
+      },
+      "dataDisplayEnhancement": {
+        "effort": "MEDIUM",
+        "estimate": "12-16 hours",
+        "tasks": [
+          "Add current location column to all listing pages",
+          "Add staging lane / seat location column",
+          "Display mission journey composite view",
+          "Add RA metadata visibility conditionally",
+          "Implement progress indicators for mission completion"
+        ]
+      },
+      "totalEffort": "52-68 hours"
+    },
+    "backend": {
+      "graphqlSchemaExtension": {
+        "effort": "LOW",
+        "estimate": "4-6 hours",
+        "tasks": [
+          "Add RAMission query type",
+          "Add inventory shortage query",
+          "Add computed fields for mission metadata",
+          "Update existing resolvers for new field visibility"
+        ]
+      },
+      "resolverLogic": {
+        "effort": "MEDIUM",
+        "estimate": "12-16 hours",
+        "tasks": [
+          "Implement mission detail resolver",
+          "Implement inventory shortage query resolver",
+          "Add caching for mission data",
+          "Add error handling for RA service failures"
+        ]
+      },
+      "dataModelEnhancement": {
+        "effort": "MEDIUM",
+        "estimate": "8-12 hours",
+        "tasks": [
+          "Add getOutboundCarryingUnits logic for all unit types",
+          "Add stage journey computation",
+          "Add breach detection logic",
+          "Add multi-area order detection"
+        ]
+      },
+      "elasticsearchOptimization": {
+        "effort": "MEDIUM",
+        "estimate": "12-16 hours",
+        "tasks": [
+          "Ensure carryingUnit field is properly indexed and searchable",
+          "Optimize aggregations for filter counts",
+          "Add proper tokenization for carrying unit search",
+          "Create test index mapping and test data"
+        ]
+      },
+      "totalEffort": "36-50 hours"
+    },
+    "integration": {
+      "systemTesting": {
+        "effort": "HIGH",
+        "estimate": "24-32 hours",
+        "tasks": [
+          "Test order → carrying unit → mission navigation flow",
+          "Test carrying unit search across all pages",
+          "Test RA mission metadata population",
+          "Test breach detection across status transitions",
+          "Test multi-area order visibility",
+          "Test carrying unit filtering and sorting"
+        ]
+      },
+      "raServiceIntegration": {
+        "effort": "MEDIUM",
+        "estimate": "12-16 hours",
+        "tasks": [
+          "Verify raPickCarrierId mapping to mission ID",
+          "Verify raPickDeliveryNumber correctness",
+          "Test mission status updates",
+          "Test inventory shortage population",
+          "Handle RA service failures gracefully"
+        ]
+      },
+      "contractTesting": {
+        "effort": "MEDIUM",
+        "estimate": "8-12 hours",
+        "tasks": [
+          "Update Pact consumer contracts for new fields",
+          "Test provider compatibility",
+          "Document breaking changes",
+          "Create migration guide for API consumers"
+        ]
+      },
+      "totalEffort": "44-60 hours"
+    },
+    "testing": {
+      "unitTests": {
+        "effort": "MEDIUM",
+        "estimate": "16-20 hours",
+        "coverage": [
+          "getOutboundCarryingUnits() utility function",
+          "isBreached() computation logic",
+          "stateTransition business rules",
+          "Filter DSL query builders"
+        ]
+      },
+      "componentTests": {
+        "effort": "MEDIUM",
+        "estimate": "12-16 hours",
+        "coverage": [
+          "Handling unit listing table rendering",
+          "Navigation link functionality",
+          "Carrying unit detail display",
+          "Conditional field visibility"
+        ]
+      },
+      "e2eTests": {
+        "effort": "HIGH",
+        "estimate": "20-28 hours",
+        "scenarios": [
+          "End-to-end navigation: Order List → Order Detail → RA Mission",
+          "Search carrying unit across all views",
+          "Filter and sort by carrying unit, location, mission",
+          "Breach detection and display",
+          "Multi-area order handling"
+        ]
+      },
+      "totalEffort": "48-64 hours"
+    },
+    "summary": {
+      "totalEstimate": "180-242 hours",
+      "timeline": "4-6 weeks (assuming 1 FTE, 40 hrs/week)",
+      "riskFactors": [
+        "RA Service integration complexity",
+        "Elasticsearch index migration",
+        "Multi-locale i18n updates",
+        "Backward compatibility with existing systems"
+      ],
+      "dependencies": [
+        "RA SAM service API availability and documentation",
+        "Elasticsearch cluster stability during index updates",
+        "Keycloak RBAC configuration for new features"
+      ]
+    }
+  },
+  "affectedBusinessFlows": {
+    "outboundFlow": {
+      "stages": [
+        {
+          "stage": "Order Creation",
+          "carrying_unit_visibility": "NOT_YET_ASSIGNED",
+          "status": "CREATED"
+        },
+        {
+          "stage": "Picking Assignment",
+          "carrying_unit_visibility": "ASSIGNED_TO_RANGER",
+          "status": "PROCESSING",
+          "carrying_unit_type": "tote_id (Robot tote)"
+        },
+        {
+          "stage": "Picking In Progress",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "IN_PROGRESS",
+          "mission_link": "raPickCarrierId",
+          "location": "Robot location / staging area"
+        },
+        {
+          "stage": "Pick Complete / Ready for Packing",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "WAITING",
+          "carrying_unit_type": "tote_id or packing_box_id"
+        },
+        {
+          "stage": "Packing / Staging",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "PROCESSING",
+          "staging_lane": "ppsSeatType",
+          "location": "Packing station"
+        },
+        {
+          "stage": "Shipment Ready",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "COMPLETED",
+          "final_carrying_unit": "rollcage_id (Rollcage for transport)"
+        }
+      ]
+    },
+    "inboundFlow": {
+      "stages": [
+        {
+          "stage": "Inbound Receipt",
+          "carrying_unit_visibility": "ASSIGNED",
+          "status": "CREATED",
+          "carrying_unit_type": "putCarryingUnit (Receiving tote/bin)"
+        },
+        {
+          "stage": "Put Away In Progress",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "PROCESSING",
+          "carrying_unit_tracked": "putCarryingUnit",
+          "location": "Current warehouse location"
+        },
+        {
+          "stage": "Put Away Complete",
+          "carrying_unit_visibility": "ARCHIVE",
+          "status": "COMPLETED"
+        }
+      ]
+    },
+    "rewarehousingFlow": {
+      "stages": [
+        {
+          "stage": "Reslot Order Creation",
+          "carrying_unit_visibility": "NOT_APPLICABLE",
+          "order_type": "RESLOT_ORDER"
+        },
+        {
+          "stage": "Source Inventory Selection",
+          "carrying_unit_visibility": "SELECTED_FROM_SOURCE",
+          "carrying_unit_type": "Source tote/bin"
+        },
+        {
+          "stage": "Movement to Destination",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "status": "PROCESSING",
+          "mission_link": "Possible RA mission if robotics assisted"
+        },
+        {
+          "stage": "Destination Placement",
+          "carrying_unit_visibility": "FULL_VISIBILITY",
+          "carrying_unit_type": "Destination slot / location"
+        }
+      ]
+    }
+  },
+  "i18nRequirements": {
+    "newTranslationKeys": [
+      {
+        "key": "carryingUnit",
+        "locales": ["en-us", "es", "he", "ja", "ko-kr"],
+        "context": "Label for handling unit / carrying unit display"
+      },
+      {
+        "key": "missionJourney",
+        "locales": ["en-us", "es", "he", "ja", "ko-kr"],
+        "context": "Label for mission tracking journey"
+      },
+      {
+        "key": "stagingLane",
+        "locales": ["en-us", "es", "he", "ja", "ko-kr"],
+        "context": "Label for packing station staging lane"
+      },
+      {
+        "key": "currentLocation",
+        "locales": ["en-us", "es", "he", "ja", "ko-kr"],
+        "context": "Label for current location field"
+      }
+    ],
+    "translationFiles": [
+      "mdui/src/i18n/en-us/index.js",
+      "mdui/src/i18n/es/index.js",
+      "mdui/src/i18n/he/index.js",
+      "mdui/src/i18n/ja/index.js",
+      "mdui/src/i18n/ko-kr/index.js"
+    ]
+  },
+  "testingStrategy": {
+    "unitTests": {
+      "functions": [
+        "getOutboundCarryingUnits(orderAttributes) - Test all 4 sources (tote_id, packing_box_id, rollcage_id, array handling)",
+        "getOutboundContainerIds(orderAttributes) - Test barcode extraction",
+        "getPutCarryingUnit(order) - Test tote_id and rollcage_bin_id precedence",
+        "isBreached(order) - Test all status combinations and date logic"
+      ],
+      "coverage": "85%+ line coverage required"
+    },
+    "componentTests": {
+      "components": [
+        "HandlingUnitList - Test rendering, filtering, searching by carrying unit",
+        "OrderDetail - Test RA mission link population",
+        "InboundOrderList - Test conditional Handling Unit / Carrying Unit display",
+        "RAMissionDetail - Test container list population"
+      ]
+    },
+    "integrationTests": {
+      "scenarios": [
+        "Elasticsearch query performance with large carrying unit dataset",
+        "RA Service latency impact on mission detail loading",
+        "Order Service API for multi-area orders",
+        "Pagination with complex filters"
+      ]
+    },
+    "e2eTests": {
+      "userJourney": "Order List → Search by Carrying Unit → Navigate to Order Detail → View RA Mission Details → Back to Order List"
+    }
+  },
+  "riskAssessment": {
+    "highRisk": [
+      {
+        "risk": "RA Service Integration Complexity",
+        "probability": "HIGH",
+        "impact": "HIGH",
+        "mitigation": "Early integration testing, mock RA service for dev, fallback UI when mission unavailable"
+      },
+      {
+        "risk": "Elasticsearch Index Migration",
+        "probability": "MEDIUM",
+        "impact": "HIGH",
+        "mitigation": "Blue-green deployment, reindex during low traffic, rollback plan"
+      },
+      {
+        "risk": "Backward Compatibility",
+        "probability": "MEDIUM",
+        "impact": "MEDIUM",
+        "mitigation": "Deprecation notices, versioned APIs, consumer migration window"
+      }
+    ],
+    "mediumRisk": [
+      {
+        "risk": "Multi-locale Translation Updates",
+        "probability": "MEDIUM",
+        "impact": "MEDIUM",
+        "mitigation": "Use translation management tool, automated key extraction"
+      },
+      {
+        "risk": "Performance with Large Carrying Unit Sets",
+        "probability": "MEDIUM",
+        "impact": "MEDIUM",
+        "mitigation": "Indexed search fields, limit aggregation sizes, pagination"
+      }
+    ]
+  },
+  "implementationPhases": {
+    "phase1_DataModel": {
+      "duration": "1 week",
+      "tasks": [
+        "Define RAMission GraphQL type",
+        "Add RA metadata fields to HandlingUnit type",
+        "Update Elasticsearch mappings",
+        "Create test fixtures"
+      ]
+    },
+    "phase2_BackendIntegration": {
+      "duration": "2 weeks",
+      "tasks": [
+        "Implement mission resolvers",
+        "Add inventory shortage computation",
+        "Integrate RA Service API calls",
+        "Create contract tests with Pact"
+      ]
+    },
+    "phase3_FrontendUI": {
+      "duration": "2 weeks",
+      "tasks": [
+        "Add navigation links",
+        "Implement mission detail views",
+        "Add new data columns (location, staging lane)",
+        "Implement advanced filters"
+      ]
+    },
+    "phase4_Testing": {
+      "duration": "1 week",
+      "tasks": [
+        "System integration testing",
+        "End-to-end user journey testing",
+        "Performance testing with prod data volume",
+        "UAT with stakeholders"
+      ]
+    },
+    "phase5_Deployment": {
+      "duration": "1 week",
+      "tasks": [
+        "Staged rollout (10% → 50% → 100%)",
+        "Monitor metrics and alerts",
+        "Performance baseline comparison",
+        "Rollback procedures"
+      ]
+    }
+  }
+}

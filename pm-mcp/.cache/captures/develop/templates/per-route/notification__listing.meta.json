@@ -1,0 +1,16 @@
+{
+  "route": "/notification/listing",
+  "slug": "notification__listing",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 47738,
+  "shellByteSize": 21945,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 24153,
+  "cssBundleId": "affcb7bdc426"
+}

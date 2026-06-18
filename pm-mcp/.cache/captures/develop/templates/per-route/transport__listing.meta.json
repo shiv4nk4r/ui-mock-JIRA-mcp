@@ -1,0 +1,16 @@
+{
+  "route": "/transport/listing",
+  "slug": "transport__listing",
+  "archetype": "dashboard-tabs",
+  "detectedComponents": [
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-tab-panels"
+  ],
+  "strippedByteSize": 21937,
+  "shellByteSize": 18587,
+  "subNavByteSize": 12802,
+  "mainContentByteSize": 1559,
+  "cssBundleId": "c270a5101f5c"
+}

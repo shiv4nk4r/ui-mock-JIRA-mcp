@@ -1,0 +1,17 @@
+{
+  "route": "/audit/reserved-audit",
+  "slug": "audit__reserved-audit",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-expansion-item"
+  ],
+  "strippedByteSize": 35837,
+  "shellByteSize": 19108,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 15134,
+  "cssBundleId": "affcb7bdc426"
+}

@@ -1,0 +1,16 @@
+{
+  "route": "/system/zones",
+  "slug": "system__zones",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar"
+  ],
+  "strippedByteSize": 26435,
+  "shellByteSize": 21003,
+  "subNavByteSize": 12817,
+  "mainContentByteSize": 4318,
+  "cssBundleId": "904e63caddec"
+}

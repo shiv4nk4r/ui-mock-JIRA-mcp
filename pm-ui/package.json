@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "sync-brand-assets": "node scripts/sync-brand-assets.mjs",
+    "postinstall": "node scripts/sync-brand-assets.mjs || true"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^2.1.161",

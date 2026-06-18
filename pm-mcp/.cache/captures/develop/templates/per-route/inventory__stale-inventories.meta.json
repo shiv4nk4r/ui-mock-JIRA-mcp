@@ -1,0 +1,17 @@
+{
+  "route": "/inventory/stale-inventories",
+  "slug": "inventory__stale-inventories",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-table__top"
+  ],
+  "strippedByteSize": 28810,
+  "shellByteSize": 20817,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 6316,
+  "cssBundleId": "affcb7bdc426"
+}

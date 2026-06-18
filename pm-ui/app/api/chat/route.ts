@@ -19,6 +19,7 @@ import {
 } from "@/mcp-client";
 import type { UiReferenceValidation } from "@/mcp-client";
 import { WORKSPACE_ROOT } from "@/paths";
+import { buildMockupGrounding, injectGroundingIntoHtml, prepareInitialMockupHtml, wrapBaseTemplate, type MockupGrounding } from "@/capture-grounding";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +224,46 @@ const MANIFEST_CONTRACT = [
   "Rules: reusedComponents/reusedIcons MUST exist in the codebase (you verified them via list-reusable-components / get-component-source / list-brand-icons). Anything you could not find an existing match for goes under newComponents/newIcons with a one-line reason. Do NOT silently invent — declare it.",
 ].join("\n");
 
+const CAPTURE_TABLE_RULES = [
+  "- Tables: MUST use captured q-table structure (class=\"q-table\", q-td, q-th, q-checkbox, …). DO NOT hand-write table CSS.",
+  "- Modals: use captured q-dialog structure when building dialogs.",
+  "- Quasar CSS is auto-injected — do NOT add <style> rules for .q-table / .q-td / .q-btn.",
+].join("\n");
+
+const HAND_WRITTEN_TABLE_RULES = [
+  "- Table rows: 40px height, sort indicators = CSS triangles (▲▼), NOT Material Icons",
+  "- Action buttons: 26×26px, 3px border-radius, outline style — use /icons/ assets via get-brand-icon",
+].join("\n");
+
+function visualWorkflowInstruction(grounding: MockupGrounding | null): string {
+  const hasTemplate = Boolean(grounding?.templateHtml?.trim());
+  if (hasTemplate) {
+    return [
+      "WORKFLOW (required, in order):",
+      "1) Edit the COMPLETE BASE TEMPLATE above — it is a full captured page with real layout, nav, sub-tabs, filter bar, table rows, and sample data.",
+      "2) Preserve all placement and Quasar classes; only change visible text/labels/cell values for the Jira ticket.",
+      "3) list-brand-icons + get-brand-icon for every icon (data-uri <img> in action columns).",
+      "DO NOT rebuild the page from scratch. DO NOT hand-write table CSS.",
+    ].join(" ");
+  }
+  if (grounding?.available) {
+    return [
+      "WORKFLOW (required, in order):",
+      "1) Use captured Quasar class names from the grounding block.",
+      "2) list-brand-icons + get-brand-icon for every icon.",
+      "3) list-reusable-components + get-component-source for additional markup.",
+      "DO NOT hand-write table CSS. DO NOT use plain <table> with custom styles.",
+    ].join(" ");
+  }
+  return [
+    "WORKFLOW (required, in order):",
+    "1) list-captured-pages + get-captured-page OR list-rendered-components + get-rendered-component.",
+    "2) list-reusable-components + get-component-source for markup/CSS.",
+    "3) list-brand-icons + get-brand-icon for every icon.",
+    "DO NOT invent components, classes, or icons.",
+  ].join(" ");
+}
+
 // ── System prompt ─────────────────────────────────────────────────────────────
 
 /**
@@ -240,7 +281,8 @@ function buildSystemPrompt(
   sitemapContext = "",
   brandIconsContext = "",
   componentCatalogContext = "",
-  renderedCaptureContext = ""
+  renderedCaptureContext = "",
+  mockupGrounding: MockupGrounding | null = null
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -274,29 +316,54 @@ function buildSystemPrompt(
   }
 
   if (enableVisualSkill) {
+    const hasTemplate = Boolean(mockupGrounding?.templateHtml?.trim());
+    const hasGrounding = Boolean(mockupGrounding?.available);
+
     sections.push(
       "VISUAL MOCKUP OUTPUT — REQUIRED:",
-      "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
-      "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
+      hasTemplate
+        ? "Edit the captured Manager Dashboard page template provided in the USER message (BASE_TEMPLATE_START/END). Return the complete updated HTML document."
+        : "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
+      hasTemplate
+        ? "Captured Quasar CSS is AUTO-INJECTED server-side — preserve all structure/classes from the base template; only change visible content for the Jira ticket."
+        : hasGrounding
+          ? "Captured Quasar CSS from the live app is AUTO-INJECTED server-side — use real q-table/q-dialog class names from the grounding block below."
+          : "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
       "",
-      "RENDERED CAPTURE POLICY — HIGHEST FIDELITY (use first when available):",
-      "- Real RENDERED pages/components captured from the live app may be available (see catalog below). These are the actual computed DOM + CSS — the closest possible match to production.",
-      "- Workflow: call list-captured-pages to find a matching page, then get-captured-page(route) for the real rendered HTML, OR list-rendered-components(keyword) + get-rendered-component(id) for a specific table/modal/card.",
-      "- Each tool returns an absolute CSS bundle URL. Link it in the mockup <head> as <link rel=\"stylesheet\" href=\"<url>\"> and reuse the rendered HTML structure/classes verbatim so it renders exactly like the real app.",
-      "- When a captured reference exists, prefer adapting it over hand-writing layout/CSS. Fall back to component source + design tokens only when no capture matches.",
-      "",
-      "COMPONENT REUSE POLICY — STRICT:",
-      "- A large library of real Vue components already exists (see catalog below). For ANY UI element, FIRST reuse an existing component's structure and CSS.",
-      "- Workflow: call list-reusable-components(keywords) to find matches, then get-component-source(name) to get the REAL template markup + scoped CSS, and translate that exact structure/classes into the HTML mockup.",
-      "- Reuse existing Quasar components (q-table, q-btn, q-card, …) and existing SCSS classes/tokens. Do NOT invent new component structures or class systems when one already exists.",
-      "- Only create something new when NO existing component fits — and you MUST declare it in the reuse manifest under newComponents with a reason.",
-      "- NEVER hallucinate a component, prop, class, or icon that is not in the codebase. Every reused reference is verified and hard-rejected if invalid.",
+      ...(hasTemplate
+        ? [
+            "TEMPLATE EDIT POLICY — MANDATORY:",
+            "- The BASE_TEMPLATE is a real captured page DOM — keep layout, nav, sub-tabs, filter bar, and table markup intact.",
+            "- Only change visible TEXT: cell values, headers, labels, status chips, stat counts, button labels.",
+            "- Add modals only if the ticket requires them (use q-dialog reference in grounding block).",
+            "- DO NOT hand-write table CSS or replace q-table with plain <table>.",
+            CAPTURE_TABLE_RULES,
+            "",
+          ]
+        : hasGrounding
+          ? [
+              "RENDERED CAPTURE POLICY — MANDATORY:",
+              "- Real rendered q-table / q-dialog HTML is provided below. Copy structure and classes VERBATIM.",
+              "- Only change cell TEXT and labels to match the Jira ticket scenario.",
+              "- DO NOT hand-write table CSS, row heights, or sort-indicator styles.",
+              "- DO NOT replace q-table with a plain <table> and custom CSS.",
+              CAPTURE_TABLE_RULES,
+              "",
+            ]
+          : [
+              "RENDERED CAPTURE POLICY — HIGHEST FIDELITY:",
+              "- Call list-captured-pages, then get-captured-page(route) or get-rendered-component(id).",
+              "- Reuse rendered HTML structure/classes. CSS bundle URL is for reference — server injects CSS when captures exist.",
+              "",
+            ]),
+      "COMPONENT REUSE POLICY — for parts NOT covered by captures:",
+      "- Call list-reusable-components(keywords) then get-component-source(name) for additional markup.",
+      "- Only create new structures when no capture AND no existing component fits — declare in manifest.",
+      "- NEVER hallucinate components, props, classes, or icons.",
       "",
       "ICON POLICY — STRICT:",
-      "- Use ONLY official icons/logos from mdui/public/ via MCP tools list-brand-icons and get-brand-icon.",
-      "- NEVER hand-draw, SVG-inline, Material Icons, Font Awesome, or hallucinated brand marks.",
-      "- Mockups run in an iframe srcDoc — use get-brand-icon to obtain data-uri <img> tags (relative /icons/ paths will break).",
-      "- Call list-brand-icons before adding icons; call get-brand-icon for each icon you embed.",
+      "- Use ONLY official icons from mdui/public/ via list-brand-icons and get-brand-icon.",
+      "- Mockups run in iframe srcDoc — use get-brand-icon data-uri <img> tags (relative /icons/ paths break).",
       "",
       "WRAP the full HTML in these exact markers — do not omit them:",
       "RAW_HTML_COMPONENT_START",
@@ -304,22 +371,24 @@ function buildSystemPrompt(
       "...complete HTML...",
       "RAW_HTML_COMPONENT_END",
       "",
-      "MOCKUP RULES (derive all values from design.md above):",
-      "- Colors: ONLY the exact tokens — primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324, info #2982cc, warning #f9b115",
-      "- Font: Source Sans Pro via Google Fonts CDN. Body 13px.",
-      "- Top bar: white bg, 52px sticky — use get-brand-icon for GreyOrange/client logos from /logos/",
+      "MOCKUP RULES:",
+      "- Colors: primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324, info #2982cc, warning #f9b115",
+      "- Font: Source Sans Pro (Google Fonts). Body 13px.",
+      "- Top bar: white bg, 52px sticky — get-brand-icon for logos from /logos/",
       "- Primary nav: #101a5c bg, 42px, orange 2px bottom-border on active tab",
       "- Sub-tabs: white bg, 38px, orange underline on active",
       "- Section banner: #101a5c bg, white text, colored dot + label + count per stat",
       "- Filter bar: '≡ Filter' with text label (not icon-only)",
-      "- Table rows: 40px height, sort indicators = CSS triangles (▲▼), NOT Material Icons",
-      "- Action buttons: 26×26px, 3px border-radius, outline style — use /icons/ assets via get-brand-icon",
-      "- Modals: #101a5c header, white body, backdrop rgba(16,26,92,0.38), radio options as bordered rows",
+      ...(hasTemplate || hasGrounding ? [CAPTURE_TABLE_RULES] : [HAND_WRITTEN_TABLE_RULES]),
+      "- Modals: #101a5c header, white body, backdrop rgba(16,26,92,0.38)",
       "- Pagination: < 1 2 3 … N > with ellipsis",
-      "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only",
-      "- Implement EVERY status chip, state-transition rule, and field-visibility rule from the Jira ticket",
-      "- If product screenshots are provided, match the exact visual patterns you observe in them"
+      "- Pure HTML + minimal vanilla JS only — use Quasar class names from captures",
+      "- Implement EVERY status chip and field-visibility rule from the Jira ticket"
     );
+
+    if (hasGrounding && mockupGrounding?.promptBlock) {
+      sections.push(mockupGrounding.promptBlock);
+    }
 
     if (componentCatalogContext) {
       sections.push(
@@ -491,12 +560,14 @@ function buildUserMessage(
 function buildRefinementSystemPrompt(
   designContext = "",
   brandIconsContext = "",
-  componentCatalogContext = ""
+  componentCatalogContext = "",
+  mockupGrounding: MockupGrounding | null = null
 ): string {
+  const hasGrounding = Boolean(mockupGrounding?.available);
   const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
 
-COMPONENT REUSE POLICY: Reuse existing Vue components (via list-reusable-components + get-component-source) and existing Quasar components/SCSS. Never invent components, props, classes, or icons that do not exist. Anything genuinely new must be declared in the reuse manifest under newComponents/newIcons.
-ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons and get-brand-icon. Use data-uri img tags from get-brand-icon in HTML mockups.`;
+${mockupGrounding?.templateHtml ? "Captured page template grounding is active — preserve structure from the grounding block. DO NOT hand-write table CSS." : hasGrounding ? "Captured Quasar CSS is AUTO-INJECTED — keep q-table/q-dialog class names from the grounding block. DO NOT hand-write table CSS." : "Reuse existing Vue components via list-reusable-components + get-component-source."}
+ICON POLICY: Use ONLY official icons via list-brand-icons and get-brand-icon (data-uri img tags).`;
 
   const parts: string[] = [base];
   if (designContext) {
@@ -505,6 +576,12 @@ ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons 
       designContext,
       "=== END DESIGN LANGUAGE ==="
     );
+  }
+  if (hasGrounding && mockupGrounding?.promptBlock) {
+    parts.push(mockupGrounding.promptBlock);
+  }
+  if (mockupGrounding?.analysisSummary && !mockupGrounding.promptBlock) {
+    parts.push(mockupGrounding.analysisSummary);
   }
   if (componentCatalogContext) {
     parts.push(
@@ -549,12 +626,24 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
 function buildCorrectionUserMessage(
   currentHtml: string,
   validation: UiReferenceValidation,
+  hasGrounding = false,
+  hasTemplate = false,
 ): string {
   const lines: string[] = [
     "Your previous mockup referenced components/icons that DO NOT exist in the codebase.",
     "Fix EVERY one of them: either swap in a real existing asset, or move it under newComponents/newIcons in the manifest with a one-line reason.",
     "",
   ];
+
+  if (hasGrounding) {
+    lines.push(
+      hasTemplate
+        ? "CAPTURED PAGE TEMPLATE grounding is active — preserve q-table/q-dialog class structure from the system prompt and existing mockup."
+        : "RENDERED CAPTURE GROUNDING is active — keep q-table/q-dialog class structure from the system prompt.",
+      "DO NOT hand-write table CSS; Quasar styles are auto-injected server-side.",
+      "",
+    );
+  }
 
   if (validation.unknownComponents.length) {
     lines.push("Unknown components (call list-reusable-components / get-component-source to find the real one):");
@@ -605,6 +694,7 @@ function streamClaudeCode(
   brandIconsContext: string,
   componentCatalogContext: string,
   renderedCaptureContext: string,
+  mockupGrounding: MockupGrounding | null,
   attachedFiles?: UserAttachedFile[],
   isRefinement = false,
   currentHtml?: string,
@@ -642,7 +732,12 @@ function streamClaudeCode(
         let userMessage:  string;
 
         if (isRefinement && currentHtml) {
-          systemPrompt = buildRefinementSystemPrompt(designContext, brandIconsContext, componentCatalogContext);
+          systemPrompt = buildRefinementSystemPrompt(
+            designContext,
+            brandIconsContext,
+            componentCatalogContext,
+            mockupGrounding
+          );
           userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
         } else {
           systemPrompt = buildSystemPrompt(
@@ -652,7 +747,8 @@ function streamClaudeCode(
             sitemapContext,
             brandIconsContext,
             componentCatalogContext,
-            renderedCaptureContext
+            renderedCaptureContext,
+            mockupGrounding
           );
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
@@ -661,7 +757,20 @@ function streamClaudeCode(
             const screenshotNote = screenshots.length
               ? `\n\nProduct screenshots for reference (read these with the Read tool to match the actual UI):\n${screenshots.map((f) => screenshotPath(f)).join("\n")}`
               : "";
-            userMessage += `${screenshotNote}\n\nWORKFLOW (required): 1) call list-reusable-components with feature keywords; 2) call get-component-source on the best matches to reuse their REAL markup + CSS; 3) call list-brand-icons / get-brand-icon for every icon. Do NOT invent components, classes, or icons.\n\nOUTPUT: First emit the reuse manifest (REUSE_MANIFEST_START/END), then the complete HTML mockup wrapped in:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
+            const wf = visualWorkflowInstruction(mockupGrounding);
+
+            if (mockupGrounding?.templateHtml) {
+              send({
+                thinking:
+                  `✓ Closest captured template: ${mockupGrounding.route} ` +
+                  `(${mockupGrounding.templateSlug}, ${mockupGrounding.templateSource}, score ${mockupGrounding.matchScore})`,
+              });
+              const preview = prepareInitialMockupHtml(mockupGrounding);
+              if (preview) send({ html: preview, templateBase: true });
+              userMessage = `${wrapBaseTemplate(mockupGrounding)}\n\n---\n\n${userMessage}`;
+            }
+
+            userMessage += `${screenshotNote}\n\n${wf}\n\nOUTPUT: First emit the reuse manifest (REUSE_MANIFEST_START/END), then the complete HTML mockup wrapped in:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
           }
         }
 
@@ -835,8 +944,14 @@ function streamClaudeCode(
             designContext,
             brandIconsContext,
             componentCatalogContext,
+            mockupGrounding
           );
-          userMessage = buildCorrectionUserMessage(finalHtml ?? "", validation);
+          userMessage = buildCorrectionUserMessage(
+            finalHtml ?? "",
+            validation,
+            Boolean(mockupGrounding?.available),
+            Boolean(mockupGrounding?.templateHtml?.trim()),
+          );
         }
 
         send({ thinkingDone: true, elapsed: (Date.now() - overallStart) / 1000 });
@@ -846,6 +961,11 @@ function streamClaudeCode(
         const { displayText } = extractHtmlFromMarkers(withoutManifest);
         if (displayText) send({ delta: displayText });
         if (finalHtml) {
+          if (mockupGrounding?.available && mockupGrounding.cssText) {
+            finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
+            logger.record("Injected captured Quasar CSS into mockup");
+            send({ thinking: "✓ Injected captured Quasar CSS bundle into mockup HTML." });
+          }
           logger.record("HTML mockup extracted from response");
           send({ html: finalHtml });
         }
@@ -892,6 +1012,7 @@ export async function POST(request: Request) {
 
   let archContext = "", designContext = "", sitemapContext = "";
   let brandIconsContext = "", componentCatalogContext = "", renderedCaptureContext = "";
+  let mockupGrounding: MockupGrounding | null = null;
   let mcpContextError = "";
   try {
     const ctx = await fetchContextResources();
@@ -908,14 +1029,22 @@ export async function POST(request: Request) {
   }
 
   if (enableVisualSkill) {
-    const [icons, components, capturedPages, renderedComponents] = await Promise.all([
+    const ticketText = [
+      jiraData?.summary ?? "",
+      jiraData?.description?.slice(0, 500) ?? "",
+      additionalPmContext ?? "",
+    ].join(" ");
+
+    const [icons, components, capturedPages, renderedComponents, grounding] = await Promise.all([
       fetchBrandIconCatalog(),
       fetchComponentCatalog(jiraData?.summary),
       fetchCapturedPageCatalog(),
       fetchRenderedComponentCatalog(jiraData?.summary),
+      buildMockupGrounding(ticketText),
     ]);
     brandIconsContext = icons;
     componentCatalogContext = components;
+    mockupGrounding = grounding.available ? grounding : null;
     renderedCaptureContext = [capturedPages, renderedComponents]
       .filter((s) => s && !/^No (captured|rendered)/.test(s.trim()))
       .join("\n\n");
@@ -936,6 +1065,6 @@ export async function POST(request: Request) {
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext, brandIconsContext,
-    componentCatalogContext, renderedCaptureContext, attachedFiles, isRefinement, currentHtml,
+    componentCatalogContext, renderedCaptureContext, mockupGrounding, attachedFiles, isRefinement, currentHtml,
   );
 }

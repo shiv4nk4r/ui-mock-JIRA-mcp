@@ -1,0 +1,17 @@
+{
+  "route": "/inventory/storage-utilisation",
+  "slug": "inventory__storage-utilisation",
+  "archetype": "listing-table",
+  "detectedComponents": [
+    "q-table",
+    "q-card",
+    "q-tabs",
+    "q-toolbar",
+    "q-expansion-item"
+  ],
+  "strippedByteSize": 32912,
+  "shellByteSize": 20859,
+  "subNavByteSize": 12774,
+  "mainContentByteSize": 10939,
+  "cssBundleId": "7c3156e267d1"
+}
