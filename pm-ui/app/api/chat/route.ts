@@ -45,6 +45,62 @@ function charsToTokens(chars: number): number {
   return Math.ceil(chars / 4);
 }
 
+/** Usage from Claude Code `stream-json` final `result` event (authoritative). */
+interface ClaudeResultUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadInputTokens: number;
+  cacheCreationInputTokens: number;
+  /** input + cache read + cache creation — best match for “total input” on the bill. */
+  billableInputTokens: number;
+  costUsd: number;
+  numTurns?: number;
+  durationMs?: number;
+}
+
+function parseClaudeResultUsage(msg: Record<string, unknown>): ClaudeResultUsage | null {
+  if (msg.type !== "result") return null;
+
+  const usage = (msg.usage ?? {}) as Record<string, number>;
+  const inputTokens = usage.input_tokens ?? 0;
+  const outputTokens = usage.output_tokens ?? 0;
+  const cacheReadInputTokens = usage.cache_read_input_tokens ?? 0;
+  const cacheCreationInputTokens = usage.cache_creation_input_tokens ?? 0;
+
+  let costUsd = 0;
+  if (typeof msg.total_cost_usd === "number") costUsd = msg.total_cost_usd;
+  else if (typeof msg.cost_usd === "number") costUsd = msg.cost_usd;
+
+  // Per-model breakdown (camelCase) — prefer summed cost when total_cost_usd missing.
+  const modelUsage = msg.modelUsage as Record<string, Record<string, number>> | undefined;
+  if (costUsd === 0 && modelUsage) {
+    costUsd = Object.values(modelUsage).reduce((sum, m) => sum + (m.costUSD ?? 0), 0);
+  }
+
+  return {
+    inputTokens,
+    outputTokens,
+    cacheReadInputTokens,
+    cacheCreationInputTokens,
+    billableInputTokens: inputTokens + cacheReadInputTokens + cacheCreationInputTokens,
+    costUsd,
+    numTurns: typeof msg.num_turns === "number" ? msg.num_turns : undefined,
+    durationMs: typeof msg.duration_ms === "number" ? msg.duration_ms : undefined,
+  };
+}
+
+function formatUsageDetail(u: ClaudeResultUsage): string {
+  const parts = [
+    `in=${u.inputTokens.toLocaleString()}`,
+    u.cacheReadInputTokens ? `cache_read=${u.cacheReadInputTokens.toLocaleString()}` : "",
+    u.cacheCreationInputTokens ? `cache_create=${u.cacheCreationInputTokens.toLocaleString()}` : "",
+    `out=${u.outputTokens.toLocaleString()}`,
+    u.costUsd > 0 ? `$${u.costUsd.toFixed(6)}` : "",
+    u.numTurns != null ? `${u.numTurns} turns` : "",
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 // ── Session Logger ─────────────────────────────────────────────────────────────
 
 interface LogStep {
@@ -77,12 +133,16 @@ class SessionLogger {
 
   beginStep() { this.stepStart = Date.now(); }
 
-  record(step: string, opts: { inputTokens?: number; outputTokens?: number; costUsd?: number; detail?: string } = {}) {
+  record(step: string, opts: { inputTokens?: number; outputTokens?: number; costUsd?: number; detail?: string; countInTotals?: boolean } = {}) {
     const durationMs   = this.stepStart ? Date.now() - this.stepStart : 0;
-    const inputTokens  = opts.inputTokens  ?? 0;
-    const outputTokens = opts.outputTokens ?? 0;
-    const costUsd      = opts.costUsd ?? tokenCost(this.model, inputTokens, outputTokens);
-    this.steps.push({ step, startTs: this.stepStart || Date.now(), durationMs, inputTokens, outputTokens, costUsd, detail: opts.detail ?? "" });
+    const countInTotals = opts.countInTotals !== false;
+    const inputTokens  = countInTotals ? (opts.inputTokens ?? 0) : 0;
+    const outputTokens = countInTotals ? (opts.outputTokens ?? 0) : 0;
+    const costUsd      = countInTotals
+      ? (opts.costUsd ?? (inputTokens || outputTokens ? tokenCost(this.model, inputTokens, outputTokens) : 0))
+      : 0;
+    const detail = opts.detail ?? "";
+    this.steps.push({ step, startTs: this.stepStart || Date.now(), durationMs, inputTokens, outputTokens, costUsd, detail });
     this.stepStart = 0;
   }
 
@@ -738,21 +798,61 @@ function streamClaudeCode(
 
         const sysT  = charsToTokens(systemPrompt.length);
         const userT = charsToTokens(userMessage.length);
-        logger.record("Prompt construction", { inputTokens: sysT + userT, detail: `sys ~${sysT} tok · user ~${userT} tok (estimated)` });
+        logger.record("Prompt construction", {
+          countInTotals: false,
+          detail: `prefetch estimate only (not API usage): sys ~${sysT} tok · user ~${userT} tok`,
+        });
 
         // ── Step 2: model inference (with verify + retry loop) ───────────
         const overallStart = Date.now();
         const savedFiles: string[] = [];
-        let totalInputTokens = 0;
+        let totalBillableInputTokens = 0;
+        let totalNewInputTokens = 0;
+        let totalCacheReadInputTokens = 0;
+        let totalCacheCreationInputTokens = 0;
         let totalOutputTokens = 0;
         let totalCostUsd = 0;
+
+        function processStreamLine(line: string, state: {
+          allText: string;
+          usage: ClaudeResultUsage | null;
+        }): string {
+          if (!line.trim()) return state.allText;
+          try {
+            const msg = JSON.parse(line) as Record<string, unknown>;
+            const parsed = parseClaudeResultUsage(msg);
+            if (parsed) state.usage = parsed;
+
+            if (msg.type === "assistant") {
+              const content = (msg.message as Record<string, unknown>)?.content as Array<{
+                type: string;
+                text?: string;
+                thinking?: string;
+                name?: string;
+              }> | undefined;
+              if (content?.length) {
+                for (const b of content) {
+                  if (b.type === "thinking" && b.thinking) {
+                    const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
+                    send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
+                  } else if (b.type === "tool_use" && b.name?.startsWith("mcp__")) {
+                    send({ thinking: `MCP: ${b.name.replace(/^mcp__[^_]+__/, "")}` });
+                  } else if (b.type === "text" && b.text) {
+                    state.allText += b.text;
+                  }
+                }
+              }
+            }
+          } catch { /* skip malformed lines */ }
+          return state.allText;
+        }
 
         // One Claude pass: writes system prompt, spawns, collects text + usage.
         async function runClaudeOnce(
           sysPrompt: string,
           userMsg: string,
           label: string,
-        ): Promise<{ allText: string; exitCode: number | null; stderr: string }> {
+        ): Promise<{ allText: string; exitCode: number | null; stderr: string; usage: ClaudeResultUsage | null }> {
           writeFileSync(tmpFile, sysPrompt, "utf8");
           send({ thinking: label });
 
@@ -760,7 +860,7 @@ function streamClaudeCode(
             "--print",
             "--output-format", "stream-json",
             "--verbose",
-            "--model", "claude-haiku-4-5",
+            "--model", model.replace(/-20251001$/, "").replace(/-20250514$/, ""),
             "--system-prompt-file", tmpFile,
             "--max-budget-usd", "2",
             "--mcp-config", claudeMcpConfigArg(),
@@ -777,49 +877,14 @@ function streamClaudeCode(
           proc.stdin.end();
 
           let buf = "";
-          let allText = "";
-          let inTok = 0;
-          let outTok = 0;
-          let cost = 0;
+          const state = { allText: "", usage: null as ClaudeResultUsage | null };
 
           proc.stdout.on("data", (chunk: Buffer) => {
             buf += chunk.toString("utf8");
             const lines = buf.split("\n");
             buf = lines.pop() ?? "";
             for (const line of lines) {
-              if (!line.trim()) continue;
-              try {
-                const msg: Record<string, unknown> = JSON.parse(line);
-                if (msg.type === "result") {
-                  const usage = msg.usage as Record<string, number> | undefined;
-                  if (usage) {
-                    inTok = usage.input_tokens ?? 0;
-                    outTok = usage.output_tokens ?? 0;
-                  }
-                  if (typeof msg.cost_usd === "number") cost = msg.cost_usd;
-                }
-                if (msg.type === "assistant") {
-                  const content = (msg.message as Record<string, unknown>)?.content as Array<{
-                    type: string;
-                    text?: string;
-                    thinking?: string;
-                    name?: string;
-                    input?: Record<string, unknown>;
-                  }> | undefined;
-                  if (content?.length) {
-                    for (const b of content) {
-                      if (b.type === "thinking" && b.thinking) {
-                        const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
-                        send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
-                      } else if (b.type === "tool_use" && b.name?.startsWith("mcp__")) {
-                        send({ thinking: `MCP: ${b.name.replace(/^mcp__[^_]+__/, "")}` });
-                      } else if (b.type === "text" && b.text) {
-                        allText += b.text;
-                      }
-                    }
-                  }
-                }
-              } catch { /* skip malformed lines */ }
+              processStreamLine(line, state);
             }
           });
 
@@ -831,18 +896,33 @@ function streamClaudeCode(
             proc.on("error", reject);
           });
 
-          if (cost === 0 && (inTok || outTok)) cost = tokenCost(model, inTok, outTok);
-          totalInputTokens += inTok;
-          totalOutputTokens += outTok;
-          totalCostUsd += cost;
+          // Flush trailing JSON line (result often has no trailing newline).
+          if (buf.trim()) processStreamLine(buf, state);
+
+          const usage = state.usage;
+          if (usage) {
+            totalBillableInputTokens += usage.billableInputTokens;
+            totalNewInputTokens += usage.inputTokens;
+            totalCacheReadInputTokens += usage.cacheReadInputTokens;
+            totalCacheCreationInputTokens += usage.cacheCreationInputTokens;
+            totalOutputTokens += usage.outputTokens;
+            if (usage.costUsd > 0) {
+              totalCostUsd += usage.costUsd;
+            } else if (usage.billableInputTokens || usage.outputTokens) {
+              totalCostUsd += tokenCost(model, usage.billableInputTokens, usage.outputTokens);
+            }
+          }
+
           logger.record(`Model inference — ${label}`, {
-            inputTokens: inTok,
-            outputTokens: outTok,
-            costUsd: cost > 0 ? cost : undefined,
-            detail: `exit ${exitCode ?? 0}`,
+            inputTokens: usage?.billableInputTokens ?? 0,
+            outputTokens: usage?.outputTokens ?? 0,
+            costUsd: usage?.costUsd,
+            detail: usage
+              ? `${formatUsageDetail(usage)} · exit ${exitCode ?? 0}`
+              : `no result usage in stream · exit ${exitCode ?? 0}`,
           });
 
-          return { allText, exitCode, stderr: stderrBuf };
+          return { allText: state.allText, exitCode, stderr: stderrBuf, usage };
         }
 
         let finalText = "";
@@ -916,10 +996,10 @@ function streamClaudeCode(
         if (finalHtml) {
           if (mockupGrounding?.available && mockupGrounding.cssText) {
             finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
-            logger.record("Injected captured Quasar CSS into mockup");
+            logger.record("Injected captured Quasar CSS into mockup", { countInTotals: false });
             send({ thinking: "✓ Injected captured Quasar CSS bundle into mockup HTML." });
           }
-          logger.record("HTML mockup extracted from response");
+          logger.record("HTML mockup extracted from response", { countInTotals: false });
           send({ html: finalHtml });
         }
         send({ manifest, validation: lastValidation ?? undefined });
@@ -929,9 +1009,15 @@ function streamClaudeCode(
           done: true, provider: "claude-code", model,
           savedFiles: savedFiles.length ? savedFiles : undefined,
           logFile, logData,
-          inputTokens: totalInputTokens,
+          inputTokens: totalBillableInputTokens,
           outputTokens: totalOutputTokens,
           costUsd: totalCostUsd,
+          usage: {
+            newInputTokens: totalNewInputTokens,
+            cacheReadInputTokens: totalCacheReadInputTokens,
+            cacheCreationInputTokens: totalCacheCreationInputTokens,
+            billableInputTokens: totalBillableInputTokens,
+          },
         });
 
       } catch (err) {

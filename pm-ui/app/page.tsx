@@ -57,6 +57,7 @@ interface Message {
 interface UsageRecord {
   timestamp: number; label: string; model: string;
   inputTokens: number; outputTokens: number; costUsd: number;
+  newInputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number;
 }
 interface PersistedSession {
   ticketId: string; ticketData: TicketData; messages: Message[];
@@ -515,7 +516,7 @@ function UsageTab({ records }: { records: UsageRecord[] }) {
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Total Input Tokens",  value: totals.in.toLocaleString(),   sub: "context + prompts" },
+          { label: "Total Input Tokens",  value: totals.in.toLocaleString(),   sub: "billable (incl. cache read/create)" },
           { label: "Total Output Tokens", value: totals.out.toLocaleString(),  sub: "generated tokens" },
           { label: "Total Cost (USD)",    value: `$${totals.cost.toFixed(6)}`, sub: "all calls combined" },
         ].map((card, i) => (
@@ -544,7 +545,7 @@ function UsageTab({ records }: { records: UsageRecord[] }) {
                   <td className="px-3 py-2" style={{ ...F.mono, fontSize: 10, color: "#A8A4A0" }}>{i + 1}</td>
                   <td className="px-3 py-2 max-w-[180px]" style={{ ...F.body, fontSize: 12, color: "#3A3530" }}><span className="block truncate" title={r.label}>{r.label}</span></td>
                   <td className="px-3 py-2" style={{ ...F.mono, fontSize: 10, color: "#6A6560" }}>{r.model.replace("claude-", "").replace("-20251001", "")}</td>
-                  <td className="px-3 py-2" style={{ ...F.mono, fontSize: 11, color: "#4A4540" }}>{r.inputTokens.toLocaleString()}</td>
+                  <td className="px-3 py-2" style={{ ...F.mono, fontSize: 11, color: "#4A4540" }} title={r.newInputTokens != null ? `new ${r.newInputTokens.toLocaleString()} · cache read ${(r.cacheReadInputTokens ?? 0).toLocaleString()} · cache create ${(r.cacheCreationInputTokens ?? 0).toLocaleString()}` : undefined}>{r.inputTokens.toLocaleString()}</td>
                   <td className="px-3 py-2" style={{ ...F.mono, fontSize: 11, color: "#4A4540" }}>{r.outputTokens.toLocaleString()}</td>
                   <td className="px-3 py-2" style={{ ...F.mono, fontSize: 11, color: "#D97706", fontWeight: 600 }}>${r.costUsd.toFixed(6)}</td>
                   <td className="px-3 py-2" style={{ ...F.condensed, fontSize: 10, color: "#A8A4A0" }}>{new Date(r.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
@@ -692,7 +693,15 @@ export default function Home() {
             const mi = accumulated.indexOf(EFFORT_MARKER);
             updateLastMessage({ text: mi >= 0 ? accumulated.slice(0, mi).trim() : accumulated, htmlComponent: streamingHtml, effortEstimation: mi >= 0 ? accumulated.slice(mi).trim() : undefined, isStreaming: false });
             const inT = (ev.inputTokens as number) ?? 0, outT = (ev.outputTokens as number) ?? 0, cost = (ev.costUsd as number) ?? 0;
-            if (inT || outT || cost) setUsageRecords((prev) => [...prev, { timestamp: Date.now(), label: usageLabel, model: (requestBody.model as string) ?? "claude-haiku-4-5-20251001", inputTokens: inT, outputTokens: outT, costUsd: cost }]);
+            const usage = ev.usage as { newInputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number } | undefined;
+            if (inT || outT || cost) setUsageRecords((prev) => [...prev, {
+              timestamp: Date.now(), label: usageLabel,
+              model: (requestBody.model as string) ?? "claude-haiku-4-5-20251001",
+              inputTokens: inT, outputTokens: outT, costUsd: cost,
+              newInputTokens: usage?.newInputTokens,
+              cacheReadInputTokens: usage?.cacheReadInputTokens,
+              cacheCreationInputTokens: usage?.cacheCreationInputTokens,
+            }]);
           }
           if (ev.error) updateLastMessage({ text: `Error: ${ev.error as string}`, isStreaming: false });
         } catch { /* skip malformed */ }
