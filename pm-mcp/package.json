@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "start:stdio": "tsx src/stdio.ts",
     "type-check": "tsc --noEmit",
     "index": "tsx src/parser/test-parser.ts --full"
   },

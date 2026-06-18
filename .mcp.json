@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pm-context": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "pm-mcp/src/stdio.ts"]
+    }
+  }
+}
