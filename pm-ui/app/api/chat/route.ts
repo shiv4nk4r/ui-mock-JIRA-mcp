@@ -572,7 +572,9 @@ function buildUserMessage(
     });
     parts.push(`\n--- END ATTACHED FILES ---`);
   }
-  if (imageFiles.length)  parts.push(`\n\nAttached images (not readable): ${imageFiles.map((f) => f.name).join(", ")}`);
+  if (imageFiles.length) {
+    parts.push(`\n\nAttached images (${imageFiles.length}) — see REFERENCE IMAGES section if paths were saved server-side.`);
+  }
   if (binaryFiles.length) parts.push(`\n\nOther attached files: ${binaryFiles.map((f) => f.name).join(", ")}`);
 
   return parts.join("");
@@ -623,12 +625,87 @@ ICON POLICY: get-brand-icon only (skip list-brand-icons when catalog is in promp
     "RAW_HTML_COMPONENT_START",
     "<!DOCTYPE html>...complete updated HTML...",
     "RAW_HTML_COMPONENT_END",
+    "If REFERENCE IMAGES paths are in the user message, read them with the Read tool first.",
     "Preserve everything not mentioned in the refinement request. Return the full document."
   );
   return parts.join("\n\n");
 }
 
-function buildRefinementUserMessage(currentHtml: string, request?: string): string {
+/** Inline HTML up to this size; larger mockups are written to disk for the Read tool. */
+const REFINE_HTML_MAX_INLINE_CHARS = 120_000;
+
+function sanitizeFileStem(name: string): string {
+  return name.replace(/\.[^.]+$/, "").replace(/[^\w.-]+/g, "_").slice(0, 60) || "attachment";
+}
+
+function imageExt(file: UserAttachedFile): string {
+  const fromType = file.type?.split("/")[1]?.replace(/jpeg/, "jpg");
+  if (fromType && /^[a-z0-9]+$/i.test(fromType)) return fromType;
+  const fromName = file.name.match(/\.(\w+)$/)?.[1]?.toLowerCase();
+  return fromName || "png";
+}
+
+/** Save uploaded images to disk so Claude Code Read can view them. */
+function saveAttachedImages(
+  attachedFiles: UserAttachedFile[] | undefined,
+  outputDir: string,
+  ticketId: string,
+): { imagePaths: string[]; cleanupPaths: string[] } {
+  const imagePaths: string[] = [];
+  const cleanupPaths: string[] = [];
+  const images = attachedFiles?.filter((f) => f.contentType === "image") ?? [];
+  if (!images.length) return { imagePaths, cleanupPaths };
+
+  const dir = join(outputDir, "attachments");
+  mkdirSync(dir, { recursive: true });
+
+  for (const file of images) {
+    if (!file.content?.startsWith("data:")) continue;
+    const b64 = file.content.replace(/^data:[^;]+;base64,/, "");
+    if (!b64) continue;
+    const outPath = join(dir, `${ticketId}-${Date.now()}-${sanitizeFileStem(file.name)}.${imageExt(file)}`);
+    writeFileSync(outPath, Buffer.from(b64, "base64"));
+    imagePaths.push(outPath);
+    cleanupPaths.push(outPath);
+  }
+  return { imagePaths, cleanupPaths };
+}
+
+function formatAttachedFilesPrompt(
+  imagePaths: string[],
+  attachedFiles?: UserAttachedFile[],
+): string {
+  const lines: string[] = [];
+  const textFiles = attachedFiles?.filter((f) => f.contentType === "text" || f.contentType === "html") ?? [];
+  const binaryFiles = attachedFiles?.filter((f) => f.contentType === "binary") ?? [];
+
+  if (imagePaths.length) {
+    lines.push(
+      "",
+      "=== REFERENCE IMAGES (MANDATORY — read each path with the Read tool before editing) ===",
+      ...imagePaths.map((p) => p),
+      "Apply layout/structure from these reference images using Manager Dashboard theme (#101a5c primary, #FE8400 accent, Source Sans Pro).",
+      "=== END REFERENCE IMAGES ===",
+    );
+  }
+
+  if (textFiles.length) {
+    lines.push("", `--- USER-ATTACHED FILES (${textFiles.length}) ---`);
+    for (const f of textFiles) {
+      const label = f.contentType === "html" ? `[${f.name} · HTML]` : `[${f.name}]`;
+      lines.push(`${label}\n${f.content.slice(0, 12_000)}${f.content.length > 12_000 ? "\n[truncated]" : ""}`);
+    }
+    lines.push("--- END ATTACHED FILES ---");
+  }
+
+  if (binaryFiles.length) {
+    lines.push("", `Other attached files (not readable): ${binaryFiles.map((f) => f.name).join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function buildRefinementUserMessage(currentHtml: string, request?: string, attachmentPrompt = ""): string {
   return [
     "Current HTML mockup to refine:",
     "",
@@ -637,27 +714,26 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
     "RAW_HTML_COMPONENT_END",
     "",
     `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
+    attachmentPrompt,
     "",
     "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END plus an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END.",
     "Captured Quasar CSS is AUTO-INJECTED server-side — omit data-md-capture-css style blocks from output.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
-
-/** Inline HTML up to this size; larger mockups are written to disk for the Read tool. */
-const REFINE_HTML_MAX_INLINE_CHARS = 120_000;
 
 function prepareRefinementUserMessage(
   ticketId: string,
   currentHtml: string,
   request: string | undefined,
   outputDir: string,
+  attachmentPrompt = "",
 ): { userMessage: string; htmlFile?: string } {
   const slimHtml = stripInjectedCaptureCss(currentHtml);
   if (slimHtml.length <= REFINE_HTML_MAX_INLINE_CHARS) {
-    return { userMessage: buildRefinementUserMessage(slimHtml, request) };
+    return { userMessage: buildRefinementUserMessage(slimHtml, request, attachmentPrompt) };
   }
 
-  const inputDir = join(outputDir, "refine-input");
+  const inputDir = outputDir;
   mkdirSync(inputDir, { recursive: true });
   const htmlFile = join(inputDir, `${ticketId}-${Date.now()}.html`);
   writeFileSync(htmlFile, slimHtml, "utf8");
@@ -668,10 +744,11 @@ function prepareRefinementUserMessage(
       htmlFile,
       "",
       `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
+      attachmentPrompt,
       "",
       "Return the COMPLETE updated HTML in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END plus REUSE_MANIFEST_START / REUSE_MANIFEST_END.",
       "Preserve q-table/q-dialog class structure. Captured Quasar CSS is AUTO-INJECTED — do NOT include data-md-capture-css styles.",
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
     htmlFile,
   };
 }
@@ -771,6 +848,7 @@ function streamClaudeCode(
       const tmpFile = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
       const designOutputDir = join(homedir(), "claude-ui-designs");
       let refineHtmlFile: string | undefined;
+      const refineCleanupPaths: string[] = [];
 
       try {
         send({ thinking: "Starting Claude Code local session…" });
@@ -785,7 +863,17 @@ function streamClaudeCode(
           return;
         }
 
+        const refineCacheDir = join(WORKSPACE_ROOT, "pm-ui", ".cache", "refine-input");
+        mkdirSync(refineCacheDir, { recursive: true });
         mkdirSync(designOutputDir, { recursive: true });
+
+        const { imagePaths, cleanupPaths: imageCleanup } = saveAttachedImages(
+          attachedFiles,
+          refineCacheDir,
+          ticketId,
+        );
+        refineCleanupPaths.push(...imageCleanup);
+        const attachmentPrompt = formatAttachedFilesPrompt(imagePaths, attachedFiles);
 
         // ── Step 1: build prompts ────────────────────────────────────────
         logger.beginStep();
@@ -807,7 +895,8 @@ function streamClaudeCode(
             ticketId,
             currentHtml,
             additionalPmContext,
-            designOutputDir,
+            refineCacheDir,
+            attachmentPrompt,
           );
           userMessage = prepared.userMessage;
           refineHtmlFile = prepared.htmlFile;
@@ -824,6 +913,7 @@ function streamClaudeCode(
             mockupGrounding
           );
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
+          if (attachmentPrompt) userMessage += attachmentPrompt;
 
           if (enableVisualSkill) {
             const screenshots = await listProductScreenshots();
@@ -1119,6 +1209,7 @@ function streamClaudeCode(
         controller.close();
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
         if (refineHtmlFile) try { unlinkSync(refineHtmlFile); } catch { /* best-effort */ }
+        for (const p of refineCleanupPaths) try { unlinkSync(p); } catch { /* best-effort */ }
       }
     },
   });

@@ -101,7 +101,16 @@ async function readFileContent(file: File): Promise<AttachedFile> {
     if (isHtml) return { ...base, content: raw.slice(0, 50_000), contentType: "html" };
     return { ...base, content: raw.slice(0, 15_000), contentType: "text" };
   }
-  if (isImage) return { ...base, content: `[Image: ${file.name} — ${formatBytes(file.size)}]`, contentType: "image" };
+  if (isImage && file.size < 5_000_000) {
+    const dataUrl: string = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result as string);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    return { ...base, content: dataUrl, contentType: "image" };
+  }
+  if (isImage) return { ...base, content: `[Image too large: ${file.name}]`, contentType: "image" };
   return { ...base, content: `[${file.name} — ${file.type || "binary"}, ${formatBytes(file.size)}]`, contentType: "binary" };
 }
 
@@ -847,11 +856,25 @@ export default function Home() {
   async function handleRefine() {
     const prompt = refineInput.trim();
     if (!prompt || isRefining || !activeHtml || !ticketData) return;
+    const filesToSend = attachedFiles.length ? [...attachedFiles] : undefined;
+    const userMsgText = filesToSend?.length
+      ? `${prompt}\n\n📎 ${filesToSend.map((f) => f.name).join(", ")}`
+      : prompt;
     setRefineInput(""); setIsRefining(true); setActiveTab("history");
-    setMessages((prev) => [...prev, { role: "user", text: prompt }]);
+    setAttachedFiles([]);
+    setMessages((prev) => [...prev, { role: "user", text: userMsgText, attachedFiles: filesToSend?.map((f) => ({ name: f.name, contentType: f.contentType, sizeLabel: f.sizeLabel })) }]);
     try {
       await streamChat(
-        { jiraTicketId: ticketData.id, jiraData: ticketData, additionalPmContext: prompt, enableVisualSkill: true, model: selectedModel || "claude-haiku-4-5-20251001", isRefinement: true, currentHtml: activeHtml },
+        {
+          jiraTicketId: ticketData.id,
+          jiraData: ticketData,
+          additionalPmContext: prompt,
+          enableVisualSkill: true,
+          model: selectedModel || "claude-haiku-4-5-20251001",
+          isRefinement: true,
+          currentHtml: activeHtml,
+          attachedFiles: filesToSend,
+        },
         `Refinement: "${prompt.slice(0, 45)}${prompt.length > 45 ? "…" : ""}"`,
         (html) => setActiveHtml(html),
       );
