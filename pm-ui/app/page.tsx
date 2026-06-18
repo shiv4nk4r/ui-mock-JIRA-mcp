@@ -35,11 +35,23 @@ interface AttachedFile {
   name: string; type: string; size: number; sizeLabel: string;
   content: string; contentType: "text" | "html" | "image" | "binary";
 }
+interface ReuseManifest {
+  reusedComponents: string[];
+  reusedIcons: string[];
+  newComponents: Array<{ name: string; reason: string }>;
+  newIcons: Array<{ name: string; reason: string }>;
+}
+interface ReuseValidation {
+  valid: boolean;
+  unknownComponents: Array<{ ref: string; suggestions?: string[] }>;
+  unknownIcons: Array<{ ref: string; suggestions?: string[] }>;
+}
 interface Message {
   role: "user" | "assistant";
   text?: string; htmlComponent?: string; effortEstimation?: string;
   rawBlocks?: ContentBlock[]; isStreaming?: boolean;
   thinking?: { log: string[]; elapsed?: number; done: boolean };
+  manifest?: ReuseManifest; validation?: ReuseValidation;
   attachedFiles?: Array<{ name: string; contentType: string; sizeLabel: string; htmlContent?: string }>;
 }
 interface UsageRecord {
@@ -324,6 +336,76 @@ function ThinkingBlock({ log, done, elapsed }: { log: string[]; done: boolean; e
   );
 }
 
+function ReuseManifestPanel({ manifest, validation }: { manifest: ReuseManifest; validation?: ReuseValidation }) {
+  const [expanded, setExpanded] = useState(false);
+  const reusedCount = manifest.reusedComponents.length + manifest.reusedIcons.length;
+  const newCount    = manifest.newComponents.length + manifest.newIcons.length;
+  const unknownCount = (validation?.unknownComponents.length ?? 0) + (validation?.unknownIcons.length ?? 0);
+  if (reusedCount === 0 && newCount === 0) return null;
+
+  const ok = validation ? validation.valid : true;
+  const statusColor = ok ? "#66bb6a" : "#e0a030";
+
+  return (
+    <div className="border-l-2 mb-2 overflow-hidden" style={{ borderLeftColor: ok ? "#CFE6CF" : "#EBD9B0" }}>
+      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-2 px-4 py-2 text-left" style={{ background: "#FFFFFF" }}>
+        <span style={{ color: "#A8A4A0", fontSize: 9 }}>{expanded ? "▾" : "▸"}</span>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor, flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#6A6560", letterSpacing: "0.18em", textTransform: "uppercase" }}>
+          Reuse Manifest
+        </span>
+        <span style={{ fontFamily: "'Fira Code',monospace", fontSize: 10, color: "#8A8680" }}>
+          · {reusedCount} reused{newCount ? ` · ${newCount} new` : ""}{unknownCount ? ` · ${unknownCount} unverified` : ok ? " · verified" : ""}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-4 py-2 space-y-2" style={{ background: "#F4F2EF", borderTop: "1px solid #E2DDD8" }}>
+          {manifest.reusedComponents.length > 0 && (
+            <ManifestGroup title="Reused components" items={manifest.reusedComponents} dot="#66bb6a" />
+          )}
+          {manifest.reusedIcons.length > 0 && (
+            <ManifestGroup title="Reused icons" items={manifest.reusedIcons} dot="#66bb6a" />
+          )}
+          {manifest.newComponents.length > 0 && (
+            <ManifestGroup title="New — not from existing code" items={manifest.newComponents.map((c) => `${c.name} — ${c.reason}`)} dot="#e0a030" badge="NEW" />
+          )}
+          {manifest.newIcons.length > 0 && (
+            <ManifestGroup title="New icons — not from existing assets" items={manifest.newIcons.map((c) => `${c.name} — ${c.reason}`)} dot="#e0a030" badge="NEW" />
+          )}
+          {validation && !validation.valid && (
+            <ManifestGroup
+              title="Unverified (could not resolve in codebase)"
+              items={[
+                ...validation.unknownComponents.map((c) => `${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : ""}`),
+                ...validation.unknownIcons.map((c) => `${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : ""}`),
+              ]}
+              dot="#d9534f"
+              badge="?"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManifestGroup({ title, items, dot, badge }: { title: string; items: string[]; dot: string; badge?: string }) {
+  return (
+    <div>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 9, color: "#8A8680", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 3 }}>{title}</div>
+      <div className="space-y-1">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, marginTop: 5, flexShrink: 0 }} />
+            {badge && <span style={{ fontFamily: "'Fira Code',monospace", fontSize: 8, color: dot, border: `1px solid ${dot}`, borderRadius: 3, padding: "0 3px", marginTop: 1, flexShrink: 0 }}>{badge}</span>}
+            <span style={{ fontFamily: "'Fira Code',monospace", fontSize: 10.5, color: "#5A5650", lineHeight: "1.4", wordBreak: "break-all" }}>{it}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── TicketPanel ───────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
@@ -600,6 +682,12 @@ export default function Home() {
           if (ev.thinkingDone) updateLastMessage((m) => ({ ...m, thinking: { log: m.thinking?.log ?? [], done: true, elapsed: ev.elapsed as number } }));
           if (ev.delta) { accumulated += ev.delta as string; updateLastMessage({ text: accumulated, isStreaming: true }); }
           if (ev.html) { streamingHtml = ev.html as string; onHtml(ev.html as string); }
+          if (ev.manifest) {
+            updateLastMessage({
+              manifest: ev.manifest as ReuseManifest,
+              validation: ev.validation as ReuseValidation | undefined,
+            });
+          }
           if (ev.done) {
             const mi = accumulated.indexOf(EFFORT_MARKER);
             updateLastMessage({ text: mi >= 0 ? accumulated.slice(0, mi).trim() : accumulated, htmlComponent: streamingHtml, effortEstimation: mi >= 0 ? accumulated.slice(mi).trim() : undefined, isStreaming: false });
@@ -977,6 +1065,8 @@ export default function Home() {
                     </div>
 
                     {msg.thinking && <ThinkingBlock log={msg.thinking.log} done={msg.thinking.done} elapsed={msg.thinking.elapsed} />}
+
+                    {msg.manifest && <ReuseManifestPanel manifest={msg.manifest} validation={msg.validation} />}
 
                     {(msg.text || msg.isStreaming) && (
                       <div className="px-4 py-3 border-l-2" style={{ borderLeftColor: msg.role === "user" ? "#A8A4A0" : "#D97706", background: msg.role === "user" ? "#ECEAE6" : "rgba(217,119,6,0.06)" }}>

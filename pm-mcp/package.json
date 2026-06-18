@@ -8,7 +8,9 @@
     "start": "tsx src/index.ts",
     "start:stdio": "tsx src/stdio.ts",
     "type-check": "tsc --noEmit",
-    "index": "tsx src/parser/test-parser.ts --full"
+    "index": "tsx src/parser/test-parser.ts --full",
+    "crawl:login": "tsx src/crawler/auth.ts",
+    "crawl": "tsx src/crawler/crawl.ts"
   },
   "dependencies": {
     "@babel/parser": "^7.24.0",
@@ -20,6 +22,7 @@
     "fast-glob": "^3.3.2",
     "graphql": "^16.8.1",
     "minimatch": "^10.0.1",
+    "playwright": "^1.61.0",
     "simple-git": "^3.27.0",
     "zod": "^3.22.0"
   },

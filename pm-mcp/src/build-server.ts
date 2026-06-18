@@ -20,6 +20,13 @@ import {
   resolveBrandAsset,
   scanBrandAssets,
 } from "./brand-assets";
+import {
+  formatCatalog,
+  listReusableComponents,
+  resolveComponent,
+  validateComponentRefs,
+} from "./component-catalog";
+import { readSfcSource } from "./sfc-source";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTEXT_DIR = path.join(__dirname, "context");
@@ -816,6 +823,205 @@ export function buildMcpServer(ctx: SessionContext, deps: McpServerDeps): McpSer
           {
             type: "text",
             text: `Found ${resolvers.length} resolver(s):\n${lines.join("\n")}`,
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "list-reusable-components",
+    "List EXISTING reusable Vue components from mdui/src/components and mdui/src/pages on the active branch. REQUIRED before building UI — reuse these instead of inventing new components. Filter by feature keywords.",
+    {
+      query: z
+        .string()
+        .optional()
+        .describe("Feature keywords, e.g. listing, filter, modal, order, shift"),
+      scope: z
+        .enum(["components", "pages", "both"])
+        .optional()
+        .default("both"),
+      limit: z.number().int().min(1).max(200).optional().default(60),
+    },
+    async ({ query, scope, limit }) => {
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
+      }
+      const repoRoot = activeRepoRoot();
+      const entries = listReusableComponents(graph, repoRoot, { query, scope, limit });
+      if (entries.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No reusable components matched "${query ?? ""}" (scope: ${scope}). Try a broader keyword or call get-file-structure on a known path.`,
+            },
+          ],
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              `EXISTING reusable components on **${ctx.branch}** (${entries.length} shown, scope: ${scope}).`,
+              "Reuse these via get-component-source. Do NOT reinvent their structure or CSS.",
+              "",
+              formatCatalog(entries),
+            ].join("\n"),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "get-component-source",
+    "Return the REAL <template> markup, scoped <style> CSS, props, slots, and child components of an existing Vue SFC. Use this to reuse exact structure/CSS in mockups — never hand-write markup that an existing component already provides.",
+    {
+      name: z
+        .string()
+        .describe("Component name or path, e.g. OrderListing, components/outbound/OrderListing.vue"),
+    },
+    async ({ name }) => {
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
+      }
+      const repoRoot = activeRepoRoot();
+      const entry = resolveComponent(graph, repoRoot, name);
+      if (!entry) {
+        const suggestions = listReusableComponents(graph, repoRoot, { query: name, limit: 8 });
+        return {
+          content: [
+            {
+              type: "text",
+              text: [
+                `No existing component found for "${name}".`,
+                suggestions.length
+                  ? `Closest matches:\n${formatCatalog(suggestions)}\n\nIf none fit, this UI may need a NEW component (declare it as new in the reuse manifest).`
+                  : "Call list-reusable-components to browse what exists.",
+              ].join("\n"),
+            },
+          ],
+        };
+      }
+
+      let sfc;
+      try {
+        sfc = readSfcSource(entry.absPath);
+      } catch (e) {
+        return {
+          content: [{ type: "text", text: `Failed to read ${entry.relPath}: ${(e as Error).message}` }],
+        };
+      }
+
+      const styleText = sfc.styles
+        .map(
+          (s, i) =>
+            `/* style block ${i + 1}${s.scoped ? " (scoped)" : ""} lang=${s.lang} */\n${s.content}`
+        )
+        .join("\n\n");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: [
+              `COMPONENT: ${entry.name}`,
+              `file: ${entry.relPath} (branch: ${ctx.branch})`,
+              entry.props.length ? `props: ${entry.props.join(", ")}` : "props: (none)",
+              sfc.slots.length ? `slots: ${sfc.slots.join(", ")}` : "slots: (none)",
+              sfc.usedTags.length ? `child tags: ${sfc.usedTags.join(", ")}` : "",
+              "",
+              "=== TEMPLATE (real markup — reuse this structure) ===",
+              sfc.template ?? "(no <template> block)",
+              "",
+              "=== STYLE (real CSS — reuse these classes/values) ===",
+              styleText || "(no <style> block)",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "validate-ui-references",
+    "Verify that referenced components and icons actually EXIST in the codebase. Returns which references resolved and which are hallucinated (with suggestions). Call this on a reuse manifest before finalizing a mockup.",
+    {
+      components: z
+        .array(z.string())
+        .optional()
+        .describe("Component names/paths claimed as reused, e.g. OrderListing"),
+      icons: z
+        .array(z.string())
+        .optional()
+        .describe("Icon app paths claimed as reused, e.g. /icons/inventory/audit.png"),
+    },
+    async ({ components, icons }) => {
+      if (!ctx.indexReady) {
+        return { content: [{ type: "text", text: `Index not ready. Status: ${ctx.indexStatus}` }] };
+      }
+      const repoRoot = activeRepoRoot();
+      const compChecks = validateComponentRefs(graph, repoRoot, components ?? []);
+
+      const assets = scanBrandAssets(repoRoot);
+      const iconChecks = (icons ?? []).map((ref) => {
+        const hit = resolveBrandAsset(assets, ref);
+        const exact = hit && (hit.appPath === ref || hit.subpath === ref.replace(/^\/+/, ""));
+        if (exact && hit) return { ref, resolved: true, match: hit.appPath };
+        const suggestions = findBrandAssets(assets, ref, 5).map((a) => a.appPath);
+        return { ref, resolved: false, suggestions };
+      });
+
+      const badComps = compChecks.filter((c) => !c.resolved);
+      const badIcons = iconChecks.filter((c) => !c.resolved);
+      const ok = badComps.length === 0 && badIcons.length === 0;
+
+      const lines: string[] = [
+        ok
+          ? "✓ VALID — all referenced components and icons exist."
+          : "✗ HALLUCINATION DETECTED — fix the references below and regenerate.",
+        "",
+      ];
+      if (badComps.length) {
+        lines.push("Unknown components:");
+        for (const c of badComps) {
+          lines.push(
+            `  ✗ ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match"}`
+          );
+        }
+        lines.push("");
+      }
+      if (badIcons.length) {
+        lines.push("Unknown icons:");
+        for (const c of badIcons) {
+          lines.push(
+            `  ✗ ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match"}`
+          );
+        }
+        lines.push("");
+      }
+      const okComps = compChecks.filter((c) => c.resolved).map((c) => c.match);
+      const okIcons = iconChecks.filter((c) => c.resolved).map((c) => c.match);
+      if (okComps.length) lines.push(`Resolved components: ${okComps.join(", ")}`);
+      if (okIcons.length) lines.push(`Resolved icons: ${okIcons.join(", ")}`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                valid: ok,
+                unknownComponents: badComps.map((c) => ({ ref: c.ref, suggestions: c.suggestions })),
+                unknownIcons: badIcons.map((c) => ({ ref: c.ref, suggestions: c.suggestions })),
+              },
+              null,
+              2
+            ) + "\n\n" + lines.join("\n"),
           },
         ],
       };

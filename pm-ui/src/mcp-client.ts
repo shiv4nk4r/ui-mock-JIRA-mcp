@@ -115,6 +115,55 @@ export async function fetchBrandIconCatalog(query?: string): Promise<string> {
   }
 }
 
+/** Existing reusable Vue components (components/ + pages/) for grounding. */
+export async function fetchComponentCatalog(query?: string, limit = 60): Promise<string> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "list-reusable-components",
+      arguments: { ...(query ? { query } : {}), scope: "both", limit },
+    });
+    return toolText(result);
+  } catch {
+    return "";
+  } finally {
+    await close();
+  }
+}
+
+export interface UiReferenceValidation {
+  valid: boolean;
+  unknownComponents: Array<{ ref: string; suggestions?: string[] }>;
+  unknownIcons: Array<{ ref: string; suggestions?: string[] }>;
+}
+
+/** Verify reused components/icons exist in the codebase (hard-fail grounding). */
+export async function validateUiReferences(refs: {
+  components?: string[];
+  icons?: string[];
+}): Promise<UiReferenceValidation> {
+  const { client, close } = await createMcpClient();
+  try {
+    const result = await client.callTool({
+      name: "validate-ui-references",
+      arguments: {
+        components: refs.components ?? [],
+        icons: refs.icons ?? [],
+      },
+    });
+    const text = toolText(result);
+    const jsonEnd = text.indexOf("\n\n");
+    const jsonStr = jsonEnd >= 0 ? text.slice(0, jsonEnd) : text;
+    const parsed = JSON.parse(jsonStr) as UiReferenceValidation;
+    return parsed;
+  } catch {
+    // If validation is unavailable, do not block generation.
+    return { valid: true, unknownComponents: [], unknownIcons: [] };
+  } finally {
+    await close();
+  }
+}
+
 export async function listProductScreenshots(): Promise<string[]> {
   const { client, close } = await createMcpClient();
   try {

@@ -6,6 +6,8 @@ import { join } from "path";
 import {
   fetchContextResources,
   fetchBrandIconCatalog,
+  fetchComponentCatalog,
+  validateUiReferences,
   listProductScreenshots,
   screenshotPath,
   claudeMcpConfigArg,
@@ -13,6 +15,7 @@ import {
   checkMcpServerHealth,
   getMcpServerUrl,
 } from "@/mcp-client";
+import type { UiReferenceValidation } from "@/mcp-client";
 import { WORKSPACE_ROOT } from "@/paths";
 
 export const dynamic = "force-dynamic";
@@ -152,6 +155,23 @@ interface ChatRequest {
 const HTML_MARKER_START = "RAW_HTML_COMPONENT_START";
 const HTML_MARKER_END   = "RAW_HTML_COMPONENT_END";
 
+const MANIFEST_MARKER_START = "REUSE_MANIFEST_START";
+const MANIFEST_MARKER_END   = "REUSE_MANIFEST_END";
+
+export interface ReuseManifest {
+  reusedComponents: string[];
+  reusedIcons: string[];
+  newComponents: Array<{ name: string; reason: string }>;
+  newIcons: Array<{ name: string; reason: string }>;
+}
+
+const EMPTY_MANIFEST: ReuseManifest = {
+  reusedComponents: [],
+  reusedIcons: [],
+  newComponents: [],
+  newIcons: [],
+};
+
 function extractHtmlFromMarkers(text: string): { displayText: string; html: string | undefined } {
   const si = text.indexOf(HTML_MARKER_START);
   const ei = text.indexOf(HTML_MARKER_END);
@@ -160,6 +180,46 @@ function extractHtmlFromMarkers(text: string): { displayText: string; html: stri
   const displayText = (text.slice(0, si) + text.slice(ei + HTML_MARKER_END.length)).trim();
   return { displayText, html };
 }
+
+/** Pull the reuse manifest JSON block out of the model output (tolerant). */
+function extractManifest(text: string): { manifest: ReuseManifest | null; displayText: string } {
+  const si = text.indexOf(MANIFEST_MARKER_START);
+  const ei = text.indexOf(MANIFEST_MARKER_END);
+  if (si === -1 || ei === -1 || ei <= si) return { manifest: null, displayText: text };
+  const raw = text.slice(si + MANIFEST_MARKER_START.length, ei).trim();
+  const displayText = (text.slice(0, si) + text.slice(ei + MANIFEST_MARKER_END.length)).trim();
+  try {
+    const parsed = JSON.parse(raw) as Partial<ReuseManifest>;
+    return {
+      manifest: {
+        reusedComponents: parsed.reusedComponents ?? [],
+        reusedIcons: parsed.reusedIcons ?? [],
+        newComponents: parsed.newComponents ?? [],
+        newIcons: parsed.newIcons ?? [],
+      },
+      displayText,
+    };
+  } catch {
+    return { manifest: null, displayText };
+  }
+}
+
+const MANIFEST_CONTRACT = [
+  "REUSE MANIFEST — REQUIRED. Before the HTML, emit a manifest listing every existing asset you reused and any genuinely new ones:",
+  MANIFEST_MARKER_START,
+  JSON.stringify(
+    {
+      reusedComponents: ["mdui/src/components/<path>.vue"],
+      reusedIcons: ["/icons/<path>.png"],
+      newComponents: [{ name: "NewThing", reason: "no existing component covers X" }],
+      newIcons: [{ name: "new-icon", reason: "no existing asset for Y" }],
+    },
+    null,
+    2
+  ),
+  MANIFEST_MARKER_END,
+  "Rules: reusedComponents/reusedIcons MUST exist in the codebase (you verified them via list-reusable-components / get-component-source / list-brand-icons). Anything you could not find an existing match for goes under newComponents/newIcons with a one-line reason. Do NOT silently invent — declare it.",
+].join("\n");
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
@@ -176,7 +236,8 @@ function buildSystemPrompt(
   archContext    = "",
   designContext  = "",
   sitemapContext = "",
-  brandIconsContext = ""
+  brandIconsContext = "",
+  componentCatalogContext = ""
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -215,6 +276,13 @@ function buildSystemPrompt(
       "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
       "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
       "",
+      "COMPONENT REUSE POLICY — STRICT (highest priority):",
+      "- A large library of real Vue components already exists (see catalog below). For ANY UI element, FIRST reuse an existing component's structure and CSS.",
+      "- Workflow: call list-reusable-components(keywords) to find matches, then get-component-source(name) to get the REAL template markup + scoped CSS, and translate that exact structure/classes into the HTML mockup.",
+      "- Reuse existing Quasar components (q-table, q-btn, q-card, …) and existing SCSS classes/tokens. Do NOT invent new component structures or class systems when one already exists.",
+      "- Only create something new when NO existing component fits — and you MUST declare it in the reuse manifest under newComponents with a reason.",
+      "- NEVER hallucinate a component, prop, class, or icon that is not in the codebase. Every reused reference is verified and hard-rejected if invalid.",
+      "",
       "ICON POLICY — STRICT:",
       "- Use ONLY official icons/logos from mdui/public/ via MCP tools list-brand-icons and get-brand-icon.",
       "- NEVER hand-draw, SVG-inline, Material Icons, Font Awesome, or hallucinated brand marks.",
@@ -244,6 +312,15 @@ function buildSystemPrompt(
       "- If product screenshots are provided, match the exact visual patterns you observe in them"
     );
 
+    if (componentCatalogContext) {
+      sections.push(
+        "=== EXISTING REUSABLE COMPONENTS (mdui components/ + pages/ via MCP) ===",
+        componentCatalogContext,
+        "Call get-component-source on any of these to obtain the real markup + CSS to reuse.",
+        "=== END EXISTING COMPONENTS ==="
+      );
+    }
+
     if (brandIconsContext) {
       sections.push(
         "=== OFFICIAL BRAND ICONS CATALOG (mdui/public/ via MCP) ===",
@@ -251,6 +328,8 @@ function buildSystemPrompt(
         "=== END BRAND ICONS ==="
       );
     }
+
+    sections.push(MANIFEST_CONTRACT);
   }
 
   // This section MUST be last — the UI parser splits on this exact heading.
@@ -391,10 +470,15 @@ function buildUserMessage(
 
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
-function buildRefinementSystemPrompt(designContext = "", brandIconsContext = ""): string {
+function buildRefinementSystemPrompt(
+  designContext = "",
+  brandIconsContext = "",
+  componentCatalogContext = ""
+): string {
   const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
 
-ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons and get-brand-icon. Never invent or hand-draw brand icons. Use data-uri img tags from get-brand-icon in HTML mockups.`;
+COMPONENT REUSE POLICY: Reuse existing Vue components (via list-reusable-components + get-component-source) and existing Quasar components/SCSS. Never invent components, props, classes, or icons that do not exist. Anything genuinely new must be declared in the reuse manifest under newComponents/newIcons.
+ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons and get-brand-icon. Use data-uri img tags from get-brand-icon in HTML mockups.`;
 
   const parts: string[] = [base];
   if (designContext) {
@@ -404,6 +488,13 @@ ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons 
       "=== END DESIGN LANGUAGE ==="
     );
   }
+  if (componentCatalogContext) {
+    parts.push(
+      "=== EXISTING REUSABLE COMPONENTS (via MCP) ===",
+      componentCatalogContext,
+      "=== END EXISTING COMPONENTS ==="
+    );
+  }
   if (brandIconsContext) {
     parts.push(
       "=== OFFICIAL BRAND ICONS (mdui/public/) ===",
@@ -411,6 +502,7 @@ ICON POLICY: Use ONLY official icons from mdui/public/ via MCP list-brand-icons 
       "=== END BRAND ICONS ==="
     );
   }
+  parts.push(MANIFEST_CONTRACT);
   parts.push(
     "REQUIRED OUTPUT: Wrap the complete HTML in these exact markers (do not omit):",
     "RAW_HTML_COMPONENT_START",
@@ -431,8 +523,51 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
     "",
     `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
     "",
-    "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.",
+    "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END plus an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END.",
   ].join("\n");
+}
+
+/** Correction message after verification finds hallucinated references. */
+function buildCorrectionUserMessage(
+  currentHtml: string,
+  validation: UiReferenceValidation,
+): string {
+  const lines: string[] = [
+    "Your previous mockup referenced components/icons that DO NOT exist in the codebase.",
+    "Fix EVERY one of them: either swap in a real existing asset, or move it under newComponents/newIcons in the manifest with a one-line reason.",
+    "",
+  ];
+
+  if (validation.unknownComponents.length) {
+    lines.push("Unknown components (call list-reusable-components / get-component-source to find the real one):");
+    for (const c of validation.unknownComponents) {
+      lines.push(
+        `  - ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match; likely needs newComponents"}`,
+      );
+    }
+    lines.push("");
+  }
+
+  if (validation.unknownIcons.length) {
+    lines.push("Unknown icons (call list-brand-icons / get-brand-icon for valid paths):");
+    for (const c of validation.unknownIcons) {
+      lines.push(
+        `  - ${c.ref}${c.suggestions?.length ? ` → try: ${c.suggestions.join(", ")}` : " → no close match; likely needs newIcons"}`,
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push(
+    "Current mockup to correct:",
+    "RAW_HTML_COMPONENT_START",
+    currentHtml,
+    "RAW_HTML_COMPONENT_END",
+    "",
+    "Return the COMPLETE corrected HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END and an updated REUSE_MANIFEST_START / REUSE_MANIFEST_END. Every reusedComponents/reusedIcons entry MUST exist in the codebase.",
+  );
+
+  return lines.join("\n");
 }
 
 // ── Provider: Claude Code (local CLI subprocess) ──────────────────────────────
@@ -450,11 +585,13 @@ function streamClaudeCode(
   designContext: string,
   sitemapContext: string,
   brandIconsContext: string,
+  componentCatalogContext: string,
   attachedFiles?: UserAttachedFile[],
   isRefinement = false,
   currentHtml?: string,
 ): Response {
   const encoder = new TextEncoder();
+  const MAX_VERIFY_RETRIES = 2;
 
   const body = new ReadableStream({
     async start(controller) {
@@ -486,7 +623,7 @@ function streamClaudeCode(
         let userMessage:  string;
 
         if (isRefinement && currentHtml) {
-          systemPrompt = buildRefinementSystemPrompt(designContext, brandIconsContext);
+          systemPrompt = buildRefinementSystemPrompt(designContext, brandIconsContext, componentCatalogContext);
           userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
         } else {
           systemPrompt = buildSystemPrompt(
@@ -494,7 +631,8 @@ function streamClaudeCode(
             archContext,
             designContext,
             sitemapContext,
-            brandIconsContext
+            brandIconsContext,
+            componentCatalogContext
           );
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
@@ -503,7 +641,7 @@ function streamClaudeCode(
             const screenshotNote = screenshots.length
               ? `\n\nProduct screenshots for reference (read these with the Read tool to match the actual UI):\n${screenshots.map((f) => screenshotPath(f)).join("\n")}`
               : "";
-            userMessage += `${screenshotNote}\n\nICON TOOLS: Call list-brand-icons then get-brand-icon for every icon/logo in the mockup — do not invent icons.\n\nOUTPUT: Include the complete HTML mockup inline in your response, wrapped in these exact markers:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
+            userMessage += `${screenshotNote}\n\nWORKFLOW (required): 1) call list-reusable-components with feature keywords; 2) call get-component-source on the best matches to reuse their REAL markup + CSS; 3) call list-brand-icons / get-brand-icon for every icon. Do NOT invent components, classes, or icons.\n\nOUTPUT: First emit the reuse manifest (REUSE_MANIFEST_START/END), then the complete HTML mockup wrapped in:\nRAW_HTML_COMPONENT_START\n<!DOCTYPE html>...full HTML...\nRAW_HTML_COMPONENT_END`;
           }
         }
 
@@ -511,151 +649,197 @@ function streamClaudeCode(
         const userT = charsToTokens(userMessage.length);
         logger.record("Prompt construction", { inputTokens: sysT + userT, detail: `sys ~${sysT} tok · user ~${userT} tok (estimated)` });
 
-        writeFileSync(tmpFile, systemPrompt, "utf8");
-
-        // ── Step 2: model inference ──────────────────────────────────────
-        logger.beginStep();
-        const thinkingStart = Date.now();
-        send({ thinking: `Analysing ticket with model ${model}…` });
-
-        const spawnArgs = [
-          "--print",
-          "--output-format", "stream-json",
-          "--verbose",
-          "--model", "claude-haiku-4-5",
-          // "--model", model,
-          "--system-prompt-file", tmpFile,
-          "--max-budget-usd", "2",
-          "--mcp-config", claudeMcpConfigArg(),
-          "--strict-mcp-config",
-          "--permission-mode", "bypassPermissions",
-          "--allowedTools", `Write,Read,${claudeMcpAllowedToolsPattern()}`,
-        ];
-
-        const proc = spawn("claude", spawnArgs, {
-          stdio: ["pipe", "pipe", "pipe"],
-          cwd: WORKSPACE_ROOT,
-        });
-
-        proc.stdin.write(userMessage, "utf8");
-        proc.stdin.end();
-
-        let buf = "";
-        let allText = "";
+        // ── Step 2: model inference (with verify + retry loop) ───────────
+        const overallStart = Date.now();
         const savedFiles: string[] = [];
-        let inferenceInputTokens  = 0;
-        let inferenceOutputTokens = 0;
-        let inferenceCostUsd      = 0;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
+        let totalCostUsd = 0;
 
-        proc.stdout.on("data", (chunk: Buffer) => {
-          buf += chunk.toString("utf8");
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
+        // One Claude pass: writes system prompt, spawns, collects text + usage.
+        async function runClaudeOnce(
+          sysPrompt: string,
+          userMsg: string,
+          label: string,
+        ): Promise<{ allText: string; exitCode: number | null; stderr: string }> {
+          writeFileSync(tmpFile, sysPrompt, "utf8");
+          send({ thinking: label });
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const msg: Record<string, unknown> = JSON.parse(line);
+          const spawnArgs = [
+            "--print",
+            "--output-format", "stream-json",
+            "--verbose",
+            "--model", "claude-haiku-4-5",
+            "--system-prompt-file", tmpFile,
+            "--max-budget-usd", "2",
+            "--mcp-config", claudeMcpConfigArg(),
+            "--strict-mcp-config",
+            "--permission-mode", "bypassPermissions",
+            "--allowedTools", `Write,Read,${claudeMcpAllowedToolsPattern()}`,
+          ];
 
-              if (msg.type === "result") {
-                const usage = msg.usage as Record<string, number> | undefined;
-                if (usage) {
-                  inferenceInputTokens  = usage.input_tokens  ?? 0;
-                  inferenceOutputTokens = usage.output_tokens ?? 0;
-                }
-                if (typeof msg.cost_usd === "number") inferenceCostUsd = msg.cost_usd;
-              }
-
-              if (msg.type === "assistant") {
-                const content = (msg.message as Record<string, unknown>)?.content as Array<{
-                  type: string;
-                  text?: string;
-                  thinking?: string;
-                  name?: string;
-                  input?: Record<string, unknown>;
-                }> | undefined;
-
-                if (content?.length) {
-                  const thinkBlocks   = content.filter((b) => b.type === "thinking" && b.thinking);
-                  const toolUseBlocks = content.filter((b) => b.type === "tool_use");
-                  const textBlocks    = content.filter((b) => b.type === "text" && b.text);
-
-                  for (const b of thinkBlocks) {
-                    if (b.thinking) {
-                      const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
-                      send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
-                    }
-                  }
-
-                  for (const b of toolUseBlocks) {
-                    if (b.name === "Write") {
-                      const filePath = b.input?.file_path as string | undefined;
-                      if (filePath) {
-                        savedFiles.push(filePath);
-                        send({ thinking: `Writing file: ${filePath}` });
-                      }
-                    } else if (b.name?.startsWith("mcp__")) {
-                      const toolLabel = b.name.replace(/^mcp__[^_]+__/, "");
-                      send({ thinking: `MCP: ${toolLabel}` });
-                    }
-                  }
-
-                  // Accumulate all text — we extract HTML from markers at the end
-                  for (const block of textBlocks) {
-                    if (block.text) allText += block.text;
-                  }
-                }
-              }
-            } catch { /* skip malformed lines */ }
-          }
-        });
-
-        let stderrBuf = "";
-        proc.stderr.on("data", (chunk: Buffer) => { stderrBuf += chunk.toString(); });
-
-        const exitCode = await new Promise<number | null>((resolve, reject) => {
-          proc.on("close", resolve);
-          proc.on("error", reject);
-        });
-
-        // ── Fallback: calculate cost from tokens if not provided ────────────
-        if (inferenceCostUsd === 0 && (inferenceInputTokens || inferenceOutputTokens)) {
-          inferenceCostUsd = tokenCost(model, inferenceInputTokens, inferenceOutputTokens);
-        }
-
-        logger.record("Model inference (claude-code CLI)", {
-          inputTokens:  inferenceInputTokens,
-          outputTokens: inferenceOutputTokens,
-          costUsd:      inferenceCostUsd > 0 ? inferenceCostUsd : undefined,
-          detail:       `exit ${exitCode ?? 0}`,
-        });
-
-        send({ thinkingDone: true, elapsed: (Date.now() - thinkingStart) / 1000 });
-
-        if (exitCode !== 0 && exitCode !== null) {
-          send({ error: `Claude Code exited with code ${exitCode}. ${stderrBuf.slice(0, 400)}` });
-        } else {
-          // ── Step 3: emit accumulated text and extract inline HTML ─────
-          if (allText) {
-            const { displayText, html } = extractHtmlFromMarkers(allText);
-            if (displayText) send({ delta: displayText });
-            if (html) {
-              logger.record("HTML mockup extracted from response");
-              send({ html });
-            }
-          }
-
-          // ── Step 4: write session log ──────────────────────────────────
-          const { logFile, logData } = logger.finish();
-          send({
-            done: true, provider: "claude-code", model,
-            savedFiles: savedFiles.length ? savedFiles : undefined,
-            logFile, logData,
-            inputTokens:  inferenceInputTokens,
-            outputTokens: inferenceOutputTokens,
-            costUsd:      inferenceCostUsd,
+          const proc = spawn("claude", spawnArgs, {
+            stdio: ["pipe", "pipe", "pipe"],
+            cwd: WORKSPACE_ROOT,
           });
+          proc.stdin.write(userMsg, "utf8");
+          proc.stdin.end();
+
+          let buf = "";
+          let allText = "";
+          let inTok = 0;
+          let outTok = 0;
+          let cost = 0;
+
+          proc.stdout.on("data", (chunk: Buffer) => {
+            buf += chunk.toString("utf8");
+            const lines = buf.split("\n");
+            buf = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const msg: Record<string, unknown> = JSON.parse(line);
+                if (msg.type === "result") {
+                  const usage = msg.usage as Record<string, number> | undefined;
+                  if (usage) {
+                    inTok = usage.input_tokens ?? 0;
+                    outTok = usage.output_tokens ?? 0;
+                  }
+                  if (typeof msg.cost_usd === "number") cost = msg.cost_usd;
+                }
+                if (msg.type === "assistant") {
+                  const content = (msg.message as Record<string, unknown>)?.content as Array<{
+                    type: string;
+                    text?: string;
+                    thinking?: string;
+                    name?: string;
+                    input?: Record<string, unknown>;
+                  }> | undefined;
+                  if (content?.length) {
+                    for (const b of content) {
+                      if (b.type === "thinking" && b.thinking) {
+                        const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
+                        send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
+                      } else if (b.type === "tool_use") {
+                        if (b.name === "Write") {
+                          const filePath = b.input?.file_path as string | undefined;
+                          if (filePath) {
+                            savedFiles.push(filePath);
+                            send({ thinking: `Writing file: ${filePath}` });
+                          }
+                        } else if (b.name?.startsWith("mcp__")) {
+                          send({ thinking: `MCP: ${b.name.replace(/^mcp__[^_]+__/, "")}` });
+                        }
+                      } else if (b.type === "text" && b.text) {
+                        allText += b.text;
+                      }
+                    }
+                  }
+                }
+              } catch { /* skip malformed lines */ }
+            }
+          });
+
+          let stderrBuf = "";
+          proc.stderr.on("data", (chunk: Buffer) => { stderrBuf += chunk.toString(); });
+
+          const exitCode = await new Promise<number | null>((resolve, reject) => {
+            proc.on("close", resolve);
+            proc.on("error", reject);
+          });
+
+          if (cost === 0 && (inTok || outTok)) cost = tokenCost(model, inTok, outTok);
+          totalInputTokens += inTok;
+          totalOutputTokens += outTok;
+          totalCostUsd += cost;
+          logger.record(`Model inference — ${label}`, {
+            inputTokens: inTok,
+            outputTokens: outTok,
+            costUsd: cost > 0 ? cost : undefined,
+            detail: `exit ${exitCode ?? 0}`,
+          });
+
+          return { allText, exitCode, stderr: stderrBuf };
         }
+
+        let finalText = "";
+        let finalHtml: string | undefined;
+        let manifest: ReuseManifest = EMPTY_MANIFEST;
+        let lastValidation: UiReferenceValidation | null = null;
+
+        for (let attempt = 0; attempt <= MAX_VERIFY_RETRIES; attempt++) {
+          logger.beginStep();
+          const label =
+            attempt === 0
+              ? `Analysing ticket with model ${model}…`
+              : `Fixing hallucinated reference(s) — retry ${attempt}/${MAX_VERIFY_RETRIES}…`;
+
+          const { allText, exitCode, stderr } = await runClaudeOnce(systemPrompt, userMessage, label);
+          if (exitCode !== 0 && exitCode !== null) {
+            send({ error: `Claude Code exited with code ${exitCode}. ${stderr.slice(0, 400)}` });
+            return;
+          }
+
+          finalText = allText;
+          const parsedManifest = extractManifest(allText).manifest;
+          manifest = parsedManifest ?? EMPTY_MANIFEST;
+          const { html } = extractHtmlFromMarkers(allText);
+          if (html) finalHtml = html;
+
+          // Verification loop only applies to mockup generation.
+          if (!enableVisualSkill) break;
+
+          const validation = await validateUiReferences({
+            components: manifest.reusedComponents,
+            icons: manifest.reusedIcons,
+          });
+          lastValidation = validation;
+
+          if (validation.valid) {
+            send({ thinking: "✓ All reused components & icons verified against the codebase." });
+            break;
+          }
+
+          const unknownCount =
+            validation.unknownComponents.length + validation.unknownIcons.length;
+
+          if (attempt === MAX_VERIFY_RETRIES) {
+            send({
+              thinking: `⚠ ${unknownCount} reference(s) still unverified after ${MAX_VERIFY_RETRIES} retries — showing best effort.`,
+            });
+            break;
+          }
+
+          send({ thinking: `✗ ${unknownCount} hallucinated reference(s) detected — regenerating.` });
+          systemPrompt = buildRefinementSystemPrompt(
+            designContext,
+            brandIconsContext,
+            componentCatalogContext,
+          );
+          userMessage = buildCorrectionUserMessage(finalHtml ?? "", validation);
+        }
+
+        send({ thinkingDone: true, elapsed: (Date.now() - overallStart) / 1000 });
+
+        // Strip manifest + html markers; remaining text = analysis + effort estimation.
+        const withoutManifest = extractManifest(finalText).displayText;
+        const { displayText } = extractHtmlFromMarkers(withoutManifest);
+        if (displayText) send({ delta: displayText });
+        if (finalHtml) {
+          logger.record("HTML mockup extracted from response");
+          send({ html: finalHtml });
+        }
+        send({ manifest, validation: lastValidation ?? undefined });
+
+        const { logFile, logData } = logger.finish();
+        send({
+          done: true, provider: "claude-code", model,
+          savedFiles: savedFiles.length ? savedFiles : undefined,
+          logFile, logData,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          costUsd: totalCostUsd,
+        });
 
       } catch (err) {
         send({ error: `Claude Code error: ${err instanceof Error ? err.message : String(err)}` });
@@ -686,7 +870,8 @@ export async function POST(request: Request) {
     model, attachedFiles, isRefinement, currentHtml,
   } = body;
 
-  let archContext = "", designContext = "", sitemapContext = "", brandIconsContext = "";
+  let archContext = "", designContext = "", sitemapContext = "";
+  let brandIconsContext = "", componentCatalogContext = "";
   let mcpContextError = "";
   try {
     const ctx = await fetchContextResources();
@@ -703,7 +888,10 @@ export async function POST(request: Request) {
   }
 
   if (enableVisualSkill) {
-    brandIconsContext = await fetchBrandIconCatalog();
+    [brandIconsContext, componentCatalogContext] = await Promise.all([
+      fetchBrandIconCatalog(),
+      fetchComponentCatalog(jiraData?.summary),
+    ]);
   }
 
   if (mcpContextError && !isRefinement) {
@@ -721,6 +909,6 @@ export async function POST(request: Request) {
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext, brandIconsContext,
-    attachedFiles, isRefinement, currentHtml,
+    componentCatalogContext, attachedFiles, isRefinement, currentHtml,
   );
 }
