@@ -176,6 +176,13 @@ function buildServer(): McpServer {
     async () => ({ contents: [{ uri: "resource://docs/sitemap", mimeType: "text/markdown", text: loadCtx("site-map.md") }] })
   );
 
+  server.registerResource(
+    "component-library",
+    "resource://docs/component-library",
+    { mimeType: "text/markdown", description: "Pre-built HTML+CSS snippets for Manager Dashboard. Copy BASE CSS BLOCK verbatim — do not re-derive." },
+    async () => ({ contents: [{ uri: "resource://docs/component-library", mimeType: "text/markdown", text: loadCtx("component-library.md") }] })
+  );
+
   // ── Tools ──────────────────────────────────────────────────────────────────
 
   server.tool(
@@ -558,6 +565,7 @@ export interface FetchedContext {
   architecture: string;
   design: string;
   sitemap: string;
+  componentLibrary: string;
 }
 
 /**
@@ -570,14 +578,20 @@ export interface FetchedContext {
 export async function fetchContextResources(): Promise<FetchedContext> {
   const { client, close } = await createMcpClient();
   try {
-    const [archRes, designRes, sitemapRes] = await Promise.all([
+    const [archRes, designRes, sitemapRes, compLibRes] = await Promise.all([
       client.readResource({ uri: "resource://docs/architecture" }),
       client.readResource({ uri: "resource://docs/design" }),
       client.readResource({ uri: "resource://docs/sitemap" }),
+      client.readResource({ uri: "resource://docs/component-library" }),
     ]);
     const txt = (r: { contents: unknown[] }) =>
       ((r.contents[0] as Record<string, unknown>)?.text as string) ?? "";
-    return { architecture: txt(archRes), design: txt(designRes), sitemap: txt(sitemapRes) };
+    return {
+      architecture:    txt(archRes),
+      design:          txt(designRes),
+      sitemap:         txt(sitemapRes),
+      componentLibrary: txt(compLibRes),
+    };
   } finally {
     await close();
   }

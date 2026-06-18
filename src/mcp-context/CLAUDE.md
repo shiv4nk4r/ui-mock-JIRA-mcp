@@ -10,11 +10,12 @@ This directory is the context workspace for generating high-fidelity HTML UI moc
 
 ### Step 1 — Load context (do this first, every session)
 
-Read all three context files before doing anything else:
+Read all four context files before doing anything else:
 
 1. `context.md` — full app architecture, tech stack, data flows, color system
 2. `design.md` — **strict design language** — the single source of truth for all UX decisions
 3. `site-map.md` — page hierarchy and route structure
+4. `component-library.md` — **pre-built HTML+CSS snippets** — copy the BASE CSS BLOCK verbatim into `<style>`; use named SNIPPETs as building blocks; never re-derive component styles from design.md when a snippet exists
 
 These files are large but must be read in full. They make the output accurate.
 
@@ -73,6 +74,7 @@ Product screenshots are in this directory (PNGs). When refining:
 | Action buttons | 26×26px, 3px radius, outline style |
 | Modal | navy header, white body, `rgba(16,26,92,0.38)` backdrop, radio options as bordered rows |
 | Pagination | `< 1 2 3 … N >` with ellipsis |
+| Component library | Copy BASE CSS BLOCK verbatim. Compose SNIPPETs. Never re-derive from design.md. |
 
 ---
 

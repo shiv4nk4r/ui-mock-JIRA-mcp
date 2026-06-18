@@ -194,7 +194,8 @@ function buildSystemPrompt(
   archContext    = "",
   designContext  = "",
   sitemapContext = "",
-  hasMcpCodeTools = false
+  hasMcpCodeTools = false,
+  componentLibraryContext = ""
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
 
@@ -293,6 +294,21 @@ function buildSystemPrompt(
       "  Then proceed with the same pattern.",
       "",
       "=== END CODEBASE TOOLS ==="
+    );
+  }
+
+  if (enableVisualSkill && componentLibraryContext) {
+    sections.push(
+      "=== COMPONENT LIBRARY (component-library.md) ===",
+      componentLibraryContext,
+      "=== END COMPONENT LIBRARY ===",
+      "",
+      "MANDATORY COMPONENT LIBRARY RULES:",
+      "1. COPY the Section 1 BASE CSS BLOCK verbatim into your <style>. No modifications.",
+      "2. For each UI section, find the matching SNIPPET: <slug> and use that HTML as-is.",
+      "3. Only write NEW CSS for ticket-specific column widths and data layout.",
+      "4. NEVER re-derive component styles from design.md when a snippet exists.",
+      "5. Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼."
     );
   }
 
@@ -496,7 +512,7 @@ function buildUserMessage(
 
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
-function buildRefinementSystemPrompt(designContext = ""): string {
+function buildRefinementSystemPrompt(designContext = "", componentLibraryContext = ""): string {
   const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.`;
 
   const parts: string[] = [base];
@@ -505,6 +521,19 @@ function buildRefinementSystemPrompt(designContext = ""): string {
       "=== DESIGN LANGUAGE RULES (from design.md) ===",
       designContext,
       "=== END DESIGN LANGUAGE ==="
+    );
+  }
+  if (componentLibraryContext) {
+    parts.push(
+      "=== COMPONENT LIBRARY (component-library.md) ===",
+      componentLibraryContext,
+      "=== END COMPONENT LIBRARY ===",
+      "",
+      "MANDATORY COMPONENT LIBRARY RULES:",
+      "1. The BASE CSS BLOCK must be present verbatim in <style>. If missing, add it.",
+      "2. Correct any deviation from BASE CSS BLOCK values (wrong heights, colors, chip backgrounds).",
+      "3. Replace any Unicode sort indicators (▲▼) with the CSS triangle pattern from the BASE CSS BLOCK.",
+      "4. Status chips must use pastel class backgrounds — never solid Quasar color tokens."
     );
   }
   parts.push(
@@ -548,6 +577,7 @@ function streamClaudeCode(
   attachedFiles?: UserAttachedFile[],
   isRefinement = false,
   currentHtml?: string,
+  componentLibraryContext = "",
 ): Response {
   const encoder = new TextEncoder();
 
@@ -573,11 +603,11 @@ function streamClaudeCode(
 
         if (isRefinement && currentHtml) {
           // Refinement mode: shorter system prompt, current HTML in user message
-          systemPrompt = buildRefinementSystemPrompt(designContext);
+          systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext);
           userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true);
+          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           // Prepend a hard first-action directive so it appears at the top of the
@@ -787,16 +817,18 @@ export async function POST(request: Request) {
     model, attachedFiles, isRefinement, currentHtml,
   } = body;
 
-  let archContext = "", designContext = "", sitemapContext = "";
+  let archContext = "", designContext = "", sitemapContext = "", componentLibraryContext = "";
   try {
     const ctx = await fetchContextResources();
     if (isRefinement) {
-      // Refinements only need design rules — skips arch + sitemap (saves ~15k tokens)
-      designContext = ctx.design;
+      // Refinements only need design rules + component library — skips arch + sitemap (saves ~15k tokens)
+      designContext            = ctx.design;
+      componentLibraryContext  = ctx.componentLibrary;
     } else {
-      archContext    = ctx.architecture;
-      designContext  = ctx.design;
-      sitemapContext = ctx.sitemap;
+      archContext              = ctx.architecture;
+      designContext            = ctx.design;
+      sitemapContext           = ctx.sitemap;
+      componentLibraryContext  = ctx.componentLibrary;
     }
   } catch { /* proceed without context if files are missing */ }
 
@@ -804,6 +836,6 @@ export async function POST(request: Request) {
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext,
-    attachedFiles, isRefinement, currentHtml,
+    attachedFiles, isRefinement, currentHtml, componentLibraryContext,
   );
 }
