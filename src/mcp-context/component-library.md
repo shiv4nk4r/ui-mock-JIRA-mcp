@@ -11,6 +11,16 @@ This file contains two sections:
 - Only write NEW CSS for ticket-specific layout (column widths, grid counts, etc.).
 - Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼.
 - Status chip colors come from the chip classes below — never invent hex values for chips.
+- The `<head>` MUST include these CDN links (the real app self-hosts Source Sans Pro + uses Material Symbols icons):
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+```
+
+Icon usage: `<span class="material-symbols-outlined">keyboard_arrow_right</span>` (or `material-icons`).
 
 ---
 
@@ -155,26 +165,26 @@ body {
   border: 1px solid var(--border);
   background: #fff;
   font-size: 13px; color: var(--primary); font-weight: 600;
-  border-radius: 3px; cursor: pointer;
+  border-radius: 2px; cursor: pointer;
 }
 .smaller-input {
   height: 35px;
   border: 1px solid var(--border);  /* #E7E7E7 — NOT #d4d3d3 */
-  border-radius: 3px;
-  padding: 0 10px;
-  font-size: 13px;
+  border-radius: 2px;
+  padding: 0 8px;
+  font-size: 14px;                  /* REAL: input font-size 14px */
   color: var(--body-text);
   background: #fff;
   outline: none;
-  min-width: 180px;
+  min-width: 175px;                 /* REAL: input width 175px */
 }
 .smaller-input:focus { border-color: var(--secondary); }
-.smaller-input::placeholder { color: #aaa; }
+.smaller-input::placeholder { color: #C0C0C0; font-size: 12px; }  /* REAL placeholder */
 .custom-dropdown {
   height: 35px;
   min-width: 130px;
   border: 1px solid var(--border);  /* #E7E7E7 — NOT #d4d3d3 */
-  border-radius: 3px;
+  border-radius: 2px;
   padding: 0 28px 0 10px;
   font-size: 13px;
   color: var(--body-text);
@@ -183,11 +193,15 @@ body {
   outline: none; cursor: pointer;
 }
 .custom-dropdown:focus { border-color: var(--secondary); }
+/* Segmented search: dropdown joined to the search input (REAL outbound pattern).
+   Dropdown loses its right edge/radius; the joined input loses its left radius. */
+.filter-bar .custom-dropdown { border-right: none; border-top-right-radius: 0; border-bottom-right-radius: 0; min-width: 130px; width: 130px; }
+.smaller-input-joined { border-top-left-radius: 0; border-bottom-left-radius: 0; min-width: 0; width: 220px; }
 .filter-spacer { flex: 1; }
 .filter-action-btn {
   height: 35px; padding: 0 14px;
   border: 1px solid var(--border);
-  background: #fff; border-radius: 3px;
+  background: #fff; border-radius: 2px;
   font-size: 13px; color: var(--primary); font-weight: 600;
   cursor: pointer;
 }
@@ -196,7 +210,7 @@ body {
 }
 .filter-refresh-btn {
   width: 35px; height: 35px;
-  border: 1px solid var(--border); background: #fff; border-radius: 3px;
+  border: 1px solid var(--border); background: #fff; border-radius: 2px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 16px; color: var(--dark);
 }
@@ -208,22 +222,23 @@ body {
 }
 .md-v2-table thead th {
   background: #F6F6F6;
-  color: var(--dark);        /* #636f83 */
+  color: #4D5055;            /* REAL value — NOT #636f83 */
   font-size: 13px; font-weight: 600;
-  height: 38px;
-  padding: 0 12px;
+  height: 40px;              /* REAL: thead tr height 40px */
+  padding: 8px;              /* REAL: padding 8px */
   text-align: left;
   border-bottom: 1px solid var(--border);
   border-right: 0.5px solid lightgrey;
   white-space: nowrap;
-  position: sticky; top: 56px; z-index: 10;
+  position: sticky; top: 0; z-index: 10;
 }
 .md-v2-table thead th:last-child { border-right: none; }
 .md-v2-table tbody td {
-  padding: 0 12px;
-  height: 40px;
+  padding: 0 8px;
+  height: 40px;              /* REAL: tbody td height 40px */
   font-size: 13px;
-  color: var(--body-text);   /* #4D5055 — NOT --primary */
+  font-weight: 600;          /* REAL: tbody/.q-td font-weight 600 */
+  color: #4D5055;            /* REAL: tbody color #4D5055 */
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -239,46 +254,104 @@ body {
 .sort-ico .up.active  { border-bottom-color: var(--secondary); }
 .sort-ico .dn.active  { border-top-color:    var(--secondary); }
 
+/* Column 1 in the REAL outbound table = checkbox + expand toggle together,
+   max-width 75px. Columns 1 & 2 are sticky-left (.my-sticky-column-table). */
+.td-select-expand, .th-select-expand {
+  width: 75px; max-width: 75px; padding: 0 4px;
+}
+.select-expand-wrap { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Sticky first two columns for wide tables (REAL: .my-sticky-column-table) */
+.sticky-cols th:nth-child(1), .sticky-cols td:nth-child(1) {
+  position: sticky; left: 0; z-index: 2; background: inherit;
+}
+.sticky-cols th:nth-child(2), .sticky-cols td:nth-child(2) {
+  position: sticky; left: 75px; z-index: 2; background: inherit;
+}
+.sticky-cols tbody td:nth-child(1), .sticky-cols tbody td:nth-child(2) { background: #fff; }
+.sticky-cols thead th:nth-child(1), .sticky-cols thead th:nth-child(2) { z-index: 11; }
+
 /* Checkbox */
 .th-check, .td-check { width: 40px; text-align: center; padding: 0 8px; }
 .th-check input, .td-check input { cursor: pointer; }
 
 /* Actions column */
-.th-actions { width: 80px; text-align: center; }
-.td-actions { text-align: center; }
+.th-actions { width: 120px; text-align: left; }
+.td-actions { text-align: left; }
 
-/* --- EXPANDABLE ROWS --- */
-.row-expanded td { background: #FFF6ED; }
-.expanded-td     { background: #FFFCF8; padding: 12px 16px !important; height: auto !important; }
+/* Status cell — chip + small progress label + optional on-hold marker (REAL pattern) */
+.status-cell { display: inline-flex; align-items: center; gap: 6px; }
+.status-progress { font-size: 11px; color: var(--dark); }
+.status-onhold { color: var(--warning); font-size: 16px; line-height: 1; }
+
+/* Expand toggle — REAL uses keyboard_arrow_right / keyboard_arrow_down,
+   secondary (#FE8400) when expanded. */
 .expand-btn {
-  width: 20px; height: 20px; border: none; background: none;
-  cursor: pointer; font-size: 11px; color: var(--primary);
+  width: 22px; height: 22px; border: none; background: none;
+  cursor: pointer; color: var(--dark); padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
 }
+.expand-btn .material-symbols-outlined,
+.expand-btn .material-icons { font-size: 20px; line-height: 1; }
+.expand-btn.expanded { color: var(--secondary); }
 
-/* --- STATUS CHIPS --- */
+/* --- EXPANDABLE ROWS --- */
+.row-expanded td { background: #FFF6ED !important; }   /* REAL: parent expanded */
+.expanded-td     { background: #FFFCF8 !important; padding: 0 0 0 12px !important; height: auto !important; }
+.expanded-table .q-td, .expanded-table td { background: #FFFCF8; }
+
+/* --- STATUS CHIPS ---
+   Backgrounds copied verbatim from STATUS_COLOR_MAP in
+   mdui/src/constants/order.js. Text is the Quasar default dark (#4D5055).
+   Four real buckets: neutral grey, green (done), amber (in-progress), red (failed). */
 .chip {
   display: inline-flex; align-items: center;
-  height: 20px; border-radius: 10px;
+  height: 20px; border-radius: 4px;
   padding: 0 8px;
   font-size: 12px; font-weight: 600;
-  color: #4D5055;                 /* NOT white — use #4D5055 */
+  color: #4D5055;                 /* Quasar default chip text — never white */
   white-space: nowrap;
 }
-.chip-completed, .chip-active, .chip-open      { background: #ebf5e8; }
-.chip-created,   .chip-inprogress              { background: #e8f4fb; }
-.chip-pending                                   { background: #fef9e7; }
-.chip-offline,   .chip-failed                  { background: #ffd8d7; }
-.chip-cancelled, .chip-closed                  { background: #f0f0f0; }
-.chip-breached                                  { background: #fdecea; }
-.chip-critical { background: #ED3324; color: #FFFFFF; } /* exception: white text */
-.chip-na       { background: #f0f0f0; }
+/* GREEN — done states (#ebf5e8) */
+.chip-completed, .chip-released, .chip-active, .chip-open,
+.chip-short-picked                              { background: #ebf5e8; }
+/* AMBER — in-progress states (#ffeedc) */
+.chip-inprogress, .chip-staging, .chip-picking,
+.chip-put, .chip-cancellation, .chip-onhold,
+.chip-pending, .chip-staged-failed              { background: #ffeedc; }
+/* RED — failed / cancelled states (#ffd8d7) */
+.chip-cancelled, .chip-unfulfillable,
+.chip-abandoned, .chip-failed, .chip-breached,
+.chip-offline                                   { background: #ffd8d7; }
+/* NEUTRAL GREY — created / closed / n-a (#ececec) */
+.chip-created, .chip-closed, .chip-na           { background: #ececec; }
+/* CRITICAL — only true destructive/critical (solid red, white text) */
+.chip-critical { background: #ED3324; color: #FFFFFF; }
 
-/* --- ACTION BUTTONS --- */
+/* --- ROW ACTION BUTTONS ---
+   REAL outbound v2 row actions are FLAT ROUND icon buttons (no border),
+   primary-colored, dense, size sm — rendered with Material Symbols icons.
+   Use .row-action-btn for in-table row actions. */
+.row-action-btn {
+  width: 28px; height: 28px;
+  border: none; border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  padding: 0; margin: 0;
+}
+.row-action-btn:hover { background: rgba(16,26,92,0.06); }
+.row-action-btn .material-symbols-outlined,
+.row-action-btn .material-icons { font-size: 20px; line-height: 1; }
+.row-actions-cell { display: inline-flex; align-items: center; gap: 2px; }
+.row-actions-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+/* Outline action button (toolbar/non-row use only) */
 .act-btn {
-  width: 26px; height: 26px;  /* 26×26 — not 28×28 */
+  width: 26px; height: 26px;
   border: 1px solid var(--light-grey);
-  border-radius: 3px;
+  border-radius: 2px;
   background: #fff;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -298,13 +371,13 @@ body {
 }
 .pagination-label { font-size: 12px; color: var(--body-text); margin-right: 8px; }
 .pg-rows-select {
-  height: 30px; border: 1px solid var(--border); border-radius: 3px;
+  height: 30px; border: 1px solid var(--border); border-radius: 2px;
   padding: 0 6px; font-size: 12px; color: var(--body-text);
   background: #fff; cursor: pointer;
 }
 .pg-btn {
   min-width: 30px; height: 30px;
-  border: 1px solid var(--border); border-radius: 3px;
+  border: 1px solid var(--border); border-radius: 2px;
   background: #fff;
   font-size: 12px; color: var(--body-text); font-weight: 600;
   cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -345,12 +418,12 @@ body {
 }
 .modal-cancel-btn {
   height: 36px; padding: 0 20px;
-  border: 1px solid var(--border); background: #fff; border-radius: 3px;
+  border: 1px solid var(--border); background: #fff; border-radius: 2px;
   font-size: 13px; font-weight: 600; color: var(--dark); cursor: pointer;
 }
 .modal-proceed-btn {
   height: 36px; padding: 0 20px;
-  border: none; background: var(--primary); border-radius: 3px;
+  border: none; background: var(--primary); border-radius: 2px;
   font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
 }
 .modal-proceed-btn:hover { background: #0d1648; }
@@ -363,7 +436,7 @@ body {
 .form-label { font-size: 12px; font-weight: 600; color: var(--dark); margin-bottom: 4px; display: block; }
 .form-input {
   height: 40px; width: 100%;
-  border: 1px solid var(--border); border-radius: 3px;
+  border: 1px solid var(--border); border-radius: 2px;
   padding: 0 10px; font-size: 13px; color: var(--body-text);
   background: #fff; outline: none;
 }
@@ -371,7 +444,7 @@ body {
 .radio-row {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 12px;
-  border: 1px solid var(--border); border-radius: 3px;
+  border: 1px solid var(--border); border-radius: 2px;
   margin-bottom: 6px; cursor: pointer;
 }
 .radio-row.selected { border-color: var(--primary); background: #f0f2f8; }
@@ -482,34 +555,39 @@ body {
 ### SNIPPET: filter-bar
 
 ```html
-<!-- SNIPPET: filter-bar — toggle, search, dropdowns, spacer, action buttons -->
+<!-- SNIPPET: filter-bar — REAL outbound v2 toolbar.
+     Left: result count · Filter button (with orange count badge) · segmented [field-dropdown | search].
+     Right (after spacer): column-config gear (tune) · export (file_download). -->
 <div class="filter-bar">
-  <button class="filter-toggle-btn">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <line x1="3" y1="6"  x2="21" y2="6"/>
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
+  <!-- result count (left) -->
+  <span class="text-custom-grey" style="font-weight:600; font-size:13px; margin-right:8px">184 results found</span>
+
+  <!-- Filter button with applied-count badge -->
+  <button class="filter-toggle-btn" style="position:relative">
+    <span class="material-symbols-outlined" style="font-size:18px">filter_list</span>
     Filter
+    <span style="display:inline-flex; align-items:center; justify-content:center; height:16px; min-width:18px; padding:0 4px; margin-left:4px; background:#ffe0b2; color:#4D5055; font-size:11px; font-weight:600; border-radius:8px">2</span>
   </button>
-  <input type="text" class="smaller-input" placeholder="Search by Order ID, SKU…">
-  <select class="custom-dropdown">
-    <option value="">Status: All</option>
-    <option>Completed</option>
-    <option>In Progress</option>
-    <option>Pending</option>
-    <option>Failed</option>
+
+  <!-- Segmented search: field dropdown joined to search input -->
+  <select class="custom-dropdown" aria-label="Search field">
+    <option>Order ID</option>
+    <option>SKU ID</option>
+    <option>Route ID</option>
+    <option>Shipping ID</option>
   </select>
-  <select class="custom-dropdown">
-    <option value="">Zone: All</option>
-    <option>Zone A</option>
-    <option>Zone B</option>
-    <option>Zone C</option>
-  </select>
+  <input type="text" class="smaller-input smaller-input-joined" placeholder="Search...">
+
   <div class="filter-spacer"></div>
-  <button class="filter-action-btn">Save Filter</button>
-  <button class="filter-action-btn">Export</button>
-  <button class="filter-refresh-btn" title="Refresh">&#8635;</button>
+
+  <!-- Configure columns -->
+  <button class="filter-refresh-btn" title="Configure columns">
+    <span class="material-symbols-outlined" style="font-size:18px">tune</span>
+  </button>
+  <!-- Export -->
+  <button class="filter-refresh-btn" title="Export data">
+    <span class="material-symbols-outlined" style="font-size:18px">file_download</span>
+  </button>
 </div>
 ```
 
@@ -518,31 +596,28 @@ body {
 ### SNIPPET: table-header
 
 ```html
-<!-- SNIPPET: table-header — <thead> with checkbox, 5 data cols, actions; CSS sort triangles -->
+<!-- SNIPPET: table-header — REAL outbound v2 order-list columns.
+     Col 1 = select+expand (sticky 75px), Col 2 = Order Info (sticky). Sort triangles on sortable cols.
+     NOTE: when find-related-context returns the real :columns array for THIS ticket, use THOSE labels
+     instead of these outbound defaults. -->
 <thead>
   <tr>
-    <th class="th-check"><input type="checkbox"></th>
-    <th>
-      Order ID
+    <th class="th-select-expand"><input type="checkbox"></th>
+    <th>Order Info</th>
+    <th>Status</th>
+    <th>Station Info</th>
+    <th>Priority
       <span class="sort-ico"><span class="up active"></span><span class="dn"></span></span>
     </th>
-    <th>
-      SKU / Item
+    <th>PAT
       <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
     </th>
-    <th>
-      Zone
+    <th>PBT
       <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
     </th>
-    <th>
-      Status
-      <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
-    </th>
-    <th>
-      Updated At
-      <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
-    </th>
-    <th class="th-actions">Actions</th>
+    <th>Order Type</th>
+    <th>Shipping ID</th>
+    <th class="th-actions">Action</th>
   </tr>
 </thead>
 ```
@@ -552,35 +627,45 @@ body {
 ### SNIPPET: table-row
 
 ```html
-<!-- SNIPPET: table-row — standard data row, body text uses var(--body-text) = #4D5055 -->
+<!-- SNIPPET: table-row — REAL outbound v2 row. Col 1 = checkbox + expand arrow together.
+     Status cell = chip + small progress label. Actions = flat round Material-icon buttons. -->
 <tr>
-  <td class="td-check"><input type="checkbox"></td>
+  <td class="td-select-expand">
+    <span class="select-expand-wrap">
+      <input type="checkbox">
+      <button class="expand-btn" onclick="toggleExpand(this)" title="Expand">
+        <span class="material-symbols-outlined">keyboard_arrow_right</span>
+      </button>
+    </span>
+  </td>
   <td style="font-weight:600; color:var(--primary)">ORD-00124</td>
-  <td>SKU-7821 — Widget A</td>
-  <td>Zone B</td>
-  <td><span class="chip chip-completed">Completed</span></td>
-  <td>2024-01-15 14:32</td>
+  <td>
+    <span class="status-cell">
+      <span class="chip chip-completed">Completed</span>
+      <span class="status-progress">12/12</span>
+    </span>
+  </td>
+  <td>PPS-07</td>
+  <td>High</td>
+  <td>14:32</td>
+  <td>18:00</td>
+  <td>B2C</td>
+  <td>SHIP-7821</td>
   <td class="td-actions">
-    <button class="act-btn" title="View detail">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </button>
-    <button class="act-btn" title="Edit">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-      </svg>
-    </button>
-    <button class="act-btn" title="Delete" style="color:#ED3324">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-        <path d="M10 11v6M14 11v6"/>
-        <path d="M9 6V4h6v2"/>
-      </svg>
-    </button>
+    <span class="row-actions-cell">
+      <button class="row-action-btn" title="View details">
+        <span class="material-symbols-outlined">description</span>
+      </button>
+      <button class="row-action-btn" title="Change priority">
+        <span class="material-symbols-outlined">swap_vert</span>
+      </button>
+      <button class="row-action-btn" title="Hold order">
+        <span class="material-symbols-outlined">pause</span>
+      </button>
+      <button class="row-action-btn" title="Cancel order">
+        <span class="material-symbols-outlined">cancel</span>
+      </button>
+    </span>
   </td>
 </tr>
 ```
@@ -590,52 +675,73 @@ body {
 ### SNIPPET: expandable-parent-row
 
 ```html
-<!-- SNIPPET: expandable-parent-row — row-expanded bg #FFF6ED, toggle arrow -->
-<!-- JS: toggle 'row-expanded' on parent tr; show/hide child tr with class 'child-row' -->
+<!-- SNIPPET: expandable-parent-row — REAL pattern. Parent row gets .row-expanded (bg #FFF6ED) when open;
+     child row .expanded-td (bg #FFFCF8) holds a sub-orders / order-lines nested table.
+     JS toggles the arrow icon (keyboard_arrow_right ⇄ keyboard_arrow_down) and the classes. -->
 <tr class="row-expanded" data-id="ORD-00125">
-  <td class="td-check"><input type="checkbox"></td>
-  <td>
-    <button class="expand-btn" onclick="toggleExpand(this)" title="Expand">&#9654;</button>
-    <span style="font-weight:600; color:var(--primary); margin-left:4px">ORD-00125</span>
+  <td class="td-select-expand">
+    <span class="select-expand-wrap">
+      <input type="checkbox">
+      <button class="expand-btn expanded" onclick="toggleExpand(this)" title="Collapse">
+        <span class="material-symbols-outlined">keyboard_arrow_down</span>
+      </button>
+    </span>
   </td>
-  <td>SKU-4412 — Widget B (3 sub-orders)</td>
-  <td>Zone A</td>
-  <td><span class="chip chip-inprogress">In Progress</span></td>
-  <td>2024-01-15 13:10</td>
+  <td style="font-weight:600; color:var(--primary)">ORD-00125</td>
+  <td>
+    <span class="status-cell">
+      <span class="chip chip-inprogress">In Progress</span>
+      <span class="status-progress">5/12</span>
+    </span>
+  </td>
+  <td>PPS-03</td>
+  <td>High</td>
+  <td>13:10</td>
+  <td>17:30</td>
+  <td>B2B</td>
+  <td>SHIP-4412</td>
   <td class="td-actions">
-    <button class="act-btn" title="View detail">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </button>
+    <span class="row-actions-cell">
+      <button class="row-action-btn" title="View details"><span class="material-symbols-outlined">description</span></button>
+      <button class="row-action-btn" title="Hold order"><span class="material-symbols-outlined">pause</span></button>
+    </span>
   </td>
 </tr>
-<!-- SNIPPET: expanded-child-row — expanded-td bg #FFFCF8 -->
-<tr class="child-row" style="display:none">
-  <td class="expanded-td" colspan="7">
-    <!-- Nested table for sub-orders -->
-    <table style="width:100%; border-collapse:collapse; font-size:12px">
+<!-- expanded child row — nested detail with Sub-Orders / Order Lines tabs (REAL OrderListDetail) -->
+<tr class="child-row">
+  <td class="expanded-td" colspan="10">
+    <div class="sub-nav" style="border-bottom:1px solid var(--border); padding-left:0">
+      <a class="sub-tab active" href="#">Sub-Orders</a>
+      <a class="sub-tab" href="#">Order Lines</a>
+    </div>
+    <table class="expanded-table" style="width:100%; border-collapse:collapse; font-size:13px">
       <thead>
         <tr>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Sub-Order ID</th>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">SKU</th>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Qty</th>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Status</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Sub-Order ID</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Status</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">SKU ID</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">UOM</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Action</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">SUB-001</td>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">SKU-4412-A</td>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">12</td>
-          <td style="padding:6px 12px; border-bottom:1px solid var(--border)"><span class="chip chip-completed">Completed</span></td>
+          <td style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border)">SUB-001</td>
+          <td style="padding:8px; border-bottom:1px solid var(--border)"><span class="chip chip-completed">Completed</span></td>
+          <td style="padding:8px; color:var(--info); font-weight:600; border-bottom:1px solid var(--border)">SKU-4412-A</td>
+          <td style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border)">EA</td>
+          <td style="padding:8px; border-bottom:1px solid var(--border)">
+            <button class="row-action-btn" title="View details"><span class="material-symbols-outlined">description</span></button>
+          </td>
         </tr>
         <tr>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">SUB-002</td>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">SKU-4412-B</td>
-          <td style="padding:6px 12px; color:var(--body-text); border-bottom:1px solid var(--border)">8</td>
-          <td style="padding:6px 12px; border-bottom:1px solid var(--border)"><span class="chip chip-pending">Pending</span></td>
+          <td style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border)">SUB-002</td>
+          <td style="padding:8px; border-bottom:1px solid var(--border)"><span class="chip chip-inprogress">In Progress</span></td>
+          <td style="padding:8px; color:var(--info); font-weight:600; border-bottom:1px solid var(--border)">SKU-4412-B</td>
+          <td style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border)">EA</td>
+          <td style="padding:8px; border-bottom:1px solid var(--border)">
+            <button class="row-action-btn" title="View details"><span class="material-symbols-outlined">description</span></button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -645,11 +751,14 @@ body {
 function toggleExpand(btn) {
   var parentRow = btn.closest('tr');
   var childRow = parentRow.nextElementSibling;
-  var expanded = childRow.style.display !== 'none';
-  childRow.style.display = expanded ? 'none' : 'table-row';
-  btn.innerHTML = expanded ? '&#9654;' : '&#9660;';
-  if (!expanded) { parentRow.classList.add('row-expanded'); }
-  else { parentRow.classList.remove('row-expanded'); }
+  var icon = btn.querySelector('.material-symbols-outlined');
+  var willExpand = !parentRow.classList.contains('row-expanded');
+  parentRow.classList.toggle('row-expanded', willExpand);
+  btn.classList.toggle('expanded', willExpand);
+  if (icon) icon.textContent = willExpand ? 'keyboard_arrow_down' : 'keyboard_arrow_right';
+  if (childRow && childRow.classList.contains('child-row')) {
+    childRow.style.display = willExpand ? 'table-row' : 'none';
+  }
 }
 </script>
 ```
@@ -659,23 +768,24 @@ function toggleExpand(btn) {
 ### SNIPPET: expanded-child-row
 
 ```html
-<!-- SNIPPET: expanded-child-row — standalone child row (use inside expandable-parent-row context) -->
+<!-- SNIPPET: expanded-child-row — standalone child row (use inside expandable-parent-row context).
+     colspan must equal the parent table's column count. Headers #4D5055, cells #4D5055 weight 600. -->
 <tr class="child-row">
-  <td class="expanded-td" colspan="7">
+  <td class="expanded-td" colspan="10">
     <!-- Replace inner content with ticket-specific nested table or detail panel -->
-    <table style="width:100%; border-collapse:collapse; font-size:12px">
+    <table class="expanded-table" style="width:100%; border-collapse:collapse; font-size:13px">
       <thead>
         <tr>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Field 1</th>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Field 2</th>
-          <th style="padding:6px 12px; color:var(--dark); font-weight:600; border-bottom:1px solid var(--border); text-align:left">Status</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Field 1</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Field 2</th>
+          <th style="padding:8px; color:#4D5055; font-weight:600; border-bottom:1px solid var(--border); text-align:left">Status</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td style="padding:6px 12px; color:var(--body-text)">Value A</td>
-          <td style="padding:6px 12px; color:var(--body-text)">Value B</td>
-          <td style="padding:6px 12px"><span class="chip chip-active">Active</span></td>
+          <td style="padding:8px; color:#4D5055; font-weight:600">Value A</td>
+          <td style="padding:8px; color:#4D5055; font-weight:600">Value B</td>
+          <td style="padding:8px"><span class="chip chip-active">Active</span></td>
         </tr>
       </tbody>
     </table>
@@ -688,21 +798,24 @@ function toggleExpand(btn) {
 ### SNIPPET: status-chips
 
 ```html
-<!-- SNIPPET: status-chips — all chip variants for reference; text is #4D5055 except chip-critical -->
+<!-- SNIPPET: status-chips — real status buckets from STATUS_COLOR_MAP; text #4D5055 except chip-critical.
+     Pick the class whose bucket matches the ticket's status string:
+       GREEN  #ebf5e8 → Completed, Released, Completed - Short Picked
+       AMBER  #ffeedc → In Progress (+ Staging/Picking/Put/Cancellation/On Hold/Staged Failed)
+       RED    #ffd8d7 → Cancelled, Unfulfillable, Abandoned, Failed
+       GREY   #ececec → Created (and Closed / N/A) -->
 <div style="display:flex; flex-wrap:wrap; gap:8px; padding:8px">
   <span class="chip chip-completed">Completed</span>
-  <span class="chip chip-active">Active</span>
-  <span class="chip chip-open">Open</span>
+  <span class="chip chip-released">Released</span>
   <span class="chip chip-created">Created</span>
   <span class="chip chip-inprogress">In Progress</span>
-  <span class="chip chip-pending">Pending</span>
-  <span class="chip chip-offline">Offline</span>
-  <span class="chip chip-failed">Failed</span>
+  <span class="chip chip-staging">Staging In Progress</span>
+  <span class="chip chip-onhold">On Hold - Pending Inventory</span>
   <span class="chip chip-cancelled">Cancelled</span>
-  <span class="chip chip-closed">Closed</span>
-  <span class="chip chip-breached">Breached</span>
+  <span class="chip chip-unfulfillable">Unfulfillable</span>
+  <span class="chip chip-failed">Failed</span>
+  <span class="chip chip-abandoned">Abandoned</span>
   <span class="chip chip-critical">Critical</span>
-  <span class="chip chip-na">N/A</span>
 </div>
 ```
 
@@ -711,31 +824,18 @@ function toggleExpand(btn) {
 ### SNIPPET: action-buttons
 
 ```html
-<!-- SNIPPET: action-buttons — 3 standard 26×26px act-btn buttons -->
+<!-- SNIPPET: action-buttons — REAL outbound row actions: flat round Material-icon buttons (primary, no border).
+     Pick icons matching the ticket's available actions. Common outbound actions + icons:
+       view details = description · cancel = cancel · change PBT = history · change PAT = update
+       change priority = swap_vert · hold = pause · unhold = play_arrow · force release = flash_on -->
 <div class="td-actions">
-  <!-- View detail -->
-  <button class="act-btn" title="View detail">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  </button>
-  <!-- Edit -->
-  <button class="act-btn" title="Edit">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  </button>
-  <!-- Delete -->
-  <button class="act-btn" title="Delete" style="color:#ED3324">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <polyline points="3 6 5 6 21 6"/>
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-      <path d="M10 11v6M14 11v6"/>
-      <path d="M9 6V4h6v2"/>
-    </svg>
-  </button>
+  <span class="row-actions-cell">
+    <button class="row-action-btn" title="View details"><span class="material-symbols-outlined">description</span></button>
+    <button class="row-action-btn" title="Change priority"><span class="material-symbols-outlined">swap_vert</span></button>
+    <button class="row-action-btn" title="Hold order"><span class="material-symbols-outlined">pause</span></button>
+    <span class="row-actions-sep"></span>
+    <button class="row-action-btn" title="Cancel order"><span class="material-symbols-outlined">cancel</span></button>
+  </span>
 </div>
 ```
 
@@ -744,23 +844,22 @@ function toggleExpand(btn) {
 ### SNIPPET: pagination-row
 
 ```html
-<!-- SNIPPET: pagination-row — rows-per-page, < numbered pages … N > -->
+<!-- SNIPPET: pagination-row — REAL outbound bottom bar: results-found (left), Results per page [50/100/200]
+     + page buttons (right). Bottom bar border-top #e0e0e0, max 6 page buttons, active = secondary. -->
 <div class="custom-pagination">
-  <span class="pagination-label">Rows per page:</span>
+  <span class="text-custom-grey" style="font-weight:600">184 results found</span>
+  <div class="pg-spacer"></div>
+  <span class="pagination-label">Results per page:</span>
   <select class="pg-rows-select">
-    <option>10</option>
-    <option>25</option>
     <option>50</option>
     <option>100</option>
+    <option>200</option>
   </select>
-  <div class="pg-spacer"></div>
-  <span class="pagination-label">1 – 10 of 184</span>
   <button class="pg-btn">&#8249;</button><!-- < -->
   <button class="pg-btn active">1</button>
   <button class="pg-btn">2</button>
   <button class="pg-btn">3</button>
-  <span style="padding:0 4px; color:var(--dark)">…</span>
-  <button class="pg-btn">19</button>
+  <button class="pg-btn">4</button>
   <button class="pg-btn">&#8250;</button><!-- > -->
 </div>
 ```

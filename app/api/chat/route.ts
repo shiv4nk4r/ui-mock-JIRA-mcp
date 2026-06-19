@@ -197,7 +197,15 @@ function buildSystemPrompt(
   hasMcpCodeTools = false,
   componentLibraryContext = ""
 ): string {
-  const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.`;
+  const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.
+
+IMPORTANT — WEB API MODE:
+- You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
+- The Jira ticket data is already provided below — do NOT call any Atlassian MCP tools.
+- Do NOT read or follow any CLAUDE.md files in the project directory.
+- Do NOT ask the user to run /mcp or authenticate with any service.
+- The Read tool is ONLY for product screenshot images in the src/mcp-context/ directory.
+- Use mcp__md__* tools to read the manager-dashboard codebase only.`;
 
   const hasSomeContext = archContext || designContext || sitemapContext;
   if (!hasSomeContext) return base;
@@ -286,8 +294,17 @@ function buildSystemPrompt(
       "STEP 4 — Confirm GraphQL field names:",
       "  list-graphql(domain) → read-source-file on the query → note exact field names.",
       "",
-      "STEP 5 — Generate mockup:",
-      "  Only now write HTML. Every structural decision must come from steps 1–4.",
+      "STEP 5 — Generate mockup using BOTH context sources together:",
+      "  You have TWO complementary sources and MUST use both:",
+      "    (A) LIVE MCP CODEBASE TOOLS (this section) → the WHAT: real columns, status strings,",
+      "        field names, filters, row actions, and layout for THIS ticket's feature.",
+      "    (B) COMPONENT LIBRARY + design.md (mcp-context, injected below) → the HOW: exact CSS,",
+      "        classes, and HTML snippets to render those real elements pixel-accurately.",
+      "  Compose them: take the real columns/statuses/actions from (A) and render them with the",
+      "  BASE CSS BLOCK + SNIPPETs from (B). Never invent columns/data when (A) returned them; never",
+      "  invent CSS/colors when (B) defines them.",
+      "  Calling find-related-context (or other mcp__md__* tools) at least once is REQUIRED — do not",
+      "  skip straight to HTML from the library alone.",
       "",
       "FALLBACK (if MCP unavailable):",
       `  Use Read('${MD_REPO_ROOT}/mdui/src/pages/<domain>/...') to find the page component.`,
@@ -304,11 +321,13 @@ function buildSystemPrompt(
       "=== END COMPONENT LIBRARY ===",
       "",
       "MANDATORY COMPONENT LIBRARY RULES:",
-      "1. COPY the Section 1 BASE CSS BLOCK verbatim into your <style>. No modifications.",
+      "0. PRECEDENCE: The BASE CSS BLOCK is the single source of truth for every pixel value, color, font, border, and class. Where design.md and the component library disagree on ANY value, the component library WINS. design.md is for structure/behavior context only — never copy CSS numbers or hex colors from it.",
+      "1. COPY the Section 1 BASE CSS BLOCK verbatim into your <style>. No modifications, no omissions, no re-derived values.",
       "2. For each UI section, find the matching SNIPPET: <slug> and use that HTML as-is.",
-      "3. Only write NEW CSS for ticket-specific column widths and data layout.",
-      "4. NEVER re-derive component styles from design.md when a snippet exists.",
-      "5. Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼."
+      "3. Only write NEW CSS for ticket-specific column widths and data layout. Reuse the library classes for everything else.",
+      "4. NEVER invent or re-derive component styles, colors, or status-chip backgrounds — use the library classes.",
+      "5. Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼.",
+      "6. Status chips: pick the chip-* class whose bucket matches the status string. Never set a chip background inline."
     );
   }
 
@@ -324,27 +343,16 @@ function buildSystemPrompt(
       "...complete HTML...",
       "RAW_HTML_COMPONENT_END",
       "",
-      "MOCKUP RULES (all values from design.md — NEVER invent):",
-      "- Colors: ONLY — primary #101a5c, secondary #FE8400, positive #66bb6a, negative #ED3324,",
-      "    info #2982cc, warning #f9b115, body-text #4D5055",
+      "MOCKUP RULES:",
+      "- ALL visual values (colors, fonts, heights, borders, radius, chip backgrounds, table/header/body text) come from the COMPONENT LIBRARY BASE CSS BLOCK above. Copy it verbatim and use its classes. Do NOT copy CSS numbers or hex values from design.md or invent your own.",
       "- Font: Source Sans Pro — self-hosted (use Google Fonts CDN fallback in standalone HTML). Body 14px.",
-      "- Top bar: white bg, 56px sticky, GreyOrange G-mark SVG (orange) + 'Manager Dashboard' wordmarks",
-      "- Primary nav: #101a5c bg, 44px, orange 3px bottom-border on active tab",
-      "- Sub-tabs: white bg, 40px, orange 2px bottom-border on active (NOT a background change)",
-      "- Section banner: #101a5c bg, 40px, white text, pipe-separated stats",
-      "- Filter bar inputs: 35px height, border #E7E7E7 (NOT #d4d3d3), min-width 130px for dropdowns",
-      "- Table header: #F6F6F6 bg, text #636f83. Table body text: #4D5055",
-      "- Table rows: sort indicators = CSS triangles (▲▼), NOT Unicode arrows or Material Icons",
-      "- Expand rows: parent bg #FFF6ED when expanded; child cell bg #FFFCF8; arrow = ▶ collapsed / ▼ expanded (orange)",
-      "- Status chips: PASTEL backgrounds (e.g. Completed=#ebf5e8, Created=#e8f4fb, Offline=#ffd8d7) with #4D5055 text",
-      "    EXCEPTION: Critical/destructive only → background #ED3324 with white text",
-      "- Action buttons: 26×26px, 3px border-radius, outline style",
-      "- Pagination: 30px height, 12px font, #4D5055 text, border #E7E7E7; format < 1 2 3 … N >",
-      "- Modals: #101a5c header, white body, backdrop rgba(16,26,92,0.38), radio options as bordered rows",
-      "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only",
-      "- Implement EVERY status, state-transition, field-visibility, and column from the Jira ticket",
-      "- CRITICAL: If find-related-context returned real column definitions, use THOSE exact columns — not invented ones",
-      "- If product screenshots are provided, match the exact visual patterns you observe in them"
+      "- Page structure top-to-bottom: white 56px top bar (logo + 'Manager Dashboard') → navy #101a5c 44px primary nav → optional white 38px sub-tabs → navy #101a5c 40px section banner → white filter bar → data table → pagination row.",
+      "- Sort indicators = CSS triangles from the library, NEVER Unicode arrows or Material Icons.",
+      "- Status chips: use the chip-* class whose bucket matches the status string. Never set chip background inline.",
+      "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only.",
+      "- Implement EVERY status, state-transition, field-visibility, and column from the Jira ticket.",
+      "- CRITICAL: If find-related-context returned real column definitions, use THOSE exact columns — not invented ones.",
+      "- If product screenshots are provided, match the exact visual patterns you observe in them."
     );
   }
 
@@ -513,7 +521,14 @@ function buildUserMessage(
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
 function buildRefinementSystemPrompt(designContext = "", componentLibraryContext = ""): string {
-  const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.`;
+  const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
+
+IMPORTANT — WEB API MODE:
+- You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
+- This is a pure HTML-editing task. Do NOT call any tools. Do NOT read or follow any CLAUDE.md files.
+- Do NOT call Atlassian, MCP, codebase, or filesystem tools. Do NOT ask the user to run /mcp or authenticate.
+- The full HTML to edit is provided in the user message. Edit it directly and return it — nothing else is needed.
+- Your FIRST and ONLY action is to output the complete updated HTML wrapped in the required markers.`;
 
   const parts: string[] = [base];
   if (designContext) {
@@ -530,10 +545,12 @@ function buildRefinementSystemPrompt(designContext = "", componentLibraryContext
       "=== END COMPONENT LIBRARY ===",
       "",
       "MANDATORY COMPONENT LIBRARY RULES:",
-      "1. The BASE CSS BLOCK must be present verbatim in <style>. If missing, add it.",
-      "2. Correct any deviation from BASE CSS BLOCK values (wrong heights, colors, chip backgrounds).",
+      "0. PRECEDENCE: The BASE CSS BLOCK is authoritative. Where the current HTML or design.md disagrees with the library on any value, conform the HTML to the library.",
+      "1. The BASE CSS BLOCK must be present verbatim in <style>. If missing or altered, replace it with the verbatim block.",
+      "2. Correct any deviation from BASE CSS BLOCK values (wrong heights, colors, border-radius, chip backgrounds, header/body text colors).",
       "3. Replace any Unicode sort indicators (▲▼) with the CSS triangle pattern from the BASE CSS BLOCK.",
-      "4. Status chips must use pastel class backgrounds — never solid Quasar color tokens."
+      "4. Status chips must use the chip-* class whose bucket matches the status — never solid Quasar tokens or inline backgrounds.",
+      "5. Apply ONLY the change in the refinement request; preserve all other existing markup and data verbatim."
     );
   }
   parts.push(
@@ -653,10 +670,11 @@ function streamClaudeCode(
         const thinkingStart = Date.now();
         send({ thinking: `Analysing ticket with model ${model}…` });
 
-        const allowedTools = [
-          "Write", "Read",
-          ...MD_MCP_TOOLS,
-        ].join(",");
+        // Refinement is a pure HTML-edit task — no codebase tools, no MCP server.
+        // Initial generation needs the manager-dashboard MCP code tools.
+        const allowedTools = isRefinement
+          ? "Read"
+          : ["Write", "Read", ...MD_MCP_TOOLS].join(",");
 
         const spawnArgs = [
           "--print",
@@ -665,7 +683,8 @@ function streamClaudeCode(
           // "--model", "claude-haiku-4-5",
           "--model", model,
           "--system-prompt-file", tmpFile,
-          "--mcp-config", mcpConfigFile,
+          // MCP code server is only useful for initial generation.
+          ...(isRefinement ? [] : ["--mcp-config", mcpConfigFile]),
           // "--max-budget-usd", "2",
           "--allowedTools", allowedTools,
         ];

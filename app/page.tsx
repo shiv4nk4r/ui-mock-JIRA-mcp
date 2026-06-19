@@ -683,6 +683,16 @@ export default function Home() {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleRefine(); }
   }
 
+  // ── Open mockup in a full browser tab (real top-level document) ──────────────
+  function openFullPage(html: string) {
+    if (!html) return;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    // Revoke after the new tab has had time to load.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
   // ── Clear ──────────────────────────────────────────────────────────────────
 
   function clearSession() {
@@ -878,6 +888,14 @@ export default function Home() {
                 <span style={{ ...F.condensed, fontSize: 9, color: "#D97706", letterSpacing: "0.15em" }}>Applying refinement…</span>
               </div>
             )}
+            {activeHtml && activeTab === "mockup" && (
+              <button onClick={() => openFullPage(activeHtml)}
+                className="flex items-center gap-1.5 px-4 transition-colors duration-150 hover:bg-amber-50"
+                style={{ ...F.condensed, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#D97706", borderLeft: "1px solid #E2DDD8" }}
+                title="Open this mockup in a new full-page browser tab">
+                ⤢ Full Page
+              </button>
+            )}
           </div>
 
           {/* ── Mockup tab ─────────────────────────────────────────────────── */}
@@ -892,7 +910,7 @@ export default function Home() {
                         <span style={{ ...F.condensed, fontSize: 11, color: "#D97706", letterSpacing: "0.2em", textTransform: "uppercase" }}>Applying refinements…</span>
                       </div>
                     )}
-                    <iframe srcDoc={activeHtml} sandbox="allow-scripts allow-same-origin" className="w-full h-full bg-white" style={{ border: "none" }} title="UI Mockup Preview" />
+                    <iframe srcDoc={activeHtml} sandbox="allow-scripts" className="w-full h-full bg-white" style={{ border: "none" }} title="UI Mockup Preview" />
                   </>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -985,14 +1003,22 @@ export default function Home() {
                               {`v${messages.slice(0, midx + 1).filter(m => m.htmlComponent).length}`} · Mockup snapshot
                             </span>
                           </div>
-                          <button onClick={() => { setActiveHtml(msg.htmlComponent!); setActiveTab("mockup"); }}
-                            className="flex items-center gap-1.5 px-2.5 py-1 border text-xs transition-all duration-150"
-                            style={{ ...F.condensed, fontSize: 9, letterSpacing: "0.15em", color: "#D97706", borderColor: "rgba(217,119,6,0.3)", background: "rgba(217,119,6,0.06)" }}
-                            title="Restore this version as the active mockup">
-                            ↑ Load Version
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => { setActiveHtml(msg.htmlComponent!); setActiveTab("mockup"); }}
+                              className="flex items-center gap-1.5 px-2.5 py-1 border text-xs transition-all duration-150"
+                              style={{ ...F.condensed, fontSize: 9, letterSpacing: "0.15em", color: "#D97706", borderColor: "rgba(217,119,6,0.3)", background: "rgba(217,119,6,0.06)" }}
+                              title="Restore this version as the active mockup">
+                              ↑ Load Version
+                            </button>
+                            <button onClick={() => openFullPage(msg.htmlComponent!)}
+                              className="flex items-center gap-1.5 px-2.5 py-1 border text-xs transition-all duration-150"
+                              style={{ ...F.condensed, fontSize: 9, letterSpacing: "0.15em", color: "#6A6560", borderColor: "#D0CCC6", background: "transparent" }}
+                              title="Open this version in a new full-page browser tab">
+                              ⤢ Full Page
+                            </button>
+                          </div>
                         </div>
-                        <iframe srcDoc={msg.htmlComponent} sandbox="allow-scripts allow-same-origin" className="w-full bg-white" style={{ height: "280px", border: "none" }} title={`Mockup v${midx}`} />
+                        <iframe srcDoc={msg.htmlComponent} sandbox="allow-scripts" className="w-full bg-white" style={{ height: "280px", border: "none" }} title={`Mockup v${midx}`} />
                       </div>
                     )}
 
