@@ -3,16 +3,29 @@ import { spawn } from "child_process";
 import { writeFileSync, unlinkSync, mkdirSync } from "fs";
 import { tmpdir, homedir } from "os";
 import { join } from "path";
+import { request as httpRequest } from "node:http";
 import {
   fetchContextResources,
   listProductScreenshots,
   screenshotPath,
 } from "@/mcp-bridge";
+import {
+  buildMockupGrounding,
+  injectGroundingIntoHtml,
+  stripInjectedCaptureCss,
+  type MockupGrounding,
+} from "@/capture-grounding";
+import { LEAN_MOCKUP_RUN, formatRouteHints } from "@/lean-mockup-run";
+import { resolveCaptureLabel, surveyPageTemplates } from "@/capture-catalog";
 
 export const dynamic = "force-dynamic";
 
 // Path to the manager-dashboard source repo indexed by the MCP server.
 const MD_REPO_ROOT = process.env.MD_REPO_ROOT ?? "/Users/manish.c/workplace/manager-dashboard";
+
+// URL of the persistent HTTP MCP server (src/mcp-http-server.ts).
+const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://127.0.0.1:3100/mcp";
+const MCP_HEALTH_URL = MCP_SERVER_URL.replace(/\/mcp$/, "/health");
 
 // MCP tool names exposed by src/md-mcp-server.ts (server name = "md").
 const MD_MCP_TOOLS = [
@@ -33,6 +46,10 @@ const MD_MCP_TOOLS = [
   "mcp__md__get-resolver-info",
   // Compound context tool — preferred first call for every ticket
   "mcp__md__find-related-context",
+  // Capture-grounded visual tools — require `npm run crawl` to populate
+  "mcp__md__list-captured-pages",
+  "mcp__md__survey-page-templates",
+  "mcp__md__get-page-template",
 ] as const;
 
 // ── Token pricing (USD per 1 M tokens: [input, output]) ───────────────────────
@@ -195,7 +212,9 @@ function buildSystemPrompt(
   designContext  = "",
   sitemapContext = "",
   hasMcpCodeTools = false,
-  componentLibraryContext = ""
+  componentLibraryContext = "",
+  templateSurveyContext = "",
+  mockupGrounding: MockupGrounding | null = null,
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.
 
@@ -250,10 +269,17 @@ IMPORTANT — WEB API MODE:
       "",
       "─── TOOL CATALOGUE ───────────────────────────────────────────────────────",
       "",
-      "  PRIMARY — call this FIRST, before any thinking or planning:",
+  "  CAPTURE-GROUNDED VISUAL TOOLS (require `npm run crawl` to populate):",
+      "  • survey-page-templates — Full catalog of all crawled routes by archetype.",
+      "      ALREADY IN SYSTEM PROMPT when captures exist — do NOT call again.",
+      "  • get-page-template    — Stripped DOM template for 1–6 routes in one call.",
+      "      routes=[primary, ...grafts] — prefer array form. CSS auto-injected server-side.",
+      "  • list-captured-pages  — List all crawled pages (route, title, detected components).",
+      "",
+      "  PRIMARY CODE TOOL — call this when captures are unavailable or for exact field names:",
       "  • find-related-context — Takes keywords from the ticket → scores every .vue file by",
       "      filename + content match → returns top-N with API surface + source code.",
-      "      ONE call replaces 3–5 individual lookups. Call it immediately.",
+      "      ONE call replaces 3–5 individual lookups.",
       "",
       "  FILESYSTEM (fast, always available):",
       "  • list-routes          — Full Vue Router route tree (exact hash paths + page components)",
@@ -274,37 +300,25 @@ IMPORTANT — WEB API MODE:
       "",
       "─── REQUIRED WORKFLOW ────────────────────────────────────────────────────",
       "",
-      "STEP 1 — FIRST ACTION (mandatory, no exceptions):",
-      "  Call mcp__md__find-related-context BEFORE any reasoning or planning.",
-      "  From the ticket summary, extract 3–6 keywords:",
-      "    domain (e.g. 'outbound', 'inbound', 'inventory', 'audit')",
-      "    feature (e.g. 'order', 'exception', 'listing', 'filter', 'detail')",
-      "  Call the tool with those keywords immediately.",
+      "PATH A — Visual grounding (when PAGE TEMPLATE SURVEY is in the system prompt):",
+      "  STEP A1: Pick the best route from the survey (already embedded above).",
+      "  STEP A2: Call get-page-template(routes=[primary, ...grafts]) — ONE call, max 3 routes.",
+      "  STEP A3: Call find-related-context with ticket keywords to get real field names/columns.",
+      "  STEP A4: Graft ticket-specific columns, statuses, and actions onto the real template HTML.",
       "",
-      "STEP 2 — Study returned components:",
-      "    • Column definitions → reproduce those EXACT columns, nothing else",
-      "    • Filter classes     → .custom-dropdown / .smaller-input if present",
-      "    • Expand rows        → row-expanded + expanded-td if present",
-      "    • Apollo queries     → use those exact field names in the table",
-      "    • Status strings     → use the actual values from the real component",
+      "PATH B — Code grounding (when no captures or survey is missing):",
+      "  STEP B1: Call find-related-context with keywords from the ticket (MANDATORY first call).",
+      "  STEP B2: Study returned components for column definitions, filter classes, Apollo queries.",
+      "  STEP B3: Read truncated files with read-source-file if source was cut off.",
+      "  STEP B4: Confirm GraphQL field names: list-graphql(domain) → read-source-file on the query.",
       "",
-      "STEP 3 — Read truncated files in full:",
-      "  Any file whose source was cut off → call read-source-file(path).",
-      "",
-      "STEP 4 — Confirm GraphQL field names:",
-      "  list-graphql(domain) → read-source-file on the query → note exact field names.",
-      "",
-      "STEP 5 — Generate mockup using BOTH context sources together:",
-      "  You have TWO complementary sources and MUST use both:",
-      "    (A) LIVE MCP CODEBASE TOOLS (this section) → the WHAT: real columns, status strings,",
-      "        field names, filters, row actions, and layout for THIS ticket's feature.",
-      "    (B) COMPONENT LIBRARY + design.md (mcp-context, injected below) → the HOW: exact CSS,",
-      "        classes, and HTML snippets to render those real elements pixel-accurately.",
-      "  Compose them: take the real columns/statuses/actions from (A) and render them with the",
-      "  BASE CSS BLOCK + SNIPPETs from (B). Never invent columns/data when (A) returned them; never",
-      "  invent CSS/colors when (B) defines them.",
-      "  Calling find-related-context (or other mcp__md__* tools) at least once is REQUIRED — do not",
-      "  skip straight to HTML from the library alone.",
+      "STEP FINAL — Generate mockup using ALL context together:",
+      "  (A) Captured template HTML (PATH A) → real layout, real Quasar classes, real nav structure",
+      "  (B) find-related-context result     → real columns, status strings, field names",
+      "  (C) COMPONENT LIBRARY + design.md   → exact CSS classes and HTML snippets",
+      "  Never invent columns/data when (B) returned them.",
+      "  Never invent CSS/colors when (C) defines them.",
+      "  Captured Quasar CSS is AUTO-INJECTED — preserve q-table/q-btn/q-dialog class names.",
       "",
       "FALLBACK (if MCP unavailable):",
       `  Use Read('${MD_REPO_ROOT}/mdui/src/pages/<domain>/...') to find the page component.`,
@@ -329,6 +343,23 @@ IMPORTANT — WEB API MODE:
       "5. Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼.",
       "6. Status chips: pick the chip-* class whose bucket matches the status string. Never set a chip background inline."
     );
+  }
+
+  if (enableVisualSkill) {
+    sections.push(LEAN_MOCKUP_RUN);
+  }
+
+  if (enableVisualSkill && templateSurveyContext) {
+    sections.push(
+      "=== PAGE TEMPLATE SURVEY (pre-fetched — do NOT call survey-page-templates) ===",
+      templateSurveyContext,
+      "Survey complete. Proceed: get-page-template(routes=[...]) in one call.",
+      "=== END PAGE TEMPLATE SURVEY ==="
+    );
+  }
+
+  if (enableVisualSkill && mockupGrounding?.available && mockupGrounding.promptBlock) {
+    sections.push(mockupGrounding.promptBlock);
   }
 
   if (enableVisualSkill) {
@@ -579,6 +610,20 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
 
 // ── Provider: Claude Code (local CLI subprocess) ──────────────────────────────
 // Spawns `claude --print --output-format stream-json` as a child process.
+// ── MCP server health check ───────────────────────────────────────────────────
+
+/** Returns true when the persistent HTTP MCP server responds to /health. */
+function isMcpServerReady(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = httpRequest(MCP_HEALTH_URL, { method: "GET", timeout: 2000 }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+    req.end();
+  });
+}
+
 // The system prompt is written to a temp file to avoid argument-length limits.
 // Output is newline-delimited JSON; we extract text from assistant messages.
 
@@ -595,6 +640,8 @@ function streamClaudeCode(
   isRefinement = false,
   currentHtml?: string,
   componentLibraryContext = "",
+  templateSurveyContext = "",
+  mockupGrounding: MockupGrounding | null = null,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -603,8 +650,8 @@ function streamClaudeCode(
       const send = (data: Record<string, unknown>) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-      const logger = new SessionLogger(ticketId, "claude-code", model);
-      const tmpFile      = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
+      const logger  = new SessionLogger(ticketId, "claude-code", model);
+      const tmpFile = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
       const mcpConfigFile = join(tmpdir(), `md-mcp-config-${Date.now()}.json`);
       const designOutputDir = join(homedir(), "claude-ui-designs");
 
@@ -619,20 +666,26 @@ function streamClaudeCode(
         let userMessage:  string;
 
         if (isRefinement && currentHtml) {
-          // Refinement mode: shorter system prompt, current HTML in user message
+          // Strip injected CSS before sending to Claude — it gets re-injected after
+          const htmlForRefinement = stripInjectedCaptureCss(currentHtml);
           systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext);
-          userMessage  = buildRefinementUserMessage(currentHtml, additionalPmContext);
+          userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext);
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext);
+          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
-          // Prepend a hard first-action directive so it appears at the top of the
-          // human turn — highest-priority signal for the model.
-          const domain = inferDomain(jiraData.summary + " " + (jiraData.description ?? ""));
+          const ticketText = jiraData.summary + " " + (jiraData.description ?? "");
+          const domain = inferDomain(ticketText);
+          const routeHints = formatRouteHints(ticketText);
+
+          // Prepend first-action directive — highest-priority signal in the human turn.
+          const hasCaptures = mockupGrounding?.available ?? false;
           userMessage = [
-            `FIRST ACTION REQUIRED: Call mcp__md__find-related-context NOW with keywords from this ticket.`,
-            `Suggested keywords: ${domain.keywords.join(", ")}`,
+            hasCaptures
+              ? `FIRST ACTION: Call mcp__md__get-page-template with routes suggested by the PAGE TEMPLATE SURVEY in the system prompt.`
+              : `FIRST ACTION REQUIRED: Call mcp__md__find-related-context NOW with keywords from this ticket.`,
+            hasCaptures && routeHints ? routeHints : `Suggested keywords: ${domain.keywords.join(", ")}`,
             `Do NOT use the Read tool on ${MD_REPO_ROOT}. Use MCP tools only.`,
             ``,
             userMessage,
@@ -653,17 +706,26 @@ function streamClaudeCode(
 
         writeFileSync(tmpFile, systemPrompt, "utf8");
 
-        // ── Write MCP config for the manager-dashboard code server ───────
-        const mcpConfig = {
-          mcpServers: {
-            md: {
-              command: "npx",
-              args: ["tsx", join(process.cwd(), "src/md-mcp-server.ts")],
-              env: { MD_REPO_ROOT },
-            },
-          },
-        };
+        // ── Write MCP config pointing to the persistent HTTP server ──────
+        // Falls back to spawning the stdio server if the HTTP server isn't running.
+        const mcpServerReady = !isRefinement && await isMcpServerReady();
+
+        const mcpConfig = mcpServerReady
+          ? { mcpServers: { md: { type: "http", url: MCP_SERVER_URL } } }
+          : {
+              mcpServers: {
+                md: {
+                  command: "npx",
+                  args: ["tsx", join(process.cwd(), "src/md-mcp-server.ts")],
+                  env: { MD_REPO_ROOT },
+                },
+              },
+            };
         writeFileSync(mcpConfigFile, JSON.stringify(mcpConfig), "utf8");
+
+        if (!isRefinement) {
+          send({ thinking: mcpServerReady ? "MCP server ready (HTTP)" : "MCP server: starting stdio fallback…" });
+        }
 
         // ── Step 2: model inference ──────────────────────────────────────
         logger.beginStep();
@@ -789,8 +851,14 @@ function streamClaudeCode(
             const { displayText, html } = extractHtmlFromMarkers(allText);
             if (displayText) send({ delta: displayText });
             if (html) {
+              let finalHtml = html;
+              if (mockupGrounding?.available && mockupGrounding.cssText) {
+                finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
+                send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
+                logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
+              }
               logger.record("HTML mockup extracted from response");
-              send({ html });
+              send({ html: finalHtml });
             }
           }
 
@@ -851,10 +919,26 @@ export async function POST(request: Request) {
     }
   } catch { /* proceed without context if files are missing */ }
 
+  // ── Pre-fetch capture grounding + template survey (sync filesystem reads) ──
+  let mockupGrounding: MockupGrounding | null = null;
+  let templateSurveyContext = "";
+  if (enableVisualSkill && !isRefinement) {
+    try {
+      const grounding = buildMockupGrounding();
+      if (grounding.available) mockupGrounding = grounding;
+    } catch { /* no captures yet — gracefully skip */ }
+
+    try {
+      const label = resolveCaptureLabel();
+      if (label) templateSurveyContext = surveyPageTemplates(label);
+    } catch { /* no templates yet — Claude will call survey-page-templates via MCP */ }
+  }
+
   const activeModel = model ?? "claude-haiku-4-5-20251001";
   return streamClaudeCode(
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext,
     attachedFiles, isRefinement, currentHtml, componentLibraryContext,
+    templateSurveyContext, mockupGrounding,
   );
 }

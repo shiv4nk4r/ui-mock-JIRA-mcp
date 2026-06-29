@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n mcp,next -c cyan,green \"npm:dev:mcp\" \"next dev\"",
+    "dev:mcp": "npx tsx src/mcp-http-server.ts",
+    "dev:next": "next dev",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit"
+    "start:mcp": "npx tsx src/mcp-http-server.ts",
+    "type-check": "tsc --noEmit",
+    "crawl:login": "npx playwright install chromium --with-deps && npx tsx src/crawler/auth.ts",
+    "crawl": "npx tsx src/crawler/crawl.ts",
+    "analyze-captures": "npx tsx src/crawler/analyze-captures.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^2.1.161",
@@ -26,10 +32,14 @@
   },
   "devDependencies": {
     "@types/babel__traverse": "^7.20.6",
+    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
+    "concurrently": "^9.2.3",
+    "node-html-parser": "^7.1.0",
+    "playwright": "^1.61.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.0",
     "tsx": "^4.22.4",
