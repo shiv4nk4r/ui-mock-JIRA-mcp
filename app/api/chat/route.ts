@@ -27,6 +27,51 @@ const MD_REPO_ROOT = process.env.MD_REPO_ROOT ?? "/Users/manish.c/workplace/mana
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://127.0.0.1:3100/mcp";
 const MCP_HEALTH_URL = MCP_SERVER_URL.replace(/\/mcp$/, "/health");
 
+// ── Context resource cache ────────────────────────────────────────────────────
+// fetchContextResources() spins up an InMemory MCP client/server pair and reads
+// four files on every call. Cache the result — files change rarely during a dev
+// session and never in production.
+
+interface FetchedContextCache { data: Awaited<ReturnType<typeof fetchContextResources>>; expiresAt: number }
+let ctxCache: FetchedContextCache | null = null;
+const CTX_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedContext() {
+  if (ctxCache && Date.now() < ctxCache.expiresAt) return ctxCache.data;
+  const data = await fetchContextResources();
+  ctxCache = { data, expiresAt: Date.now() + CTX_TTL_MS };
+  return data;
+}
+
+// Pre-warm on module load so the first request hits cache, not cold file reads.
+getCachedContext().catch(() => { /* ignore — will retry on first request */ });
+
+// ── MCP health check cache ────────────────────────────────────────────────────
+// Avoid pinging :3100/health on every generation request.
+// Cache "ready" for 30 s; cache "not ready" for 5 s so a starting server is
+// detected quickly.
+
+interface McpHealthCache { ready: boolean; expiresAt: number }
+let mcpHealthCache: McpHealthCache | null = null;
+
+async function checkMcpServerReady(): Promise<boolean> {
+  if (mcpHealthCache && Date.now() < mcpHealthCache.expiresAt) return mcpHealthCache.ready;
+  const ready = await isMcpServerReady();
+  mcpHealthCache = { ready, expiresAt: Date.now() + (ready ? 30_000 : 5_000) };
+  return ready;
+}
+
+// ── Component library section splitter ───────────────────────────────────────
+// SECTION 1 (BASE CSS BLOCK, ~15 KB) is needed for both generation and
+// refinement — it has all CSS values Claude must copy verbatim.
+// SECTION 2 (HTML SNIPPETS, ~17 KB) is only useful when generating new HTML,
+// not when editing existing HTML in a refinement.
+
+function extractBaseCssBlock(componentLibrary: string): string {
+  const section2 = componentLibrary.indexOf("\n## SECTION 2:");
+  return section2 !== -1 ? componentLibrary.slice(0, section2).trimEnd() : componentLibrary;
+}
+
 // MCP tool names exposed by src/md-mcp-server.ts (server name = "md").
 const MD_MCP_TOOLS = [
   // Filesystem tools — fast, always available
@@ -708,7 +753,7 @@ function streamClaudeCode(
 
         // ── Write MCP config pointing to the persistent HTTP server ──────
         // Falls back to spawning the stdio server if the HTTP server isn't running.
-        const mcpServerReady = !isRefinement && await isMcpServerReady();
+        const mcpServerReady = !isRefinement && await checkMcpServerReady();
 
         const mcpConfig = mcpServerReady
           ? { mcpServers: { md: { type: "http", url: MCP_SERVER_URL } } }
@@ -906,11 +951,14 @@ export async function POST(request: Request) {
 
   let archContext = "", designContext = "", sitemapContext = "", componentLibraryContext = "";
   try {
-    const ctx = await fetchContextResources();
+    const ctx = await getCachedContext();
     if (isRefinement) {
-      // Refinements only need design rules + component library — skips arch + sitemap (saves ~15k tokens)
-      designContext            = ctx.design;
-      componentLibraryContext  = ctx.componentLibrary;
+      // Refinements are pure HTML edits — the HTML already embeds all styles.
+      // Skip design.md entirely (~54 KB / ~13 k tokens saved).
+      // Pass only the BASE CSS BLOCK from the component library (section 1, ~15 KB)
+      // so Claude knows the authoritative CSS values; skip section 2 HTML snippets
+      // (~17 KB) which are only useful when generating new HTML from scratch.
+      componentLibraryContext = extractBaseCssBlock(ctx.componentLibrary);
     } else {
       archContext              = ctx.architecture;
       designContext            = ctx.design;

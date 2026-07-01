@@ -6,6 +6,249 @@
 
 ---
 
+## 0. DEFAULT DESIGN REFERENCE — Outbound v2
+
+**When no specific page template or route is referenced in the prompt, default to the outbound v2 listing page patterns below.** These are extracted directly from the live source code at `mdui/src/components/outbound/v2/listing/`.
+
+### Default Page Wrapper
+
+```vue
+<q-card flat bordered :class="isFullScreen ? 'q-mt-none' : 'q-mt-sm'">
+  <q-layout class="no-shadow" view="hHh lpr fFf" style="min-height: 100%;">
+    <q-separator />
+    <div class="col" :style="{ height: 'calc(100vh - 180px)' }">
+      <!-- q-table goes here -->
+    </div>
+  </q-layout>
+</q-card>
+```
+
+The outer card is always `flat bordered` (never elevated). The inner `q-layout` with `view="hHh lpr fFf"` enables left/right drawers inside the card.
+
+### Default Table
+
+```vue
+<q-table
+  class="no-shadow md-v2-table fit my-sticky-column-table"
+  :data="rows"
+  :columns="columns"
+  row-key="id"
+  selection="multiple"
+  :selected.sync="selectedRows"
+  separator="horizontal"
+  hide-selected-banner
+  hide-pagination
+  :rows-per-page-options="[0]"
+  dense
+  color="primary"
+>
+```
+
+Key: `hide-pagination` is always set — pagination is rendered in a **separate bar outside the table** (see below). Never embed pagination inside the `q-table` for v2 pages.
+
+Column definition pattern — all use `align: 'left'`; width via `headerStyle` only:
+```js
+{ name: 'orderId', label: 'Order Info', field: 'orderId', align: 'left', headerStyle: 'min-width: 200px;' }
+```
+
+### Default Toolbar (inside `v-slot:top`)
+
+```html
+<!-- Row 1: summary filter + utility buttons -->
+<div class="row full-width q-pa-xs">
+  <top-summary-filter class="col q-pa-none q-pr-md" ... />
+  <q-space />
+  <q-btn flat round dense padding="xs" class="q-mr-sm" color="primary" size="sm" @click="refresh">
+    <q-icon name="refresh" size="sm" />
+  </q-btn>
+</div>
+<q-separator class="bg-grey-4 full-width q-mb-sm" />
+
+<!-- Row 2: filter pill + search -->
+<div class="row full-width q-pl-sm q-mb-sm" style="gap: 8px;">
+  <!-- Filter pill (custom div, not q-btn) -->
+  <div class="btn-fixed-width q-btn inline relative-position q-tab--no-caps justify-center"
+       style="border: 1px solid #E7E7E7; border-radius: 2px; cursor: pointer;">
+    <div class="row items-center justify-between no-wrap q-px-xs">
+      <div class="row items-center no-wrap" @click="leftDrawerOpen = !leftDrawerOpen">
+        <q-icon name="filter_list" size="xs" class="q-mr-xs text-custom-grey" />
+        <span class="text-custom-grey text-weight-medium text-body2">Filter</span>
+      </div>
+      <!-- Active filter count chip (shown when filters applied) -->
+      <q-chip dense clickable color="orange-2" class="bg-orange-2 flex flex-center"
+              style="height: 16px; width: 25px; padding: 0; font-size: 12px;">
+        {{ appliedFilters.length }}
+      </q-chip>
+    </div>
+  </div>
+
+  <!-- Search field selector + input -->
+  <q-btn-dropdown color="grey-2" unelevated text-color="grey-9" class="custom-dropdown text-body2" no-caps :ripple="false">
+    <template v-slot:label><span class="text-custom-grey text-weight-medium">{{ selectedField.label }}</span></template>
+    <q-list separator>
+      <q-item v-for="opt in searchOptions" clickable v-close-popup
+              :class="opt.value === selectedField.value ? 'bg-orange-1' : ''">
+        <q-item-section class="text-body2">{{ opt.label }}</q-item-section>
+      </q-item>
+    </q-list>
+  </q-btn-dropdown>
+  <q-input color="secondary" debounce="500" dense class="smaller-input-for-search-field text-weight-medium text-body2" placeholder="Search...">
+    <template v-slot:prepend><q-icon name="search" class="text-custom-grey" /></template>
+  </q-input>
+
+  <q-space />
+  <!-- Column config icon -->
+  <q-icon name="tune" class="cursor-pointer q-pt-xs q-ml-sm" />
+  <!-- Export button -->
+  <q-btn flat round dense padding="xs" color="primary" size="md" @click="exportData">
+    <q-icon name="file_download" size="sm" />
+  </q-btn>
+</div>
+```
+
+### Default Action/Utility Icon Buttons
+
+All toolbar and row-action icon buttons use this pattern — **`flat round`**, never `outline square`:
+
+```vue
+<!-- Toolbar utility buttons (refresh, fullscreen, column config) -->
+<q-btn flat round dense padding="xs" color="primary" size="sm">
+  <q-icon name="refresh" size="sm" />
+  <q-tooltip>Refresh</q-tooltip>
+</q-btn>
+
+<!-- Row action buttons (view details, etc.) -->
+<q-btn flat round dense padding="xs" color="primary" size="sm" @click="viewDetails(row)">
+  <q-icon name="sym_o_description" size="2em" />
+  <q-tooltip>View Details</q-tooltip>
+</q-btn>
+```
+
+Row action buttons are grouped in `<div class="flex q-gutter-xs">`. Vertical separators between groups: `<q-separator vertical />`.
+
+### Default Expand/Collapse Toggle
+
+```vue
+<q-btn flat round dense padding="none" size="sm" @click="props.expand = !props.expand">
+  <q-icon :name="props.expand ? 'keyboard_arrow_down' : 'keyboard_arrow_right'"
+          :color="props.expand ? 'secondary' : ''" size="sm" />
+</q-btn>
+```
+
+### Default Status Chips
+
+Status chips always use `dense size="sm" class="q-ma-none"` with background from `STATUS_COLOR_MAP` via **inline style** — never via Quasar `color` prop:
+
+```vue
+<q-chip dense size="sm" class="q-ma-none"
+        :style="`background-color: ${statusColor}; font-size: 12px;`">
+  {{ status }}
+</q-chip>
+```
+
+**STATUS_COLOR_MAP — outbound v2 (use as default for all domains):**
+
+| Status | Background | Category |
+|--------|------------|----------|
+| `Created` | `#ececec` | Grey |
+| `Completed` | `#ebf5e8` | Green |
+| `Released` | `#ebf5e8` | Green |
+| `Completed - Short Picked` | `#ebf5e8` | Green |
+| `Cancelled` | `#ffd8d7` | Red |
+| `Unfulfillable` | `#ffd8d7` | Red |
+| `Abandoned` | `#ffd8d7` | Red |
+| `Failed` | `#ffd8d7` | Red |
+| `Completed - Cancelled` | `#ffd8d7` | Red |
+| `In Progress` | `#ffeedc` | Orange |
+| `Staging In Progress` | `#ffeedc` | Orange |
+| `In Progress \| Picking from Rack` | `#ffeedc` | Orange |
+| `In Progress \| Picking from Tote` | `#ffeedc` | Orange |
+| `Cancellation In Progress` | `#ffeedc` | Orange |
+| `Staged Failed` | `#ffeedc` | Orange |
+| `Put In Progress` | `#ffeedc` | Orange |
+| `On Hold - Audit blocked` | `#ffeedc` | Orange |
+| `On Hold- Pending Inventory` | `#ffeedc` | Orange |
+| *(anything else)* | `#ececec` | Grey fallback |
+
+Exception badge (outline style, not chip):
+```vue
+<q-badge color="negative" outline style="border-radius: 25px;" class="text-weight-medium">
+  Exception
+</q-badge>
+```
+
+### Default Pagination Bar
+
+Pagination lives **outside** the `q-table` (which has `hide-pagination`), in a dedicated bar:
+
+```html
+<div v-if="totalRecords > 0"
+     class="row items-center justify-between full-width bg-white q-px-sm"
+     style="border-top: 1px solid #e0e0e0;">
+  <!-- Left: record count -->
+  <div class="text-weight-medium text-custom-grey">{{ totalRecords }} results found</div>
+
+  <!-- Right: rows-per-page + page nav -->
+  <div class="row items-center">
+    <span class="q-mr-sm text-body2">Results per page:</span>
+    <q-select v-model="rowsPerPage" :options="[50, 100, 200]"
+              dense flat borderless emit-value map-options
+              style="width: 55px; min-width: 0;" />
+    <q-pagination :value="currentPage" :max="maxPages" :max-pages="6"
+                  direction-links color="grey" active-color="secondary"
+                  class="custom-pagination" />
+  </div>
+</div>
+```
+
+Default page size options: `[50, 100, 200]`. Initial default: 50.
+
+### Default Detail Sidebar (Right Drawer)
+
+```html
+<q-drawer v-model="detailOpen" side="right" :width="450" bordered>
+  <div style="font-size: 13px; display: flex; flex-direction: column; height: 100%;">
+    <!-- Sticky header -->
+    <div style="flex-shrink: 0;">
+      <div class="q-pa-xs row justify-between items-center text-weight-bold text-grey-9 text-h6">
+        <span>{{ detailTitle }}</span>
+        <q-btn flat dense rounded icon="close" class="grey-10" @click="detailOpen = false" />
+      </div>
+      <q-separator class="q-mb-sm" />
+    </div>
+    <!-- Scrollable content -->
+    <div style="flex: 1; overflow-y: auto; min-height: 0;">
+      <!-- label-value grid content -->
+    </div>
+  </div>
+</q-drawer>
+```
+
+### Default Expanded Sub-Table (Child Rows)
+
+```vue
+<q-tr v-show="props.expand" :props="props">
+  <q-td colspan="100" class="expanded-td">
+    <q-table
+      class="no-shadow md-v2-table fit expanded-table"
+      style="border-left: solid 1px rgba(0, 0, 0, 0.12);"
+      separator="horizontal"
+      hide-selected-banner hide-pagination :rows-per-page-options="[0]"
+      dense color="primary"
+    />
+  </q-td>
+</q-tr>
+```
+
+CSS for expanded rows (app.scss — do not re-define inline):
+```css
+.row-expanded .q-td { background-color: #FFF6ED; }
+.expanded-td { background-color: #FFFCF8; }
+.expanded-table .q-td { background-color: #FFFCF8; }
+```
+
+---
+
 ## 1. Brand Identity
 
 - **Product name:** Grey Matter Manager Dashboard
@@ -292,21 +535,28 @@
 <q-btn label="DELETE" color="negative" text-color="white" unelevated />
 ```
 
-### Icon Button (standalone table action)
-**`q-btn flat round icon="..." size="sm"`** — or `q-btn icon="..." outline round`
-- **Size:** 32px × 32px — `size="sm"` + `dense`
-- **Border:** 1px solid `#d4d3d3` — use `outline` prop
-- **Border-radius:** 4px — use `square` prop instead of `round` for square icon buttons
-- **Icon color:** `color="primary"` (default), `color="secondary"` (primary action), `color="negative"` (destructive)
+### Icon Button (toolbar and table row actions)
 
+**Default (v2 pattern) — `flat round dense padding="xs"`:**
 ```vue
-<!-- Detail view icon button -->
+<!-- Toolbar utility (refresh, fullscreen, export) -->
+<q-btn flat round dense padding="xs" color="primary" size="sm">
+  <q-icon name="refresh" size="sm" />
+</q-btn>
+
+<!-- Row action (view details, etc.) -->
+<q-btn flat round dense padding="xs" color="primary" size="sm">
+  <q-icon name="sym_o_description" size="2em" />
+</q-btn>
+```
+
+**Legacy (v1 / form pages) — `outline square dense`:** Used only on non-v2 pages or inside modal footers.
+```vue
 <q-btn icon="description" outline square dense color="primary" size="sm" />
-<!-- Edit -->
-<q-btn icon="edit" outline square dense color="primary" size="sm" />
-<!-- Delete -->
 <q-btn icon="delete" outline square dense color="negative" size="sm" />
 ```
+
+**Rule:** For any v2 listing page (outbound, inbound, inventory v2 routes), always use `flat round dense padding="xs"`. For form dialogs and modals, `outline` buttons are acceptable.
 
 ### Split Button (Save Filter / Export Data)
 **`q-btn-dropdown color="secondary" unelevated`** — Quasar's built-in split dropdown button
@@ -569,30 +819,35 @@ Used in Outbound Order Listing, Inbound, and Exception Listing pages. The parent
 
 ### Pagination
 
-**Quasar component:** `q-pagination` with class `.custom-pagination`
+**v2 pages (outbound, inbound v2, inventory v2):** Set `hide-pagination` on `q-table` and render a **separate pagination bar** below the table:
 
-```css
-/* Defined in app.scss */
-.custom-pagination {
-  height: 30px;
-  font-size: 12px;
-  color: #4D5055;
-  border: 1px solid #E7E7E7;
-}
+```html
+<div v-if="totalRecords > 0"
+     class="row items-center justify-between full-width bg-white q-px-sm"
+     style="border-top: 1px solid #e0e0e0;">
+  <div class="text-weight-medium text-custom-grey">{{ totalRecords }} results found</div>
+  <div class="row items-center">
+    <span class="q-mr-sm text-body2">Results per page:</span>
+    <q-select v-model="rowsPerPage" :options="[50, 100, 200]"
+              dense flat borderless emit-value map-options
+              style="width: 55px;" />
+    <q-pagination :value="currentPage" :max="maxPages" :max-pages="6"
+                  direction-links color="grey" active-color="secondary"
+                  class="custom-pagination" />
+  </div>
+</div>
 ```
 
+Default page size options: `[50, 100, 200]`, initial: 50.
+
+**v1 / legacy pages:** `q-pagination` embedded inside the table card:
 ```vue
-<q-pagination
-  v-model="pagination.page"
-  :max="totalPages"
-  boundary-numbers
-  class="custom-pagination"
-/>
+<q-pagination v-model="pagination.page" :max="totalPages" boundary-numbers class="custom-pagination" />
 ```
 
-- Always place pagination at bottom-right of the table card
 - Format: `[<]  1  2  3  …  N  [>]`
-- Height 30px, 12px font, `#4D5055` text, border `#E7E7E7`
+- Active page: `active-color="secondary"` (orange)
+- Inactive: `color="grey"`
 
 ### Load More Pattern (alternative to pagination)
 - Centered `q-btn` below table: `color="secondary" label="Load More" unelevated`
@@ -610,34 +865,59 @@ Appears between SectionBanner and DataTable. Always full-width.
 [ ≡ ] [ 🔍 Search by ... ] [ Dropdown ▾ ] [ Dropdown ▾ ]   ...   [ Save Filter ▾ ] [ Export Data ▾ ] [ ↺ ]
 ```
 
-- **Left side:** `q-btn(icon="menu", outline, square, dense)` + `q-input(outlined, dense, class="smaller-input")` + `q-select(outlined, dense, class="custom-dropdown")` × N
-- **Right side:** `q-btn-dropdown(split, color="secondary")` for Save Filter + Export Data + `q-btn(icon="sync", outline, square, dense)` for Refresh
-- **Spacing:** `q-gutter-sm` (8px) between all elements — use Quasar's gutter system
-- **Filter icon button `≡`:** `q-btn icon="menu" outline square dense color="dark"`
-- **Refresh button `↺`:** `q-btn icon="sync" outline square dense color="dark"`
-- **Input height:** 35px — always use `.smaller-input` class on all filter bar inputs
-- **Dropdown width:** 130px minimum — always use `.custom-dropdown` class on all filter bar selects
+**v2 listing pages** — filter bar lives inside `v-slot:top` of `q-table`, two rows:
 
-```vue
-<div class="row items-center q-gutter-sm q-pa-md">
-  <!-- Left -->
-  <q-btn icon="menu" outline square dense color="dark" />
-  <q-input v-model="search" outlined dense placeholder="Search by Id"
-    class="smaller-input" style="min-width:180px">
-    <template #prepend><q-icon name="search" color="dark" size="18px" /></template>
+- **Row 1:** Summary filter component + `q-space` + utility icon buttons (refresh, fullscreen)
+- **Row 2:** Custom filter pill + `q-btn-dropdown` search selector + `q-input` search + `q-space` + column config icon + export icon button
+
+```html
+<!-- Row 2 structure (v2) -->
+<div class="row full-width q-pl-sm q-mb-sm" style="gap: 8px;">
+
+  <!-- Filter pill (custom div — NOT q-btn) -->
+  <div class="btn-fixed-width q-btn inline relative-position q-tab--no-caps justify-center"
+       style="border: 1px solid #E7E7E7; border-radius: 2px; cursor: pointer;">
+    <div class="row items-center justify-between no-wrap q-px-xs" @click="leftDrawerOpen = !leftDrawerOpen">
+      <q-icon name="filter_list" size="xs" class="q-mr-xs text-custom-grey" />
+      <span class="text-custom-grey text-weight-medium text-body2">Filter</span>
+      <!-- Badge when filters active: -->
+      <q-chip dense color="orange-2" class="bg-orange-2" style="height:16px;width:25px;padding:0;font-size:12px;">
+        {{ filterCount }}
+      </q-chip>
+    </div>
+  </div>
+
+  <!-- Search field dropdown + search input -->
+  <q-btn-dropdown color="grey-2" unelevated text-color="grey-9" class="custom-dropdown text-body2" no-caps>
+    <template v-slot:label><span class="text-custom-grey text-weight-medium">{{ selectedField.label }}</span></template>
+    <q-list separator>
+      <q-item v-for="opt in searchOptions" clickable v-close-popup
+              :class="opt.value === selectedField.value ? 'bg-orange-1' : ''">
+        <q-item-section class="text-body2">{{ opt.label }}</q-item-section>
+      </q-item>
+    </q-list>
+  </q-btn-dropdown>
+  <q-input color="secondary" debounce="500" dense class="text-body2" placeholder="Search...">
+    <template v-slot:prepend><q-icon name="search" class="text-custom-grey" /></template>
   </q-input>
-  <q-select v-model="orderType" :options="orderTypes" outlined dense label="Order Type"
-    class="custom-dropdown" emit-value map-options />
 
   <q-space />
+  <q-icon name="tune" class="cursor-pointer q-pt-xs q-ml-sm" />
+  <q-btn flat round dense padding="xs" color="primary" size="md">
+    <q-icon name="file_download" size="sm" />
+  </q-btn>
+</div>
+```
 
-  <!-- Right -->
-  <q-btn-dropdown split color="secondary" label="Save Filter" unelevated @click="saveFilter">
-    <q-list><!-- saved filter options --></q-list>
-  </q-btn-dropdown>
-  <q-btn-dropdown split color="secondary" label="Export Data" unelevated @click="exportData">
-    <q-list><!-- export format options --></q-list>
-  </q-btn-dropdown>
+**v1 / legacy pages** — simpler layout with `q-btn icon="menu"` and `q-select` dropdowns in a flat row:
+```vue
+<div class="row items-center q-gutter-sm q-pa-md">
+  <q-btn icon="menu" outline square dense color="dark" />
+  <q-input v-model="search" outlined dense placeholder="Search" class="smaller-input" style="min-width:180px">
+    <template #prepend><q-icon name="search" color="dark" size="18px" /></template>
+  </q-input>
+  <q-select v-model="status" :options="statusOptions" outlined dense class="custom-dropdown" emit-value map-options />
+  <q-space />
   <q-btn icon="sync" outline square dense color="dark" @click="refresh" />
 </div>
 ```
@@ -702,53 +982,60 @@ Use `q-expansion-item` OR control visibility with `v-if` + a toggle button in th
 **Quasar components:** `q-chip` (filled), `q-badge` (count badge), `q-linear-progress` (inline progress bar)
 All status indicators are inline, in table cells or on cards.
 
-**IMPORTANT:** Status chips use PASTEL custom hex backgrounds — NOT the full-saturation Quasar color tokens. Text is `#4D5055` (not white) on pastel backgrounds. Only use the Quasar `color` prop tokens for badges and high-priority destructive chips.
+**IMPORTANT:** Status chips use PASTEL custom hex backgrounds — NOT the full-saturation Quasar color tokens. Use **inline `style`** for background — never the Quasar `color` prop. Always `dense size="sm" class="q-ma-none"`.
 
-| Status | Background | Text | Notes |
-|---|---|---|---|
-| Completed / Active / Open | `#ebf5e8` | `#4D5055` | Soft green |
-| In Progress / Processing | `#e8f4fb` | `#4D5055` | Soft blue |
-| Created | `#e8f4fb` | `#4D5055` | Soft blue |
-| Pending / On Hold | `#fef9e7` | `#4D5055` | Soft yellow |
-| Breached / SLA Breach | `#fdecea` | `#4D5055` | Soft red |
-| Cancelled / Closed / Inactive | `#f0f0f0` | `#4D5055` | Soft grey |
-| Offline / Error / Failed | `#ffd8d7` | `#4D5055` | Stronger pastel red |
-| Critical (priority) | `#ED3324` | `#FFFFFF` | Use Quasar `color="negative"` — high-contrast only for critical |
-| Normal (priority) | plain `<span>` | `#4D5055` | No chip |
+**Authoritative STATUS_COLOR_MAP (from outbound v2 source — use for all domains unless domain-specific overrides exist):**
+
+| Status | Background | Category |
+|--------|------------|----------|
+| `Created` | `#ececec` | Grey |
+| `Completed` | `#ebf5e8` | Green |
+| `Released` | `#ebf5e8` | Green |
+| `Completed - Short Picked` | `#ebf5e8` | Green |
+| `Active` / `Open` | `#ebf5e8` | Green |
+| `Cancelled` | `#ffd8d7` | Red |
+| `Unfulfillable` | `#ffd8d7` | Red |
+| `Abandoned` | `#ffd8d7` | Red |
+| `Failed` | `#ffd8d7` | Red |
+| `Completed - Cancelled` | `#ffd8d7` | Red |
+| `Offline` / `Error` | `#ffd8d7` | Red |
+| `In Progress` (and all variants) | `#ffeedc` | Orange |
+| `Staging In Progress` | `#ffeedc` | Orange |
+| `Cancellation In Progress` | `#ffeedc` | Orange |
+| `On Hold` (and all variants) | `#ffeedc` | Orange |
+| `Pending` | `#ffeedc` | Orange |
+| `Breached` / `SLA Breach` | `#ffd8d7` | Red |
+| *(anything else)* | `#ececec` | Grey fallback |
 
 ### Chip Style Rules
-- Always use `dense` prop to achieve 20px height
-- Use **inline style** for the pastel background + `#4D5055` text — do NOT use Quasar `color` prop for pastel chips
-- `square` prop for square-cornered chips (priority labels), default pill for status chips
+- Always: `dense size="sm" class="q-ma-none"` + `style="background-color: <hex>; font-size: 12px;"`
+- Never use Quasar `color` prop on status chips — always inline `style`
 - Never use `outline` variant for status chips — always filled pastel
 
 ```vue
-<!-- Pastel chips — use inline style, NOT Quasar color prop -->
-<q-chip dense style="background:#ebf5e8; color:#4D5055;">Completed</q-chip>
-<q-chip dense style="background:#e8f4fb; color:#4D5055;">Created</q-chip>
-<q-chip dense style="background:#ffd8d7; color:#4D5055;">Offline</q-chip>
+<!-- Status chips — inline style, NOT color prop -->
+<q-chip dense size="sm" class="q-ma-none" style="background-color: #ebf5e8; font-size: 12px;">Completed</q-chip>
+<q-chip dense size="sm" class="q-ma-none" style="background-color: #ececec; font-size: 12px;">Created</q-chip>
+<q-chip dense size="sm" class="q-ma-none" style="background-color: #ffeedc; font-size: 12px;">In Progress</q-chip>
+<q-chip dense size="sm" class="q-ma-none" style="background-color: #ffd8d7; font-size: 12px;">Cancelled</q-chip>
 
-<!-- High-contrast only for critical/destructive -->
-<q-chip dense color="negative" text-color="white" square>Critical</q-chip>
+<!-- Exception badge (outline style) -->
+<q-badge color="negative" outline style="border-radius: 25px;" class="text-weight-medium">Exception</q-badge>
 ```
 
-**Status color helper (Vue computed / method):**
+**Status color helper:**
 ```javascript
 statusChipStyle(status) {
   const map = {
-    'Completed':   'background:#ebf5e8; color:#4D5055;',
-    'Active':      'background:#ebf5e8; color:#4D5055;',
-    'Open':        'background:#ebf5e8; color:#4D5055;',
-    'In Progress': 'background:#e8f4fb; color:#4D5055;',
-    'Created':     'background:#e8f4fb; color:#4D5055;',
-    'Pending':     'background:#fef9e7; color:#4D5055;',
-    'Breached':    'background:#fdecea; color:#4D5055;',
-    'Cancelled':   'background:#f0f0f0; color:#4D5055;',
-    'Closed':      'background:#f0f0f0; color:#4D5055;',
-    'Offline':     'background:#ffd8d7; color:#4D5055;',
-    'Failed':      'background:#ffd8d7; color:#4D5055;',
+    'Completed':   '#ebf5e8', 'Released': '#ebf5e8', 'Active': '#ebf5e8', 'Open': '#ebf5e8',
+    'Created':     '#ececec',
+    'In Progress': '#ffeedc', 'Staging In Progress': '#ffeedc', 'Cancellation In Progress': '#ffeedc',
+    'On Hold':     '#ffeedc', 'Pending': '#ffeedc',
+    'Cancelled':   '#ffd8d7', 'Failed': '#ffd8d7', 'Abandoned': '#ffd8d7',
+    'Unfulfillable': '#ffd8d7', 'Offline': '#ffd8d7', 'Error': '#ffd8d7',
   }
-  return map[status] ?? 'background:#f0f0f0; color:#4D5055;'
+  const bg = map[status] ?? '#ececec'
+  return `background-color: ${bg}; font-size: 12px;`
 }
 ```
 
