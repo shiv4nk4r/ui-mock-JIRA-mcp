@@ -668,11 +668,32 @@ export default function Home() {
   async function handleRefine() {
     const prompt = refineInput.trim();
     if (!prompt || isRefining || !activeHtml || !ticketData) return;
-    setRefineInput(""); setIsRefining(true); setActiveTab("history");
-    setMessages((prev) => [...prev, { role: "user", text: prompt }]);
+
+    // Capture files before clearing state
+    const filesToSend = attachedFiles.length > 0
+      ? attachedFiles.map(({ name, type, content, contentType }) => ({ name, type, content, contentType }))
+      : undefined;
+
+    setRefineInput("");
+    setAttachedFiles([]);   // clear badge so user knows files were consumed
+    setIsRefining(true);
+    setActiveTab("history");
+    setMessages((prev) => [...prev, {
+      role: "user",
+      text: prompt,
+      attachedFiles: attachedFiles.length > 0
+        ? attachedFiles.map(({ name, contentType, sizeLabel }) => ({ name, contentType, sizeLabel }))
+        : undefined,
+    }]);
     try {
       await streamChat(
-        { jiraTicketId: ticketData.id, jiraData: ticketData, additionalPmContext: prompt, enableVisualSkill: true, model: selectedModel || "claude-haiku-4-5-20251001", isRefinement: true, currentHtml: activeHtml },
+        {
+          jiraTicketId: ticketData.id, jiraData: ticketData,
+          additionalPmContext: prompt, enableVisualSkill: true,
+          model: selectedModel || "claude-haiku-4-5-20251001",
+          isRefinement: true, currentHtml: activeHtml,
+          attachedFiles: filesToSend,
+        },
         `Refinement: "${prompt.slice(0, 45)}${prompt.length > 45 ? "…" : ""}"`,
         (html) => setActiveHtml(html),
       );

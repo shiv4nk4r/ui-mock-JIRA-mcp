@@ -11,6 +11,11 @@ This file contains two sections:
 - Only write NEW CSS for ticket-specific layout (column widths, grid counts, etc.).
 - Sort indicators MUST use the CSS triangle pattern from the BASE CSS BLOCK — never Unicode ▲▼.
 - Status chip colors come from the chip classes below — never invent hex values for chips.
+- **TOOLBAR LAYOUT — TWO ROWS, strictly separated:**
+  - **Row 1 (toolbar-top SNIPPET):** Stats summary line — `"[Domain] | Results: N | [Stat]: N"` + refresh/fullscreen icon buttons on the right. This is the ONLY place the record count appears in the toolbar area.
+  - **Row 2 (filter-bar SNIPPET):** Filter pill + segmented search (field dropdown + input) + spacer + tune + export. **NEVER put "N results found" text here.**
+  - **Footer (pagination-row SNIPPET):** `"N results found"` (left) + rows-per-page select + page buttons (right).
+  - The record count appears in TWO places only: toolbar-top stats line AND pagination-row footer. It must NOT appear as standalone text inside the filter-bar row.
 - The `<head>` MUST include these CDN links (the real app self-hosts Source Sans Pro + uses Material Symbols icons):
 
 ```html
@@ -552,20 +557,48 @@ body {
 
 ---
 
+### SNIPPET: toolbar-top
+
+```html
+<!-- SNIPPET: toolbar-top — Row 1 of the table toolbar.
+     Summary stats line: "[Domain] | Results: N | [Stat1]: N | [Stat2]: N"
+     Right: refresh + fullscreen icon buttons.
+     ⚠ RULE: This row shows the stats summary. "N results found" plain text goes ONLY in pagination-row, NEVER here. -->
+<div style="display:flex; align-items:center; width:100%; padding:4px 8px; gap:8px;">
+  <!-- Stats summary: domain label + result count + optional breakdowns -->
+  <span style="font-size:13px; color:#4D5055;">
+    Outbound Listing
+    <span style="color:#636f83; font-weight:400;"> | Results: </span><strong>184</strong>
+    <span style="color:#636f83; font-weight:400;"> | In Progress: </span><strong>42</strong>
+    <span style="color:#636f83; font-weight:400;"> | Created: </span><strong>65</strong>
+  </span>
+  <div style="flex:1"></div>
+  <!-- Utility icon buttons: flat round, no border, primary colour -->
+  <button class="action-btn" title="Refresh">
+    <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
+  </button>
+  <button class="action-btn" title="Full screen">
+    <span class="material-symbols-outlined" style="font-size:18px">fullscreen</span>
+  </button>
+</div>
+<hr style="border:none; border-top:1px solid #e0e0e0; margin:0 0 6px 0;">
+```
+
+---
+
 ### SNIPPET: filter-bar
 
 ```html
-<!-- SNIPPET: filter-bar — REAL outbound v2 toolbar.
-     Left: result count · Filter button (with orange count badge) · segmented [field-dropdown | search].
-     Right (after spacer): column-config gear (tune) · export (file_download). -->
+<!-- SNIPPET: filter-bar — Row 2 of the table toolbar (appears below toolbar-top + separator).
+     Left: Filter pill (with orange badge when filters active) · segmented [field-dropdown | search input].
+     Right (after spacer): column-config gear (tune) · export (file_download).
+     ⚠ RULE: NO record count here. "N results found" belongs ONLY in pagination-row (footer). -->
 <div class="filter-bar">
-  <!-- result count (left) -->
-  <span class="text-custom-grey" style="font-weight:600; font-size:13px; margin-right:8px">184 results found</span>
-
-  <!-- Filter button with applied-count badge -->
+  <!-- Filter button: no record count here — only the filter pill -->
   <button class="filter-toggle-btn" style="position:relative">
     <span class="material-symbols-outlined" style="font-size:18px">filter_list</span>
     Filter
+    <!-- Badge only when filters are applied: -->
     <span style="display:inline-flex; align-items:center; justify-content:center; height:16px; min-width:18px; padding:0 4px; margin-left:4px; background:#ffe0b2; color:#4D5055; font-size:11px; font-weight:600; border-radius:8px">2</span>
   </button>
 

@@ -65,6 +65,121 @@ function relPath(abs: string): string {
   return abs.startsWith(REPO_ROOT) ? abs.slice(REPO_ROOT.length + 1) : abs;
 }
 
+// ── i18n helpers ──────────────────────────────────────────────────────────────
+// Loads the English translation file once and caches it in memory.
+
+const I18N_FILE = path.join(MDUI, "i18n/en-us/index.js");
+let _i18nCache: Record<string, string> | null = null;
+
+function loadI18n(): Record<string, string> {
+  if (_i18nCache) return _i18nCache;
+  try {
+    const src = fs.readFileSync(I18N_FILE, "utf-8");
+    const result: Record<string, string> = {};
+    const re = /^\s+(\w+):\s*['"]([^'"]+)['"]/gm;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src))) result[m[1]] = m[2];
+    _i18nCache = result;
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/** Resolve a raw label expression from Vue source to English text.
+ *  Handles: this.$t('key')  |  'Literal text'  |  conditional expressions  */
+function resolveLabel(raw: string, i18n: Record<string, string>): string {
+  const tMatch = raw.match(/\$t\(['"](\w+)['"]\)/);
+  if (tMatch) return i18n[tMatch[1]] ?? tMatch[1];
+  const strMatch = raw.match(/['"]([^'"]+)['"]/);
+  if (strMatch) return strMatch[1];
+  // Conditional: this.flag ? this.$t('a') : this.$t('b') — take first branch
+  const condMatch = raw.match(/\$t\(['"](\w+)['"]\).*\$t\(['"](\w+)['"]\)/);
+  if (condMatch) return `${i18n[condMatch[1]] ?? condMatch[1]} / ${i18n[condMatch[2]] ?? condMatch[2]}`;
+  return raw.trim().slice(0, 60);
+}
+
+// ── Table column extractor ────────────────────────────────────────────────────
+
+interface ColumnDef {
+  name:        string;
+  label:       string;
+  field:       string;
+  align:       string;
+  sortable:    boolean;
+  filterable:  boolean;
+  searchable:  boolean;
+  headerStyle: string;
+}
+
+/** Extract the tableFields / columns array from a Vue SFC source. */
+function extractColumnsFromSource(src: string, i18n: Record<string, string>): ColumnDef[] {
+  // Strip <template> and <style> so bracket counting isn't confused
+  const script = src.replace(/<template[\s\S]*?<\/template>/gi, "")
+                    .replace(/<style[\s\S]*?<\/style>/gi, "");
+
+  // Find the column array — try multiple property names
+  const MARKERS = ["tableFields", "columns", "tableColumns", "columnDefs"];
+  let arrayContent = "";
+
+  for (const marker of MARKERS) {
+    const idx = script.indexOf(`${marker}(`);
+    if (idx === -1) continue;
+    // Walk forward to find the first [
+    let start = -1;
+    for (let i = idx; i < Math.min(idx + 200, script.length); i++) {
+      if (script[i] === "[") { start = i; break; }
+    }
+    if (start === -1) continue;
+    // Find matching ]
+    let depth = 0, end = -1;
+    for (let i = start; i < script.length; i++) {
+      if (script[i] === "[") depth++;
+      else if (script[i] === "]") { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end !== -1) { arrayContent = script.slice(start + 1, end); break; }
+  }
+
+  if (!arrayContent) return [];
+
+  // Extract individual column objects { ... } at depth 1
+  const objects: string[] = [];
+  let depth = 0, objStart = -1;
+  for (let i = 0; i < arrayContent.length; i++) {
+    if (arrayContent[i] === "{") { if (depth === 0) objStart = i; depth++; }
+    else if (arrayContent[i] === "}") { depth--; if (depth === 0 && objStart !== -1) { objects.push(arrayContent.slice(objStart + 1, i)); objStart = -1; } }
+  }
+
+  const cols: ColumnDef[] = [];
+  for (const obj of objects) {
+    const name = obj.match(/\bname:\s*['"](\w+)['"]/)?.[1];
+    if (!name) continue;
+    const labelRaw = obj.match(/\blabel:\s*([\s\S]+?),?\s*\n/)?.[1]?.trim() ?? "";
+    cols.push({
+      name,
+      label:       resolveLabel(labelRaw, i18n),
+      field:       obj.match(/\bfield:\s*['"](\w+)['"]/)?.[1]  ?? name,
+      align:       obj.match(/\balign:\s*['"](\w+)['"]/)?.[1]  ?? "left",
+      sortable:    /\bsortable:\s*true\b|\bcanSort:\s*true\b/.test(obj),
+      filterable:  /\bfilterable:\s*true\b/.test(obj),
+      searchable:  /\bsearchable:\s*true\b/.test(obj),
+      headerStyle: obj.match(/\bheaderStyle:\s*['"]([^'"]+)['"]/)?.[1] ?? "",
+    });
+  }
+  return cols;
+}
+
+// ── Status map extractor ──────────────────────────────────────────────────────
+
+/** Extract every { 'Status Label': '#hexcolor' } mapping found in a file. */
+function extractStatusMapFromSource(src: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const re = /['"]([A-Za-z][^'"]{0,60})['"]\s*:\s*['"](\#[0-9a-fA-F]{6})['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) result[m[1]] = m[2];
+  return result;
+}
+
 // ── Shared code graph ─────────────────────────────────────────────────────────
 // One GraphStore per process. Both stdio and HTTP modes share this instance.
 
@@ -104,13 +219,13 @@ export function createMdMcpServer(): McpServer {
   const server = new McpServer({ name: "md", version: "1.0.0" });
 
   // ── Tool 1: list-routes ────────────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "list-routes",
-    {
+    { inputSchema: {
       filter: z.string().optional().describe(
         "Optional domain to filter (e.g. 'outbound', 'inbound', 'inventory'). Omit for all routes."
       ),
-    },
+    } },
     async ({ filter }) => {
       const routeFile = path.join(MDUI, "router/routes.js");
       let content = readFileSafe(routeFile);
@@ -126,9 +241,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 2: find-components ───────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "find-components",
-    {
+    { inputSchema: {
       query: z.string().describe(
         "Name fragment or domain to search for (e.g. 'OrderListing', 'outbound', 'inventory/listing')"
       ),
@@ -136,7 +251,7 @@ export function createMdMcpServer(): McpServer {
         .enum(["component", "page", "any"])
         .default("any")
         .describe("Restrict search: 'component' → components/, 'page' → pages/, 'any' → both"),
-    },
+    } },
     async ({ query, type }) => {
       const searchDirs: { label: string; dir: string }[] = [];
       if (type !== "page") searchDirs.push({ label: "components", dir: path.join(MDUI, "components") });
@@ -169,13 +284,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 3: read-source-file ──────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "read-source-file",
-    {
+    { inputSchema: {
       path: z.string().describe(
         "Repo-relative path (e.g. 'mdui/src/pages/outbound/listing/Listing.vue')"
       ),
-    },
+    } },
     async ({ path: filePath }) => {
       const abs = path.resolve(REPO_ROOT, filePath);
       if (!abs.startsWith(REPO_ROOT)) {
@@ -192,9 +307,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 4: list-graphql ──────────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "list-graphql",
-    {
+    { inputSchema: {
       domain: z.string().describe(
         "Domain name (e.g. 'outbound', 'inbound', 'inventory', 'alert', 'audit'). Use 'all' to list every domain."
       ),
@@ -202,7 +317,7 @@ export function createMdMcpServer(): McpServer {
         .enum(["queries", "mutations", "subscriptions", "all"])
         .default("all")
         .describe("Type of GraphQL operation to list"),
-    },
+    } },
     async ({ domain, kind }) => {
       const gqlBase        = path.join(MDUI, "graphql");
       const kindsToCheck   = kind === "all"
@@ -245,9 +360,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 5: find-usages ───────────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "find-usages",
-    {
+    { inputSchema: {
       symbol: z.string().describe(
         "Exact symbol to search for: component name, GraphQL query constant, Vuex action, etc."
       ),
@@ -255,7 +370,7 @@ export function createMdMcpServer(): McpServer {
         .enum(["frontend", "backend", "all"])
         .default("frontend")
         .describe("Where to look: 'frontend' → mdui/src, 'backend' → mdbff/src, 'all' → both"),
-    },
+    } },
     async ({ symbol, scope }) => {
       const dirs: string[] = [];
       if (scope !== "backend") dirs.push(MDUI);
@@ -281,13 +396,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 6: list-store-modules ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "list-store-modules",
-    {
+    { inputSchema: {
       domain: z.string().optional().describe(
         "Domain to inspect (e.g. 'outbound', 'inbound', 'inventory'). Omit to list all top-level modules."
       ),
-    },
+    } },
     async ({ domain }) => {
       const storeDir = path.join(MDUI, "store/modules");
       if (!fs.existsSync(storeDir)) {
@@ -337,13 +452,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 7: list-resolvers ────────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "list-resolvers",
-    {
+    { inputSchema: {
       domain: z.string().optional().describe(
         "Domain to inspect (e.g. 'outbound', 'order', 'alert', 'inbound'). Omit to list all resolver domains."
       ),
-    },
+    } },
     async ({ domain }) => {
       const resolverDir = path.join(MDBFF, "resolvers");
       if (!fs.existsSync(resolverDir)) {
@@ -381,7 +496,7 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 8: rebuild-code-index ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "rebuild-code-index",
     {},
     async () => {
@@ -423,9 +538,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 9: search-code-symbols ───────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "search-code-symbols",
-    {
+    { inputSchema: {
       query: z.string().describe(
         "Name fragment to search for (case-insensitive). Matches functions, classes, Vue components, GraphQL resolvers, etc."
       ),
@@ -434,7 +549,7 @@ export function createMdMcpServer(): McpServer {
         .optional()
         .describe("Filter by symbol kind"),
       limit: z.number().int().min(1).max(100).optional().describe("Max results (default 20)"),
-    },
+    } },
     async ({ query, kind, limit: rawLimit }) => {
       if (!indexReady) return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
       const limit   = rawLimit ?? 20;
@@ -459,13 +574,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 10: get-file-structure ───────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "get-file-structure",
-    {
+    { inputSchema: {
       filePath: z.string().describe(
         "Repo-relative path (e.g. 'mdui/src/pages/outbound/listing/Listing.vue')"
       ),
-    },
+    } },
     async ({ filePath }) => {
       if (!indexReady) return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
       const abs    = path.isAbsolute(filePath) ? filePath : path.join(REPO_ROOT, filePath);
@@ -507,12 +622,12 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 11: find-callers ─────────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "find-callers",
-    {
+    { inputSchema: {
       functionName: z.string().describe("Function or method name to look up (exact or partial)"),
       exact: z.boolean().optional().default(false).describe("true = exact name match only"),
-    },
+    } },
     async ({ functionName, exact }) => {
       if (!indexReady) return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
       const targets = exact
@@ -539,13 +654,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 12: get-vue-component ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "get-vue-component",
-    {
+    { inputSchema: {
       name: z.string().describe(
         "Component name or partial path (e.g. 'OrderListing', 'Listing', 'outbound/listing')"
       ),
-    },
+    } },
     async ({ name }) => {
       if (!indexReady) return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
       const candidates = graph
@@ -583,13 +698,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 13: get-resolver-info ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "get-resolver-info",
-    {
+    { inputSchema: {
       name: z.string().describe(
         "Resolver field name or partial match (e.g. 'outboundOrderList', 'inventory')"
       ),
-    },
+    } },
     async ({ name }) => {
       if (!indexReady) return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
       const resolvers = graph
@@ -609,9 +724,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 14: find-related-context ─────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "find-related-context",
-    {
+    { inputSchema: {
       keywords: z.array(z.string()).min(1).max(8).describe(
         "2–6 keywords from the JIRA ticket. Include the domain (e.g. 'outbound'), " +
         "the feature area (e.g. 'order', 'listing', 'exception'), and any page or " +
@@ -621,7 +736,7 @@ export function createMdMcpServer(): McpServer {
       maxComponents: z.number().int().min(1).max(8).optional().describe(
         "Max components to return (default 5). Increase to 8 for complex multi-component features."
       ),
-    },
+    } },
     async ({ keywords, maxComponents = 5 }) => {
       const scored = new Map<string, number>();
 
@@ -731,13 +846,13 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 15: list-captured-pages ──────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "list-captured-pages",
-    {
+    { inputSchema: {
       branch: z.string().optional().describe(
         "Capture label (branch name). Omit to use the most recently updated capture set."
       ),
-    },
+    } },
     async ({ branch }) => {
       const label = resolveCaptureLabel(branch);
       if (!label) {
@@ -753,11 +868,11 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 16: survey-page-templates ────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "survey-page-templates",
-    {
+    { inputSchema: {
       branch: z.string().optional().describe("Capture label. Omit to use latest."),
-    },
+    } },
     async ({ branch }) => {
       const label = resolveCaptureLabel(branch);
       if (!label) {
@@ -773,9 +888,9 @@ export function createMdMcpServer(): McpServer {
   );
 
   // ── Tool 17: get-page-template ────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     "get-page-template",
-    {
+    { inputSchema: {
       route: z.string().optional().describe(
         "Single route from the survey, e.g. /outbound/ordersV2"
       ),
@@ -787,7 +902,7 @@ export function createMdMcpServer(): McpServer {
         .optional()
         .describe("Archetype fallback when no specific route matches the ticket"),
       branch: z.string().optional().describe("Capture label. Omit for latest."),
-    },
+    } },
     async ({ route, routes, archetype, branch }) => {
       const label = resolveCaptureLabel(branch);
       if (!label) {
@@ -818,6 +933,268 @@ export function createMdMcpServer(): McpServer {
           text: getPageTemplateText(label, route, archetype as PageArchetype | undefined),
         }],
       };
+    }
+  );
+
+  // ── Tool 18: get-table-columns ────────────────────────────────────────────
+  // Extracts the real column definitions from a Vue listing component and resolves
+  // every $t('key') label to its English text via the en-us i18n file.
+  // Use this before generating any listing mockup to get exact column names/order.
+
+  server.registerTool(
+    "get-table-columns",
+    { inputSchema: {
+      path: z.string().optional().describe(
+        "Repo-relative path to the Vue component (e.g. 'mdui/src/components/audit/Audit.vue'). " +
+        "Preferred when you already know the file."
+      ),
+      component: z.string().optional().describe(
+        "Name fragment or domain keyword to search for when path is unknown " +
+        "(e.g. 'audit', 'outbound listing', 'inventory v2'). Falls back to text search."
+      ),
+    } },
+    async ({ path: filePath, component }) => {
+      const i18n = loadI18n();
+
+      // Resolve target file
+      let absPath: string | null = null;
+
+      if (filePath) {
+        absPath = path.isAbsolute(filePath) ? filePath : path.join(REPO_ROOT, filePath);
+        if (!fs.existsSync(absPath)) {
+          return { content: [{ type: "text", text: `File not found: ${filePath}` }] };
+        }
+      } else if (component) {
+        const q = component.toLowerCase().replace(/\//g, path.sep.toLowerCase());
+        const files = await fg("**/*.vue", { cwd: MDUI, absolute: true });
+        // Prefer listing/main components (Audit.vue, List.vue, Listing.vue)
+        const scored = files
+          .filter((f) => relPath(f).toLowerCase().includes(q))
+          .sort((a, b) => {
+            const score = (f: string) => {
+              const base = path.basename(f).toLowerCase();
+              if (base === "list.vue" || base === "listing.vue") return 0;
+              if (base.includes("list")) return 1;
+              if (/audit|inventory|inbound|outbound/i.test(base)) return 2;
+              return 3;
+            };
+            return score(a) - score(b);
+          });
+        absPath = scored[0] ?? null;
+        if (!absPath) {
+          return { content: [{ type: "text", text: `No Vue component found matching "${component}".` }] };
+        }
+      } else {
+        return { content: [{ type: "text", text: "Provide either path or component." }] };
+      }
+
+      const src = fs.readFileSync(absPath, "utf-8");
+      const cols = extractColumnsFromSource(src, i18n);
+
+      if (cols.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: `No tableFields/columns array found in ${relPath(absPath)}.\n` +
+                  `Try read-source-file to inspect the component manually.`,
+          }],
+        };
+      }
+
+      const rows = cols.map((c) => {
+        const flags: string[] = [];
+        if (c.sortable)   flags.push("sortable");
+        if (c.filterable) flags.push("filterable");
+        if (c.searchable) flags.push("searchable");
+        const style = c.headerStyle ? ` | ${c.headerStyle}` : "";
+        return `  ${c.label.padEnd(32)} field=${c.field}  align=${c.align}${flags.length ? `  [${flags.join(", ")}]` : ""}${style}`;
+      }).join("\n");
+
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `## Table columns — ${relPath(absPath)} (${cols.length} columns)`,
+            "",
+            "Use these exact labels and field names in the mockup. Never invent columns.",
+            "",
+            rows,
+            "",
+            "JSON (for direct use in column definitions):",
+            "```json",
+            JSON.stringify(cols, null, 2),
+            "```",
+          ].join("\n"),
+        }],
+      };
+    }
+  );
+
+  // ── Tool 19: get-domain-status-map ────────────────────────────────────────
+  // Returns all status label → chip background color mappings for a domain.
+  // Searches constants/ files and component source for STATUS_COLOR_MAP and
+  // inline chip style objects. Use this to get correct chip colors for any domain.
+
+  server.registerTool(
+    "get-domain-status-map",
+    { inputSchema: {
+      domain: z.string().describe(
+        "Domain name (e.g. 'outbound', 'inbound', 'audit', 'inventory', 'resources', 'system')"
+      ),
+    } },
+    async ({ domain }) => {
+      const d = domain.toLowerCase();
+      const combined: Record<string, string> = {};
+
+      // 1. Check known constants files first (most reliable source)
+      const DOMAIN_CONSTANTS: Record<string, string> = {
+        outbound:  "mdui/src/constants/order.js",
+        order:     "mdui/src/constants/order.js",
+        tool:      "mdui/src/constants/tool.js",
+        equipment: "mdui/src/constants/tool.js",
+      };
+      const constFile = DOMAIN_CONSTANTS[d];
+      if (constFile) {
+        try {
+          const src = fs.readFileSync(path.join(REPO_ROOT, constFile), "utf-8");
+          Object.assign(combined, extractStatusMapFromSource(src));
+        } catch { /* ignore */ }
+      }
+
+      // 2. Scan domain component directory for inline color maps
+      const compDir = path.join(MDUI, "components", d);
+      if (fs.existsSync(compDir)) {
+        const files = await fg("**/*.{vue,js}", { cwd: compDir, absolute: true });
+        for (const f of files.slice(0, 15)) {
+          try {
+            const src = fs.readFileSync(f, "utf-8");
+            Object.assign(combined, extractStatusMapFromSource(src));
+          } catch { /* ignore */ }
+        }
+      }
+
+      // 3. Shared StatusChip component has device/resource maps
+      const statusChipFile = path.join(MDUI, "components/resources/utils/StatusChip.vue");
+      if (fs.existsSync(statusChipFile) && (d === "resources" || d === "system" || Object.keys(combined).length === 0)) {
+        try {
+          const src = fs.readFileSync(statusChipFile, "utf-8");
+          Object.assign(combined, extractStatusMapFromSource(src));
+        } catch { /* ignore */ }
+      }
+
+      if (Object.keys(combined).length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: `No status color map found for domain "${domain}".\n` +
+                  `Use the default STATUS_COLOR_MAP from design.md Section 0.`,
+          }],
+        };
+      }
+
+      // Group by color for readability
+      const byColor: Record<string, string[]> = {};
+      for (const [status, color] of Object.entries(combined)) {
+        (byColor[color] ??= []).push(status);
+      }
+
+      const groups = Object.entries(byColor).map(([color, statuses]) => {
+        const names = { "#ececec": "grey", "#ebf5e8": "green", "#ffd8d7": "red", "#ffeedc": "orange", "#e3f2fd": "blue" };
+        const name = names[color as keyof typeof names] ?? "";
+        return `  ${color}${name ? ` (${name})` : ""}:\n${statuses.map((s) => `    - "${s}"`).join("\n")}`;
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `## Status → chip background color map for domain: ${domain}`,
+            "",
+            "Use these exact hex values in chip inline styles. Never invent colors.",
+            "Chip pattern: <q-chip dense size=\"sm\" class=\"q-ma-none\" :style=\"\`background-color: \${color}; font-size: 12px;\`\">",
+            "",
+            ...groups,
+            "",
+            "JSON:",
+            "```json",
+            JSON.stringify(combined, null, 2),
+            "```",
+          ].join("\n"),
+        }],
+      };
+    }
+  );
+
+  // ── Tool 20: resolve-i18n-keys ────────────────────────────────────────────
+  // Resolves translation keys from Vue source (e.g. $t('auditDetails')) to their
+  // actual English text. Use when you see $t('key') in component source and need
+  // the real label for column headers, button labels, or section titles.
+
+  server.registerTool(
+    "resolve-i18n-keys",
+    { inputSchema: {
+      keys: z.array(z.string()).min(1).max(60).describe(
+        "List of i18n keys to resolve (e.g. ['auditDetails', 'creationDetails', 'priority'])"
+      ),
+    } },
+    async ({ keys }) => {
+      const i18n = loadI18n();
+      const result: Array<{ key: string; text: string; found: boolean }> = keys.map((k) => ({
+        key:   k,
+        text:  i18n[k] ?? k,
+        found: k in i18n,
+      }));
+
+      const found   = result.filter((r) => r.found);
+      const missing = result.filter((r) => !r.found);
+
+      const lines = [
+        `## i18n key → English text (${found.length}/${keys.length} resolved)`,
+        "",
+        ...found.map((r)   => `  ${r.key.padEnd(35)} → "${r.text}"`),
+        ...(missing.length ? ["", `Not found (${missing.length}): ${missing.map((r) => r.key).join(", ")}`] : []),
+      ];
+
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    }
+  );
+
+  // ── Tool 21: read-files-batch ─────────────────────────────────────────────
+  // Read up to 6 repo files in a single call. Saves multiple tool-call rounds
+  // when you need the listing component + its GraphQL query + its constants
+  // file together. Each file is capped at 10 KB.
+
+  server.registerTool(
+    "read-files-batch",
+    { inputSchema: {
+      paths: z.array(z.string()).min(1).max(6).describe(
+        "Repo-relative paths to read (e.g. ['mdui/src/components/audit/Audit.vue', " +
+        "'mdui/src/graphql/queries/audit/audit-list.js'])"
+      ),
+    } },
+    async ({ paths }) => {
+      const CAP = 10_000;
+      const sections: string[] = [];
+
+      for (const p of paths) {
+        const abs = path.isAbsolute(p) ? p : path.join(REPO_ROOT, p);
+        if (!fs.existsSync(abs)) {
+          sections.push(`## ${p}\n[File not found]`);
+          continue;
+        }
+        let content: string;
+        try {
+          const raw = fs.readFileSync(abs, "utf-8");
+          content = raw.length > CAP
+            ? raw.slice(0, CAP) + `\n\n... [truncated — ${raw.length} total chars. Use read-source-file for the full file.]`
+            : raw;
+        } catch {
+          content = `[Error reading file]`;
+        }
+        sections.push(`## ${p}\n\n\`\`\`\n${content}\n\`\`\``);
+      }
+
+      return { content: [{ type: "text", text: sections.join("\n\n---\n\n") }] };
     }
   );
 

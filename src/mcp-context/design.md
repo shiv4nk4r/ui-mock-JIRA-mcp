@@ -51,20 +51,34 @@ Column definition pattern — all use `align: 'left'`; width via `headerStyle` o
 { name: 'orderId', label: 'Order Info', field: 'orderId', align: 'left', headerStyle: 'min-width: 200px;' }
 ```
 
-### Default Toolbar (inside `v-slot:top`)
+### Default Toolbar (inside `v-slot:top`) — Two rows, strictly separated
+
+**Row 1 — Stats summary + utility buttons.** This is where the record count lives in the toolbar.  
+**Row 2 — Filter pill + search.** NO record count here ever.  
+**Footer (outside q-table)** — also shows the count in a different format.
 
 ```html
-<!-- Row 1: summary filter + utility buttons -->
+<!-- ── ROW 1: stats summary + utility buttons ── -->
+<!-- TopSummaryFilter renders: "[Domain] | Results: N | [Stat]: N | [Stat]: N" -->
 <div class="row full-width q-pa-xs">
-  <top-summary-filter class="col q-pa-none q-pr-md" ... />
+  <!-- Stats summary line — domain label + total count + optional status breakdowns -->
+  <div class="col q-pa-none q-pr-md" style="font-size:13px; color:#4D5055;">
+    Outbound Listing
+    <span class="text-custom-grey"> | Results: </span><strong>184</strong>
+    <span class="text-custom-grey"> | In Progress: </span><strong>42</strong>
+    <span class="text-custom-grey"> | Created: </span><strong>65</strong>
+  </div>
   <q-space />
   <q-btn flat round dense padding="xs" class="q-mr-sm" color="primary" size="sm" @click="refresh">
     <q-icon name="refresh" size="sm" />
   </q-btn>
+  <q-btn flat round dense padding="xs" color="primary" size="sm" @click="toggleFullscreen">
+    <q-icon name="fullscreen" size="sm" />
+  </q-btn>
 </div>
 <q-separator class="bg-grey-4 full-width q-mb-sm" />
 
-<!-- Row 2: filter pill + search -->
+<!-- ── ROW 2: filter pill + search — NO record count here ── -->
 <div class="row full-width q-pl-sm q-mb-sm" style="gap: 8px;">
   <!-- Filter pill (custom div, not q-btn) -->
   <div class="btn-fixed-width q-btn inline relative-position q-tab--no-caps justify-center"
@@ -179,7 +193,7 @@ Exception badge (outline style, not chip):
 
 ### Default Pagination Bar
 
-Pagination lives **outside** the `q-table` (which has `hide-pagination`), in a dedicated bar:
+Pagination lives **outside** the `q-table` (which has `hide-pagination`). The count text `"N results found"` appears here AND in toolbar Row 1 stats — **never** in the filter-bar row (Row 2).
 
 ```html
 <div v-if="totalRecords > 0"

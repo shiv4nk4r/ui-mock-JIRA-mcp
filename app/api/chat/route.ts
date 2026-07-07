@@ -95,6 +95,11 @@ const MD_MCP_TOOLS = [
   "mcp__md__list-captured-pages",
   "mcp__md__survey-page-templates",
   "mcp__md__get-page-template",
+  // Codebase introspection tools for accurate mockup generation
+  "mcp__md__get-table-columns",
+  "mcp__md__get-domain-status-map",
+  "mcp__md__resolve-i18n-keys",
+  "mcp__md__read-files-batch",
 ] as const;
 
 // ── Token pricing (USD per 1 M tokens: [input, output]) ───────────────────────
@@ -125,6 +130,12 @@ interface LogStep {
   inputTokens: number; outputTokens: number; costUsd: number; detail: string;
 }
 
+interface ToolCallEntry {
+  seq: number;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
 const SESSION_LOG_DIR = join(homedir(), "claude-ui-designs", "logs");
 
 class SessionLogger {
@@ -134,9 +145,18 @@ class SessionLogger {
   readonly model:     string;
   readonly startTs:   number;
   readonly logFile:   string;
+  readonly jsonFile:  string;
 
-  private steps: LogStep[] = [];
-  private stepStart = 0;
+  private steps:            LogStep[]       = [];
+  private stepStart         = 0;
+  private toolCalls:        ToolCallEntry[] = [];
+  private thinkingLines:    string[]        = [];
+  private systemPrompt      = "";
+  private userMessage       = "";
+  private mcpTransport:     "http" | "stdio" | "none" = "none";
+  private capturesAvailable = false;
+  private captureLabel      = "";
+  private isRefinement      = false;
 
   constructor(ticketId: string, provider: string, model: string) {
     this.sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -145,7 +165,36 @@ class SessionLogger {
     this.model     = model;
     this.startTs   = Date.now();
     mkdirSync(SESSION_LOG_DIR, { recursive: true });
-    this.logFile   = join(SESSION_LOG_DIR, `${ticketId}-${this.sessionId}.log.md`);
+    const base     = `${ticketId}-${this.sessionId}`;
+    this.logFile   = join(SESSION_LOG_DIR, `${base}.log.md`);
+    this.jsonFile  = join(SESSION_LOG_DIR, `${base}.log.json`);
+  }
+
+  /** Call once after prompts are built, before spawning the CLI. */
+  setRequestContext(opts: {
+    systemPrompt:      string;
+    userMessage:       string;
+    mcpTransport:      "http" | "stdio" | "none";
+    capturesAvailable: boolean;
+    captureLabel:      string;
+    isRefinement:      boolean;
+  }) {
+    this.systemPrompt      = opts.systemPrompt;
+    this.userMessage       = opts.userMessage;
+    this.mcpTransport      = opts.mcpTransport;
+    this.capturesAvailable = opts.capturesAvailable;
+    this.captureLabel      = opts.captureLabel;
+    this.isRefinement      = opts.isRefinement;
+  }
+
+  /** Record an MCP tool call seen in the CLI stream. */
+  recordToolCall(tool: string, input: Record<string, unknown>) {
+    this.toolCalls.push({ seq: this.toolCalls.length + 1, tool, input });
+  }
+
+  /** Record a thinking snippet seen in the CLI stream. */
+  recordThinking(text: string) {
+    this.thinkingLines.push(text);
   }
 
   beginStep() { this.stepStart = Date.now(); }
@@ -159,7 +208,14 @@ class SessionLogger {
     this.stepStart = 0;
   }
 
-  finish(): { logFile: string; logData: string } {
+  finish(opts: {
+    responseText?:  string;
+    htmlSizeBytes?: number;
+    htmlExtracted?: boolean;
+    exitCode?:      number | null;
+    stderr?:        string;
+    error?:         string;
+  } = {}): { logFile: string; logData: string } {
     const totalMs   = Date.now() - this.startTs;
     const totalIn   = this.steps.reduce((s, r) => s + r.inputTokens,  0);
     const totalOut  = this.steps.reduce((s, r) => s + r.outputTokens, 0);
@@ -168,6 +224,8 @@ class SessionLogger {
       ? `$${TOKEN_PRICING[this.model][0]}/M in · $${TOKEN_PRICING[this.model][1]}/M out`
       : "pricing unknown — conservative fallback $1/$5 per M";
 
+    // ── Markdown log (human-readable, existing format + enhancements) ──────────
+
     const rows = this.steps.map((r, i) => {
       const inT  = r.inputTokens  ? r.inputTokens.toLocaleString()  : "—";
       const outT = r.outputTokens ? r.outputTokens.toLocaleString() : "—";
@@ -175,13 +233,32 @@ class SessionLogger {
       return `| ${i + 1} | ${r.step}${r.detail ? ` · ${r.detail}` : ""} | ${r.durationMs}ms | ${inT} | ${outT} | ${cost} |`;
     }).join("\n");
 
+    const toolCallSection = this.toolCalls.length
+      ? `\n## MCP Tool Calls (${this.toolCalls.length})\n\n` +
+        this.toolCalls.map((t) =>
+          `### ${t.seq}. \`${t.tool}\`\n\`\`\`json\n${JSON.stringify(t.input, null, 2)}\n\`\`\``
+        ).join("\n\n")
+      : "";
+
+    const errorSection = opts.error
+      ? `\n## Error\n\n\`\`\`\n${opts.error}\n\`\`\`\n`
+      : "";
+
+    const stderrSection = opts.stderr?.trim()
+      ? `\n## Claude CLI stderr\n\n\`\`\`\n${opts.stderr.slice(0, 2000)}\n\`\`\`\n`
+      : "";
+
     const logData = `# Session Log: ${this.ticketId}
 
 **Session ID:** ${this.sessionId}
 **Provider:** ${this.provider}
 **Model:** ${this.model} (${pricing})
 **Started:** ${new Date(this.startTs).toISOString()}
+**Type:** ${this.isRefinement ? "Refinement" : "Initial generation"}
+**MCP transport:** ${this.mcpTransport}
+**Captures available:** ${this.capturesAvailable}${this.captureLabel ? ` (label: ${this.captureLabel})` : ""}
 **Log file:** ${this.logFile}
+**JSON log:** ${this.jsonFile}
 
 ## Orchestration & Enrichment Steps
 
@@ -198,9 +275,59 @@ ${rows}
 | Total Tokens | ${(totalIn + totalOut).toLocaleString()} |
 | **Total Cost** | **$${totalCost.toFixed(6)}** |
 | Total Duration | ${totalMs}ms |
-`;
+| Exit code | ${opts.exitCode ?? 0} |
+| HTML extracted | ${opts.htmlExtracted ? `yes (${((opts.htmlSizeBytes ?? 0) / 1024).toFixed(1)} KB)` : "no"} |
+| MCP tool calls | ${this.toolCalls.length} |
+${toolCallSection}${errorSection}${stderrSection}`;
 
     writeFileSync(this.logFile, logData, "utf8");
+
+    // ── JSON log (machine-readable, for debugging / scripted analysis) ─────────
+
+    const MAX_PROMPT_CHARS = 300_000; // ~75k tokens — cap to avoid huge files
+    const jsonPayload = {
+      sessionId:         this.sessionId,
+      ticketId:          this.ticketId,
+      timestamp:         new Date(this.startTs).toISOString(),
+      model:             this.model,
+      provider:          this.provider,
+      isRefinement:      this.isRefinement,
+      mcpTransport:      this.mcpTransport,
+      capturesAvailable: this.capturesAvailable,
+      captureLabel:      this.captureLabel,
+      prompts: {
+        systemChars:          this.systemPrompt.length,
+        systemTokensEst:      charsToTokens(this.systemPrompt.length),
+        userChars:            this.userMessage.length,
+        userTokensEst:        charsToTokens(this.userMessage.length),
+        systemPrompt:         this.systemPrompt.slice(0, MAX_PROMPT_CHARS),
+        systemPromptTruncated: this.systemPrompt.length > MAX_PROMPT_CHARS,
+        userMessage:          this.userMessage.slice(0, 50_000),
+        userMessageTruncated: this.userMessage.length > 50_000,
+      },
+      toolCalls:      this.toolCalls,
+      thinkingLines:  this.thinkingLines,
+      response: {
+        text:         (opts.responseText ?? "").slice(0, 50_000),
+        textTruncated: (opts.responseText?.length ?? 0) > 50_000,
+        htmlExtracted: opts.htmlExtracted ?? false,
+        htmlSizeBytes: opts.htmlSizeBytes ?? 0,
+      },
+      usage: {
+        inputTokens:    totalIn,
+        outputTokens:   totalOut,
+        totalTokens:    totalIn + totalOut,
+        costUsd:        totalCost,
+        totalDurationMs: totalMs,
+      },
+      steps:    this.steps,
+      exitCode: opts.exitCode ?? 0,
+      stderr:   (opts.stderr ?? "").slice(0, 5_000),
+      error:    opts.error ?? null,
+    };
+
+    writeFileSync(this.jsonFile, JSON.stringify(jsonPayload, null, 2), "utf8");
+
     return { logFile: this.logFile, logData };
   }
 }
@@ -639,8 +766,12 @@ IMPORTANT — WEB API MODE:
   return parts.join("\n\n");
 }
 
-function buildRefinementUserMessage(currentHtml: string, request?: string): string {
-  return [
+function buildRefinementUserMessage(
+  currentHtml: string,
+  request?: string,
+  attachedFiles?: UserAttachedFile[],
+): string {
+  const parts: string[] = [
     "Current HTML mockup to refine:",
     "",
     "RAW_HTML_COMPONENT_START",
@@ -648,9 +779,34 @@ function buildRefinementUserMessage(currentHtml: string, request?: string): stri
     "RAW_HTML_COMPONENT_END",
     "",
     `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
-    "",
-    "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.",
-  ].join("\n");
+  ];
+
+  if (attachedFiles?.length) {
+    const textFiles  = attachedFiles.filter((f) => f.contentType === "text" || f.contentType === "html");
+    const imageFiles = attachedFiles.filter((f) => f.contentType === "image");
+
+    if (textFiles.length) {
+      parts.push("", `--- ATTACHED FILES (${textFiles.length}) ---`);
+      textFiles.forEach((f) => {
+        const label = f.contentType === "html" ? `[${f.name} · HTML]` : `[${f.name}]`;
+        parts.push(`\n${label}\n${f.content.slice(0, 12_000)}${f.content.length > 12_000 ? "\n[truncated]" : ""}`);
+      });
+      parts.push("--- END ATTACHED FILES ---");
+    }
+
+    if (imageFiles.length) {
+      // Browser reads images as placeholder strings — actual pixels aren't available in this flow.
+      // Acknowledge them so Claude knows visual context was intended.
+      parts.push(
+        "",
+        `Attached reference image(s): ${imageFiles.map((f) => f.name).join(", ")}`,
+        "Note: image content is not readable in this mode. Apply the refinement request using standard Manager Dashboard design patterns.",
+      );
+    }
+  }
+
+  parts.push("", "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.");
+  return parts.join("\n");
 }
 
 // ── Provider: Claude Code (local CLI subprocess) ──────────────────────────────
@@ -714,7 +870,7 @@ function streamClaudeCode(
           // Strip injected CSS before sending to Claude — it gets re-injected after
           const htmlForRefinement = stripInjectedCaptureCss(currentHtml);
           systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext);
-          userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext);
+          userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext, attachedFiles);
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
           systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding);
@@ -754,6 +910,16 @@ function streamClaudeCode(
         // ── Write MCP config pointing to the persistent HTTP server ──────
         // Falls back to spawning the stdio server if the HTTP server isn't running.
         const mcpServerReady = !isRefinement && await checkMcpServerReady();
+
+        // Snapshot prompts + context into the logger for the JSON debug log.
+        logger.setRequestContext({
+          systemPrompt,
+          userMessage,
+          mcpTransport:      isRefinement ? "none" : mcpServerReady ? "http" : "stdio",
+          capturesAvailable: mockupGrounding?.available ?? false,
+          captureLabel:      mockupGrounding?.label     ?? "",
+          isRefinement:      isRefinement ?? false,
+        });
 
         const mcpConfig = mcpServerReady
           ? { mcpServers: { md: { type: "http", url: MCP_SERVER_URL } } }
@@ -838,21 +1004,34 @@ function streamClaudeCode(
 
                 if (content?.length) {
                   const thinkBlocks   = content.filter((b) => b.type === "thinking" && b.thinking);
-                  const toolUseBlocks = content.filter((b) => b.type === "tool_use" && b.name === "Write");
+                  const toolUseBlocks = content.filter((b) => b.type === "tool_use");
                   const textBlocks    = content.filter((b) => b.type === "text" && b.text);
 
                   for (const b of thinkBlocks) {
                     if (b.thinking) {
                       const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
+                      logger.recordThinking(snippet);
                       send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
                     }
                   }
 
                   for (const b of toolUseBlocks) {
-                    const filePath = b.input?.file_path as string | undefined;
-                    if (filePath) {
-                      savedFiles.push(filePath);
-                      send({ thinking: `Writing file: ${filePath}` });
+                    // Log every tool call for debugging
+                    logger.recordToolCall(b.name ?? "unknown", b.input ?? {});
+
+                    if (b.name === "Write") {
+                      const filePath = b.input?.file_path as string | undefined;
+                      if (filePath) {
+                        savedFiles.push(filePath);
+                        send({ thinking: `Writing file: ${filePath}` });
+                      }
+                    } else if (b.name?.startsWith("mcp__")) {
+                      // Surface MCP tool calls to the UI as thinking messages
+                      const toolShort = b.name.replace("mcp__md__", "");
+                      const inputSummary = Object.entries(b.input ?? {})
+                        .map(([k, v]) => `${k}=${Array.isArray(v) ? `[${(v as string[]).slice(0, 3).join(",")}]` : String(v).slice(0, 60)}`)
+                        .join(", ");
+                      send({ thinking: `Tool: ${toolShort}(${inputSummary})` });
                     }
                   }
 
@@ -892,23 +1071,33 @@ function streamClaudeCode(
           send({ error: `Claude Code exited with code ${exitCode}. ${stderrBuf.slice(0, 400)}` });
         } else {
           // ── Step 3: emit accumulated text and extract inline HTML ─────
+          let htmlSizeBytes = 0;
+          let htmlExtracted = false;
           if (allText) {
             const { displayText, html } = extractHtmlFromMarkers(allText);
             if (displayText) send({ delta: displayText });
             if (html) {
+              htmlExtracted = true;
               let finalHtml = html;
               if (mockupGrounding?.available && mockupGrounding.cssText) {
                 finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
                 send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
                 logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
               }
-              logger.record("HTML mockup extracted from response");
+              htmlSizeBytes = Buffer.byteLength(finalHtml, "utf8");
+              logger.record("HTML mockup extracted from response", { detail: `${(htmlSizeBytes / 1024).toFixed(1)} KB` });
               send({ html: finalHtml });
             }
           }
 
           // ── Step 4: write session log ──────────────────────────────────
-          const { logFile, logData } = logger.finish();
+          const { logFile, logData } = logger.finish({
+            responseText:  allText,
+            htmlExtracted,
+            htmlSizeBytes,
+            exitCode:      exitCode,
+            stderr:        stderrBuf,
+          });
           send({
             done: true, provider: "claude-code", model,
             savedFiles: savedFiles.length ? savedFiles : undefined,
@@ -920,7 +1109,9 @@ function streamClaudeCode(
         }
 
       } catch (err) {
-        send({ error: `Claude Code error: ${err instanceof Error ? err.message : String(err)}` });
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logger.finish({ error: errMsg });
+        send({ error: `Claude Code error: ${errMsg}` });
       } finally {
         controller.close();
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
