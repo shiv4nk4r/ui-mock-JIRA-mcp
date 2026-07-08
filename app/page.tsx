@@ -46,6 +46,7 @@ interface UsageRecord {
 interface PersistedSession {
   ticketId: string; ticketData: TicketData; messages: Message[];
   activeHtml: string; usageRecords: UsageRecord[]; selectedModel: string; savedAt: number;
+  mockupMode?: "html" | "vue-quasar";
 }
 interface RecentSession { ticketId: string; summary: string; timestamp: number }
 
@@ -502,6 +503,7 @@ export default function Home() {
   const [selectedModel, setSelectedModel]   = useState("");
 
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [mockupMode, setMockupMode] = useState<"html" | "vue-quasar">("html");
 
   const [usageRecords, setUsageRecords]     = useState<UsageRecord[]>([]);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
@@ -523,12 +525,12 @@ export default function Home() {
   useEffect(() => {
     if (!ticketData || phase !== "workspace") return;
     try {
-      const s: PersistedSession = { ticketId: ticketData.id, ticketData, messages: messages.map((m) => ({ ...m, isStreaming: false })), activeHtml, usageRecords, selectedModel, savedAt: Date.now() };
+      const s: PersistedSession = { ticketId: ticketData.id, ticketData, messages: messages.map((m) => ({ ...m, isStreaming: false })), activeHtml, usageRecords, selectedModel, savedAt: Date.now(), mockupMode };
       localStorage.setItem(SESSION_KEY(ticketData.id), JSON.stringify(s));
       setSavedAt(new Date());
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, activeHtml, usageRecords, selectedModel, phase, ticketData]);
+  }, [messages, activeHtml, usageRecords, selectedModel, mockupMode, phase, ticketData]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -598,7 +600,7 @@ export default function Home() {
     setPhase("generating");
     setMessages([{ role: "user", text: `Auto-generate UI mockup · ${ticket.id}: "${ticket.summary}"` }]);
     try {
-      await streamChat({ jiraTicketId: ticket.id, jiraData: ticket, enableVisualSkill: true, model, isRefinement: false }, "Initial mockup generation", (html) => setActiveHtml(html));
+      await streamChat({ jiraTicketId: ticket.id, jiraData: ticket, enableVisualSkill: true, model, isRefinement: false, mockupMode }, "Initial mockup generation", (html) => setActiveHtml(html));
     } finally {
       setPhase("workspace");
       setActiveTab("mockup");
@@ -626,6 +628,7 @@ export default function Home() {
           if (saved.activeHtml && saved.messages?.length > 0) {
             setActiveHtml(saved.activeHtml); setMessages(saved.messages.map((m) => ({ ...m, isStreaming: false })));
             setUsageRecords(saved.usageRecords ?? []); if (saved.selectedModel) setSelectedModel(saved.selectedModel);
+            if (saved.mockupMode) setMockupMode(saved.mockupMode);
             setSavedAt(new Date(saved.savedAt)); setPhase("workspace"); setActiveTab("mockup");
             return;
           }
@@ -653,6 +656,7 @@ export default function Home() {
           if (saved.activeHtml) {
             setActiveHtml(saved.activeHtml); setMessages(saved.messages.map((m) => ({ ...m, isStreaming: false })));
             setUsageRecords(saved.usageRecords ?? []); if (saved.selectedModel) setSelectedModel(saved.selectedModel);
+            if (saved.mockupMode) setMockupMode(saved.mockupMode);
             setSavedAt(new Date(saved.savedAt)); setPhase("workspace"); setActiveTab("mockup");
             return;
           }
@@ -692,7 +696,7 @@ export default function Home() {
           additionalPmContext: prompt, enableVisualSkill: true,
           model: selectedModel || "claude-haiku-4-5-20251001",
           isRefinement: true, currentHtml: activeHtml,
-          attachedFiles: filesToSend,
+          attachedFiles: filesToSend, mockupMode,
         },
         `Refinement: "${prompt.slice(0, 45)}${prompt.length > 45 ? "…" : ""}"`,
         (html) => setActiveHtml(html),
@@ -869,6 +873,27 @@ export default function Home() {
               {providerConfig?.models.find((m) => m.id === selectedModel)?.label ?? selectedModel}
             </span>
           )}
+          {/* Mockup mode toggle */}
+          <div className="flex items-center border" style={{ borderColor: "#D0CCC6", borderRadius: 2, overflow: "hidden" }}>
+            {(["html", "vue-quasar"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setMockupMode(mode)}
+                title={mode === "html" ? "Pure HTML + CSS (current default)" : "Vue 2 + Quasar 1 UMD — real components from CDN"}
+                style={{
+                  ...F.condensed,
+                  fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase",
+                  padding: "3px 8px",
+                  background: mockupMode === mode ? "#1A1510" : "transparent",
+                  color: mockupMode === mode ? "#F8F6F3" : "#8A8680",
+                  borderRight: mode === "html" ? "1px solid #D0CCC6" : "none",
+                  transition: "all 0.1s",
+                }}
+              >
+                {mode === "html" ? "HTML" : "Vue / Quasar"}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {totalCost > 0 && (
@@ -1023,6 +1048,9 @@ export default function Home() {
                             <span style={{ ...F.mono, color: "#3A3530", fontSize: "11px" }}>
                               {`v${messages.slice(0, midx + 1).filter(m => m.htmlComponent).length}`} · Mockup snapshot
                             </span>
+                            {mockupMode === "vue-quasar" && (
+                              <span style={{ ...F.condensed, fontSize: 8, letterSpacing: "0.12em", color: "#7C6F5A", background: "rgba(217,119,6,0.1)", padding: "1px 5px", borderRadius: 1 }}>VUE</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => { setActiveHtml(msg.htmlComponent!); setActiveTab("mockup"); }}

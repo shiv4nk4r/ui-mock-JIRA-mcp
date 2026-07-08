@@ -183,11 +183,18 @@ function buildServer(): McpServer {
     async () => ({ contents: [{ uri: "resource://docs/component-library", mimeType: "text/markdown", text: loadCtx("component-library.md") }] })
   );
 
+  server.registerResource(
+    "component-library-vue",
+    "resource://docs/component-library-vue",
+    { mimeType: "text/markdown", description: "Vue 2 + Quasar 1 UMD component library. Bootstrap template, custom app CSS, and Vue/Quasar snippets for the mockup Vue mode." },
+    async () => ({ contents: [{ uri: "resource://docs/component-library-vue", mimeType: "text/markdown", text: loadCtx("component-library-vue.md") }] })
+  );
+
   // ── Tools ──────────────────────────────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "list-product-screenshots",
-    "Lists all product screenshot PNG files in the context directory. Read them with the Read tool to match the actual Manager Dashboard UI when generating mockups.",
+    { description: "Lists all product screenshot PNG files in the context directory. Read them with the Read tool to match the actual Manager Dashboard UI when generating mockups." },
     async () => {
       const files = listProductScreenshots();
       const lines = files.map((f) => `${path.join(CONTEXT_DIR, f)}`).join("\n");
@@ -200,35 +207,35 @@ function buildServer(): McpServer {
     }
   );
 
-  server.tool(
+  server.registerTool(
     "query-architecture",
-    {
+    { inputSchema: {
       section:  z.enum(Object.keys(ARCH_SECTIONS) as [string, ...string[]]).describe(`Architecture section. Options: ${Object.keys(ARCH_SECTIONS).join(", ")}`),
       question: z.string().optional().describe("Specific question about the section"),
-    },
+    } },
     async ({ section, question }) => {
       const content = extractSection(loadCtx("context.md"), ARCH_SECTIONS[section as keyof typeof ARCH_SECTIONS]);
       return { content: [{ type: "text", text: content }, ...(question ? [{ type: "text" as const, text: `\n**Question:** ${question}` }] : [])] };
     }
   );
 
-  server.tool(
+  server.registerTool(
     "query-design-language",
-    {
+    { inputSchema: {
       section:   z.enum(Object.keys(DESIGN_SECTIONS) as [string, ...string[]]).describe(`Design section. Options: ${Object.keys(DESIGN_SECTIONS).join(", ")}`),
       component: z.string().optional().describe("Specific Quasar component to find"),
-    },
+    } },
     async ({ section, component }) => {
       const content = extractSection(loadCtx("design.md"), DESIGN_SECTIONS[section as keyof typeof DESIGN_SECTIONS]);
       return { content: [{ type: "text", text: content }, ...(component ? [{ type: "text" as const, text: `\n**Looking up:** ${component}` }] : [])] };
     }
   );
 
-  server.tool(
+  server.registerTool(
     "query-sitemap",
-    {
+    { inputSchema: {
       section: z.enum(Object.keys(SITEMAP_SECTIONS) as [string, ...string[]]).describe(`Sitemap section. Options: ${Object.keys(SITEMAP_SECTIONS).join(", ")}`),
-    },
+    } },
     async ({ section }) => {
       const content = extractSection(loadCtx("site-map.md"), SITEMAP_SECTIONS[section as keyof typeof SITEMAP_SECTIONS]);
       return { content: [{ type: "text", text: content }] };
@@ -245,9 +252,9 @@ function buildServer(): McpServer {
    * Forces a full re-scan of mdui/ and mdbff/ and rebuilds the graph.
    * Useful after large code changes.
    */
-  server.tool(
+  server.registerTool(
     "rebuild-code-index",
-    "Re-index the mdui/ and mdbff/ source trees. Returns stats on completion. Takes ~15–30s for the full codebase.",
+    { description: "Re-index the mdui/ and mdbff/ source trees. Returns stats on completion. Takes ~15–30s for the full codebase." },
     async () => {
       indexReady  = false;
       indexStatus = "Rebuilding…";
@@ -290,15 +297,15 @@ function buildServer(): McpServer {
    * search-code-symbols
    * Fuzzy name search across all indexed nodes.
    */
-  server.tool(
+  server.registerTool(
     "search-code-symbols",
-    {
+    { inputSchema: {
       query:  z.string().describe("Name fragment to search for (case-insensitive). Searches functions, classes, methods, Vue components, GraphQL resolvers."),
       kind:   z.enum(["function","class","method","variable","vue-component","graphql-type","graphql-operation","graphql-resolver","file"])
                .optional()
                .describe("Filter by node kind"),
       limit:  z.number().int().min(1).max(100).optional().describe("Max results (default 20)"),
-    },
+    } },
     async ({ query, kind, limit: rawLimit }) => {
       const limit = rawLimit ?? 20;
       if (!indexReady) {
@@ -334,12 +341,11 @@ function buildServer(): McpServer {
    * get-file-structure
    * Returns all symbols in a file + its import/export edges.
    */
-  server.tool(
+  server.registerTool(
     "get-file-structure",
-    "List all symbols (functions, classes, methods, Vue components, resolvers) defined in a source file, plus its import and reverse-import edges.",
-    {
+    { description: "List all symbols (functions, classes, methods, Vue components, resolvers) defined in a source file, plus its import and reverse-import edges.", inputSchema: {
       filePath: z.string().describe("Relative path from repo root, e.g. mdui/src/pages/outbound/v2/listing/Listing.vue"),
-    },
+    } },
     async ({ filePath }) => {
       if (!indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
@@ -389,13 +395,12 @@ function buildServer(): McpServer {
    * find-callers
    * Reverse call-edge lookup — who calls a given function or method.
    */
-  server.tool(
+  server.registerTool(
     "find-callers",
-    "Find all functions/methods that call a given function by name. Useful for impact analysis and tracing data flow.",
-    {
+    { description: "Find all functions/methods that call a given function by name. Useful for impact analysis and tracing data flow.", inputSchema: {
       functionName: z.string().describe("Exact or partial name of the function/method to look up"),
       exact:        z.boolean().optional().default(false).describe("true = exact match only"),
-    },
+    } },
     async ({ functionName, exact }) => {
       if (!indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
@@ -434,12 +439,11 @@ function buildServer(): McpServer {
    * Returns the full API surface of a Vue component: props, data, computed, methods,
    * mixins, apollo queries, used sub-components, and import edges.
    */
-  server.tool(
+  server.registerTool(
     "get-vue-component",
-    "Get the full API surface of a Vue SFC component: props, data, computed, methods, apollo queries, mixins, and sub-components it uses.",
-    {
+    { description: "Get the full API surface of a Vue SFC component: props, data, computed, methods, apollo queries, mixins, and sub-components it uses.", inputSchema: {
       name: z.string().describe("Component name (e.g. 'Listing', 'OrderSummary') or partial path"),
-    },
+    } },
     async ({ name }) => {
       if (!indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
@@ -487,12 +491,11 @@ function buildServer(): McpServer {
    * Returns all GraphQL resolver nodes in a BFF resolver file, with the
    * GraphQL operation type they serve (Query/Mutation/Subscription/type).
    */
-  server.tool(
+  server.registerTool(
     "get-resolver-info",
-    "Look up GraphQL resolver functions in the BFF (mdbff). Returns the operation type (Query/Mutation/Subscription), resolver name, and file location.",
-    {
+    { description: "Look up GraphQL resolver functions in the BFF (mdbff). Returns the operation type (Query/Mutation/Subscription), resolver name, and file location.", inputSchema: {
       name: z.string().describe("Resolver field name or partial match (e.g. 'outboundOrderList', 'inventory')"),
-    },
+    } },
     async ({ name }) => {
       if (!indexReady) {
         return { content: [{ type: "text", text: `Index not ready. Status: ${indexStatus}` }] };
@@ -566,6 +569,7 @@ export interface FetchedContext {
   design: string;
   sitemap: string;
   componentLibrary: string;
+  componentLibraryVue: string;
 }
 
 /**
@@ -578,19 +582,21 @@ export interface FetchedContext {
 export async function fetchContextResources(): Promise<FetchedContext> {
   const { client, close } = await createMcpClient();
   try {
-    const [archRes, designRes, sitemapRes, compLibRes] = await Promise.all([
+    const [archRes, designRes, sitemapRes, compLibRes, compLibVueRes] = await Promise.all([
       client.readResource({ uri: "resource://docs/architecture" }),
       client.readResource({ uri: "resource://docs/design" }),
       client.readResource({ uri: "resource://docs/sitemap" }),
       client.readResource({ uri: "resource://docs/component-library" }),
+      client.readResource({ uri: "resource://docs/component-library-vue" }),
     ]);
     const txt = (r: { contents: unknown[] }) =>
       ((r.contents[0] as Record<string, unknown>)?.text as string) ?? "";
     return {
-      architecture:    txt(archRes),
-      design:          txt(designRes),
-      sitemap:         txt(sitemapRes),
-      componentLibrary: txt(compLibRes),
+      architecture:       txt(archRes),
+      design:             txt(designRes),
+      sitemap:            txt(sitemapRes),
+      componentLibrary:   txt(compLibRes),
+      componentLibraryVue: txt(compLibVueRes),
     };
   } finally {
     await close();

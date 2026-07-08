@@ -349,6 +349,7 @@ interface ChatRequest {
   attachedFiles?: UserAttachedFile[];
   isRefinement?: boolean;
   currentHtml?: string;
+  mockupMode?: "html" | "vue-quasar";
 }
 
 
@@ -363,7 +364,9 @@ function extractHtmlFromMarkers(text: string): { displayText: string; html: stri
   const si = text.indexOf(HTML_MARKER_START);
   const ei = text.indexOf(HTML_MARKER_END);
   if (si === -1 || ei === -1 || ei <= si) return { displayText: text, html: undefined };
-  const html        = text.slice(si + HTML_MARKER_START.length, ei).trim();
+  let html          = text.slice(si + HTML_MARKER_START.length, ei).trim();
+  // Strip markdown code fences Claude sometimes wraps around the HTML (```html … ```)
+  html = html.replace(/^```(?:html|HTML)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
   const displayText = (text.slice(0, si) + text.slice(ei + HTML_MARKER_END.length)).trim();
   return { displayText, html };
 }
@@ -387,6 +390,8 @@ function buildSystemPrompt(
   componentLibraryContext = "",
   templateSurveyContext = "",
   mockupGrounding: MockupGrounding | null = null,
+  mockupMode: "html" | "vue-quasar" = "html",
+  vueComponentLibraryContext = "",
 ): string {
   const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.
 
@@ -500,7 +505,13 @@ IMPORTANT — WEB API MODE:
     );
   }
 
-  if (enableVisualSkill && componentLibraryContext) {
+  if (enableVisualSkill && mockupMode === "vue-quasar" && vueComponentLibraryContext) {
+    sections.push(
+      "=== VUE / QUASAR UMD COMPONENT LIBRARY ===",
+      vueComponentLibraryContext,
+      "=== END VUE / QUASAR UMD COMPONENT LIBRARY ==="
+    );
+  } else if (enableVisualSkill && componentLibraryContext) {
     sections.push(
       "=== COMPONENT LIBRARY (component-library.md) ===",
       componentLibraryContext,
@@ -536,26 +547,50 @@ IMPORTANT — WEB API MODE:
 
   if (enableVisualSkill) {
     sections.push(
-      "VISUAL MOCKUP OUTPUT — REQUIRED:",
-      "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
-      "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
-      "",
-      "WRAP the full HTML in these exact markers — do not omit them:",
-      "RAW_HTML_COMPONENT_START",
-      "<!DOCTYPE html>",
-      "...complete HTML...",
-      "RAW_HTML_COMPONENT_END",
-      "",
-      "MOCKUP RULES:",
-      "- ALL visual values (colors, fonts, heights, borders, radius, chip backgrounds, table/header/body text) come from the COMPONENT LIBRARY BASE CSS BLOCK above. Copy it verbatim and use its classes. Do NOT copy CSS numbers or hex values from design.md or invent your own.",
-      "- Font: Source Sans Pro — self-hosted (use Google Fonts CDN fallback in standalone HTML). Body 14px.",
-      "- Page structure top-to-bottom: white 56px top bar (logo + 'Manager Dashboard') → navy #101a5c 44px primary nav → optional white 38px sub-tabs → navy #101a5c 40px section banner → white filter bar → data table → pagination row.",
-      "- Sort indicators = CSS triangles from the library, NEVER Unicode arrows or Material Icons.",
-      "- Status chips: use the chip-* class whose bucket matches the status string. Never set chip background inline.",
-      "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only.",
-      "- Implement EVERY status, state-transition, field-visibility, and column from the Jira ticket.",
-      "- CRITICAL: If find-related-context returned real column definitions, use THOSE exact columns — not invented ones.",
-      "- If product screenshots are provided, match the exact visual patterns you observe in them."
+      ...(mockupMode === "vue-quasar" ? [
+        "VUE / QUASAR UMD OUTPUT — REQUIRED:",
+        "Generate a complete standalone HTML page that uses Vue 2 + Quasar 1 UMD loaded from CDN (jsDelivr).",
+        "Use real Quasar components: <q-table>, <q-btn>, <q-dialog>, <q-drawer>, <q-tabs>, <q-chip>, <q-input>, etc.",
+        "",
+        "WRAP the full HTML in these exact markers — do not omit them:",
+        "RAW_HTML_COMPONENT_START",
+        "<!DOCTYPE html>",
+        "...complete HTML...",
+        "RAW_HTML_COMPONENT_END",
+        "",
+        "MOCKUP RULES (Vue/Quasar mode):",
+        "- COPY the BOOTSTRAP TEMPLATE from the VUE/QUASAR UMD COMPONENT LIBRARY verbatim. Never change CDN URLs or versions.",
+        "- COPY the CUSTOM APP CSS block verbatim inside <style>.",
+        "- USE the VUE/QUASAR SNIPPETS as building blocks — replace only ticket-specific labels and data.",
+        "- Brand colors are pre-configured in Vue.use(Quasar, { config: { brand: { primary:'#101a5c', ... } } }). Use color=\"primary\", color=\"secondary\", etc.",
+        "- Status chips: <q-chip dense size=\"sm\" class=\"q-ma-none\" :style=\"`background-color:${getStatusColor(row.status)};font-size:12px`\">.",
+        "- Include getStatusColor(status) method from SECTION 4 STATUS_COLOR_MAP.",
+        "- Table: <q-table class=\"no-shadow md-v2-table fit\" dense separator=\"horizontal\" hide-pagination :rows-per-page-options=\"[0]\" color=\"primary\">.",
+        "- No Vuex, no Vue Router, no Apollo — single self-contained new Vue({ el: '#q-app', ... }) instance only.",
+        "- Implement EVERY status, column, state-transition, and field from the Jira ticket in the Vue data/template.",
+        "- CRITICAL: If get-table-columns or find-related-context returned real column definitions, use THOSE exact names.",
+      ] : [
+        "VISUAL MOCKUP OUTPUT — REQUIRED:",
+        "Generate a complete, pixel-perfect, standalone HTML mockup that looks exactly like the real Manager Dashboard product.",
+        "Derive every visual rule from the design language context above. Do NOT invent colors, spacing, or components.",
+        "",
+        "WRAP the full HTML in these exact markers — do not omit them:",
+        "RAW_HTML_COMPONENT_START",
+        "<!DOCTYPE html>",
+        "...complete HTML...",
+        "RAW_HTML_COMPONENT_END",
+        "",
+        "MOCKUP RULES:",
+        "- ALL visual values (colors, fonts, heights, borders, radius, chip backgrounds, table/header/body text) come from the COMPONENT LIBRARY BASE CSS BLOCK above. Copy it verbatim and use its classes. Do NOT copy CSS numbers or hex values from design.md or invent your own.",
+        "- Font: Source Sans Pro — self-hosted (use Google Fonts CDN fallback in standalone HTML). Body 14px.",
+        "- Page structure top-to-bottom: white 56px top bar (logo + 'Manager Dashboard') → navy #101a5c 44px primary nav → optional white 38px sub-tabs → navy #101a5c 40px section banner → white filter bar → data table → pagination row.",
+        "- Sort indicators = CSS triangles from the library, NEVER Unicode arrows or Material Icons.",
+        "- Status chips: use the chip-* class whose bucket matches the status string. Never set chip background inline.",
+        "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only.",
+        "- Implement EVERY status, state-transition, field-visibility, and column from the Jira ticket.",
+        "- CRITICAL: If find-related-context returned real column definitions, use THOSE exact columns — not invented ones.",
+        "- If product screenshots are provided, match the exact visual patterns you observe in them.",
+      ])
     );
   }
 
@@ -723,8 +758,23 @@ function buildUserMessage(
 
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
-function buildRefinementSystemPrompt(designContext = "", componentLibraryContext = ""): string {
-  const base = `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
+function buildRefinementSystemPrompt(
+  designContext = "",
+  componentLibraryContext = "",
+  mockupMode: "html" | "vue-quasar" = "html",
+  vueComponentLibraryContext = "",
+): string {
+  const isVue = mockupMode === "vue-quasar";
+  const base = isVue
+    ? `You are a Vue/Quasar UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing Vue 2 + Quasar 1 UMD mockup page and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
+
+IMPORTANT — WEB API MODE:
+- You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
+- This is a pure HTML/Vue template editing task. Do NOT call any tools.
+- The full HTML to edit is provided in the user message. Edit the Vue template and data only. Return the complete file.
+- Preserve the Vue instance structure (data, methods, template root). Edit ONLY what the refinement request asks.
+- Your FIRST and ONLY action is to output the complete updated HTML wrapped in the required markers.`
+    : `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
 
 IMPORTANT — WEB API MODE:
 - You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
@@ -734,28 +784,45 @@ IMPORTANT — WEB API MODE:
 - Your FIRST and ONLY action is to output the complete updated HTML wrapped in the required markers.`;
 
   const parts: string[] = [base];
-  if (designContext) {
+
+  if (isVue && vueComponentLibraryContext) {
     parts.push(
-      "=== DESIGN LANGUAGE RULES (from design.md) ===",
-      designContext,
-      "=== END DESIGN LANGUAGE ==="
-    );
-  }
-  if (componentLibraryContext) {
-    parts.push(
-      "=== COMPONENT LIBRARY (component-library.md) ===",
-      componentLibraryContext,
-      "=== END COMPONENT LIBRARY ===",
+      "=== VUE / QUASAR UMD COMPONENT LIBRARY ===",
+      vueComponentLibraryContext,
+      "=== END VUE / QUASAR UMD COMPONENT LIBRARY ===",
       "",
-      "MANDATORY COMPONENT LIBRARY RULES:",
-      "0. PRECEDENCE: The BASE CSS BLOCK is authoritative. Where the current HTML or design.md disagrees with the library on any value, conform the HTML to the library.",
-      "1. The BASE CSS BLOCK must be present verbatim in <style>. If missing or altered, replace it with the verbatim block.",
-      "2. Correct any deviation from BASE CSS BLOCK values (wrong heights, colors, border-radius, chip backgrounds, header/body text colors).",
-      "3. Replace any Unicode sort indicators (▲▼) with the CSS triangle pattern from the BASE CSS BLOCK.",
-      "4. Status chips must use the chip-* class whose bucket matches the status — never solid Quasar tokens or inline backgrounds.",
-      "5. Apply ONLY the change in the refinement request; preserve all other existing markup and data verbatim."
+      "MANDATORY VUE REFINEMENT RULES:",
+      "0. Preserve the Vue instance structure: data(), computed, methods, and template root element. Never restructure the Vue.use() or Quasar setup.",
+      "1. The CUSTOM APP CSS block must be present verbatim in <style>. Do not remove or alter it.",
+      "2. Status chips must use :style=\"`background-color:${getStatusColor(row.status)};font-size:12px`\" — never hardcode colors.",
+      "3. Apply ONLY the change in the refinement request; preserve all other existing Vue template and data verbatim.",
+      "4. Quasar brand colors are configured in Vue.use(Quasar, { config: { brand: {...} } }) — do not override via inline styles."
     );
+  } else {
+    if (designContext) {
+      parts.push(
+        "=== DESIGN LANGUAGE RULES (from design.md) ===",
+        designContext,
+        "=== END DESIGN LANGUAGE ==="
+      );
+    }
+    if (componentLibraryContext) {
+      parts.push(
+        "=== COMPONENT LIBRARY (component-library.md) ===",
+        componentLibraryContext,
+        "=== END COMPONENT LIBRARY ===",
+        "",
+        "MANDATORY COMPONENT LIBRARY RULES:",
+        "0. PRECEDENCE: The BASE CSS BLOCK is authoritative. Where the current HTML or design.md disagrees with the library on any value, conform the HTML to the library.",
+        "1. The BASE CSS BLOCK must be present verbatim in <style>. If missing or altered, replace it with the verbatim block.",
+        "2. Correct any deviation from BASE CSS BLOCK values (wrong heights, colors, border-radius, chip backgrounds, header/body text colors).",
+        "3. Replace any Unicode sort indicators (▲▼) with the CSS triangle pattern from the BASE CSS BLOCK.",
+        "4. Status chips must use the chip-* class whose bucket matches the status — never solid Quasar tokens or inline backgrounds.",
+        "5. Apply ONLY the change in the refinement request; preserve all other existing markup and data verbatim."
+      );
+    }
   }
+
   parts.push(
     "REQUIRED OUTPUT: Wrap the complete HTML in these exact markers (do not omit):",
     "RAW_HTML_COMPONENT_START",
@@ -843,6 +910,8 @@ function streamClaudeCode(
   componentLibraryContext = "",
   templateSurveyContext = "",
   mockupGrounding: MockupGrounding | null = null,
+  mockupMode: "html" | "vue-quasar" = "html",
+  vueComponentLibraryContext = "",
 ): Response {
   const encoder = new TextEncoder();
 
@@ -869,11 +938,11 @@ function streamClaudeCode(
         if (isRefinement && currentHtml) {
           // Strip injected CSS before sending to Claude — it gets re-injected after
           const htmlForRefinement = stripInjectedCaptureCss(currentHtml);
-          systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext);
+          systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext, mockupMode, vueComponentLibraryContext);
           userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext, attachedFiles);
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding);
+          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding, mockupMode, vueComponentLibraryContext);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           const ticketText = jiraData.summary + " " + (jiraData.description ?? "");
@@ -1079,7 +1148,9 @@ function streamClaudeCode(
             if (html) {
               htmlExtracted = true;
               let finalHtml = html;
-              if (mockupGrounding?.available && mockupGrounding.cssText) {
+              // Vue/Quasar mode loads quasar.min.css from CDN — injecting the captured
+              // bundle on top would cause specificity conflicts. Skip in vue-quasar mode.
+              if (mockupMode !== "vue-quasar" && mockupGrounding?.available && mockupGrounding.cssText) {
                 finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
                 send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
                 logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
@@ -1138,30 +1209,37 @@ export async function POST(request: Request) {
   const {
     jiraTicketId, jiraData, additionalPmContext, enableVisualSkill,
     model, attachedFiles, isRefinement, currentHtml,
+    mockupMode = "html",
   } = body;
 
-  let archContext = "", designContext = "", sitemapContext = "", componentLibraryContext = "";
+  const isVueMode = mockupMode === "vue-quasar";
+
+  let archContext = "", designContext = "", sitemapContext = "";
+  let componentLibraryContext = "", vueComponentLibraryContext = "";
   try {
     const ctx = await getCachedContext();
     if (isRefinement) {
-      // Refinements are pure HTML edits — the HTML already embeds all styles.
-      // Skip design.md entirely (~54 KB / ~13 k tokens saved).
-      // Pass only the BASE CSS BLOCK from the component library (section 1, ~15 KB)
-      // so Claude knows the authoritative CSS values; skip section 2 HTML snippets
-      // (~17 KB) which are only useful when generating new HTML from scratch.
-      componentLibraryContext = extractBaseCssBlock(ctx.componentLibrary);
+      if (isVueMode) {
+        // Vue refinements need the full Vue library (not just BASE CSS).
+        vueComponentLibraryContext = ctx.componentLibraryVue;
+      } else {
+        // HTML refinements: skip design.md, only BASE CSS BLOCK (~15 KB).
+        componentLibraryContext = extractBaseCssBlock(ctx.componentLibrary);
+      }
     } else {
-      archContext              = ctx.architecture;
-      designContext            = ctx.design;
-      sitemapContext           = ctx.sitemap;
-      componentLibraryContext  = ctx.componentLibrary;
+      archContext                = ctx.architecture;
+      designContext              = ctx.design;
+      sitemapContext             = ctx.sitemap;
+      componentLibraryContext    = ctx.componentLibrary;
+      vueComponentLibraryContext = ctx.componentLibraryVue;
     }
   } catch { /* proceed without context if files are missing */ }
 
   // ── Pre-fetch capture grounding + template survey (sync filesystem reads) ──
+  // Capture CSS injection is skipped for vue-quasar mode (Quasar CDN handles it).
   let mockupGrounding: MockupGrounding | null = null;
   let templateSurveyContext = "";
-  if (enableVisualSkill && !isRefinement) {
+  if (enableVisualSkill && !isRefinement && !isVueMode) {
     try {
       const grounding = buildMockupGrounding();
       if (grounding.available) mockupGrounding = grounding;
@@ -1178,6 +1256,6 @@ export async function POST(request: Request) {
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext,
     attachedFiles, isRefinement, currentHtml, componentLibraryContext,
-    templateSurveyContext, mockupGrounding,
+    templateSurveyContext, mockupGrounding, mockupMode, vueComponentLibraryContext,
   );
 }

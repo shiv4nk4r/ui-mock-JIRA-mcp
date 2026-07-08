@@ -149,6 +149,38 @@ Row action buttons are grouped in `<div class="flex q-gutter-xs">`. Vertical sep
 </q-btn>
 ```
 
+### Default Column Alignment Rule
+
+**ALL table data columns use `text-align: left`.** Never set `text-align: right` or `text-align: center` on data cells (status, priority, dates, IDs, etc.). Right-aligned text in a narrow cell clips from the LEFT — showing "nal" instead of "Normal", "cal" instead of "Critical".
+
+Only exception: action icon buttons column (`td-actions`) may be centered.
+
+In HTML mode: ensure `.md-v2-table tbody td { text-align: left !important; }` is in the BASE CSS BLOCK.
+In Vue/Quasar mode: all column definitions must use `align: 'left'`. Add `text-align: left !important` override in CUSTOM APP CSS for `.q-table tbody td`.
+
+---
+
+### Default Priority Display
+
+**Priority is NEVER a chip.** Use plain `<span>` text — no background, no border, no chip component:
+
+```vue
+<!-- Critical priority — red text, no chip -->
+<span v-if="row.priority === 'Critical'" class="text-negative" style="font-weight:400;">Critical</span>
+<!-- Normal / other priority — plain text -->
+<span v-else style="font-weight:400;">{{ row.priority }}</span>
+```
+
+For HTML mode (pure HTML mockups):
+```html
+<span class="priority-critical">Critical</span>  <!-- color: #ED3324 -->
+<span>Normal</span>                               <!-- no color -->
+```
+
+**Why this matters:** Priority rendered as a `<q-chip>` or `.chip-*` in a narrow right-aligned column causes left-side clipping. The real app (outbound v2 source) always uses plain `<span>` for priority.
+
+---
+
 ### Default Status Chips
 
 Status chips always use `dense size="sm" class="q-ma-none"` with background from `STATUS_COLOR_MAP` via **inline style** — never via Quasar `color` prop:
