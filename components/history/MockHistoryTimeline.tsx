@@ -1,0 +1,277 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import type { HistorySort, TicketHistoryGroup } from "@lib/utils/session-history";
+import { filterHistoryGroups, sortHistoryGroups } from "@lib/utils/session-history";
+import { F, COLORS, RADIUS } from "@lib/design/tokens";
+import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
+import { jiraTicketUrl } from "@lib/utils/jira";
+
+const SORT_OPTIONS: { value: HistorySort; label: string }[] = [
+  { value: "time_desc", label: "Newest first" },
+  { value: "time_asc", label: "Oldest first" },
+  { value: "ticket_asc", label: "Ticket A → Z" },
+  { value: "ticket_desc", label: "Ticket Z → A" },
+];
+
+function formatWhen(ts?: number) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function MockPreview({ html, label }: { html: string; label: string }) {
+  return (
+    <div
+      className="relative overflow-hidden border"
+      style={{ borderColor: COLORS.border, borderRadius: RADIUS.sm, height: 140, background: "#fff" }}
+    >
+      <iframe
+        srcDoc={html}
+        sandbox="allow-scripts"
+        title={label}
+        className="w-[200%] h-[200%] origin-top-left pointer-events-none"
+        style={{ transform: "scale(0.5)", border: "none" }}
+      />
+    </div>
+  );
+}
+
+function TicketGroup({ group, jiraBaseUrl }: { group: TicketHistoryGroup; jiraBaseUrl: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <article
+      style={{
+        background: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        border: `1px solid ${COLORS.border}`,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-gray-50/80 transition-colors"
+        style={{ borderRadius: open ? `${RADIUS.lg}px ${RADIUS.lg}px 0 0` : RADIUS.lg }}
+      >
+        {group.latestHtml && (
+          <div className="hidden sm:block w-28 shrink-0">
+            <MockPreview html={group.latestHtml} label={group.summary} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span style={{ ...F.mono, fontSize: 13, color: COLORS.accent }}>{group.ticketId}</span>
+            <SessionStatusChip status={group.status} />
+            <span style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
+              {group.revisionCount} {group.revisionCount === 1 ? "version" : "versions"}
+            </span>
+          </div>
+          <h2 className="truncate" style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>
+            {group.summary}
+          </h2>
+          <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 4 }}>
+            Updated {formatWhen(group.savedAt)}
+          </p>
+        </div>
+        <span className="shrink-0 pt-1" style={{ ...F.body, fontSize: 18, color: COLORS.muted }}>
+          {open ? "−" : "+"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t" style={{ borderColor: COLORS.border }}>
+          <div className="flex items-center justify-between gap-3 py-4">
+            <a
+              href={jiraTicketUrl(group.ticketId, jiraBaseUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm hover:underline"
+              style={{ ...F.mono, color: COLORS.accent }}
+            >
+              Open in JIRA ↗
+            </a>
+            <Link
+              href={`/workspace/${encodeURIComponent(group.ticketId)}`}
+              className="px-4 py-2 text-sm font-semibold"
+              style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+            >
+              Open workspace
+            </Link>
+          </div>
+
+          <ol className="relative pl-6 space-y-6">
+            <div
+              className="absolute left-[7px] top-2 bottom-2 w-px"
+              style={{ background: COLORS.border }}
+              aria-hidden
+            />
+            {group.revisions.map((rev, idx) => (
+              <li key={rev.id} className="relative">
+                <span
+                  className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full border-2"
+                  style={{
+                    background: idx === group.revisions.length - 1 ? COLORS.accent : COLORS.surface,
+                    borderColor: idx === group.revisions.length - 1 ? COLORS.accent : COLORS.border,
+                  }}
+                />
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
+                      {rev.label}
+                    </p>
+                    {rev.timestamp && (
+                      <span style={{ ...F.body, fontSize: 12, color: COLORS.muted, flexShrink: 0 }}>
+                        {formatWhen(rev.timestamp)}
+                      </span>
+                    )}
+                  </div>
+                  {rev.prompt && (
+                    <p
+                      className="text-sm px-3 py-2"
+                      style={{
+                        ...F.body,
+                        color: COLORS.text,
+                        background: COLORS.subtle,
+                        borderRadius: RADIUS.sm,
+                        borderLeft: `3px solid ${COLORS.accent}`,
+                      }}
+                    >
+                      “{rev.prompt}”
+                    </p>
+                  )}
+                  {rev.html && (
+                    <div className="max-w-md">
+                      <MockPreview html={rev.html} label={rev.label} />
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </article>
+  );
+}
+
+export function MockHistoryTimeline({
+  groups,
+  jiraBaseUrl,
+}: {
+  groups: TicketHistoryGroup[];
+  jiraBaseUrl: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<HistorySort>("time_desc");
+
+  const visible = useMemo(
+    () => sortHistoryGroups(filterHistoryGroups(groups, search), sort),
+    [groups, search, sort],
+  );
+
+  if (groups.length === 0) {
+    return (
+      <p className="text-center py-16" style={{ ...F.body, fontSize: 15, color: COLORS.muted }}>
+        No mockup history yet — create one from Home
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <svg
+            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={COLORS.muted}
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3-3" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search ticket ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/25"
+            style={{
+              ...F.body,
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}
+          />
+        </div>
+        <div className="relative sm:min-w-[180px]">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as HistorySort)}
+            className="w-full appearance-none pl-4 pr-10 py-3 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-amber-500/25"
+            style={{
+              ...F.body,
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              backgroundImage: "none",
+            }}
+            aria-label="Sort history"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <svg
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={COLORS.muted}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
+      </div>
+
+      {search.trim() && (
+        <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, paddingLeft: 4 }}>
+          {visible.length} {visible.length === 1 ? "ticket" : "tickets"} matching “{search.trim()}”
+        </p>
+      )}
+
+      {visible.length === 0 ? (
+        <p className="text-center py-12" style={{ ...F.body, fontSize: 15, color: COLORS.muted }}>
+          No tickets match your search
+        </p>
+      ) : (
+        visible.map((group) => (
+          <TicketGroup key={group.ticketId} group={group} jiraBaseUrl={jiraBaseUrl} />
+        ))
+      )}
+    </div>
+  );
+}
