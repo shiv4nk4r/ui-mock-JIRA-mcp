@@ -12,7 +12,7 @@ import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { Toast, IconButton } from "@/components/shared/Toast";
 import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
 import { ChatMarkdown, EffortMarkdown } from "@/components/chat/ChatMarkdown";
-import { JiraTicketLink, TicketSidebar } from "@/components/workspace/JiraTicketLink";
+import { JiraTicketLink } from "@/components/workspace/JiraTicketLink";
 import { ExternalEngagementWidget } from "@/components/feedback/ExternalEngagementWidget";
 import { InternalFeedbackWidget } from "@/components/feedback/InternalFeedbackWidget";
 
@@ -39,6 +39,7 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [reviewSent, setReviewSent] = useState(false);
   const [engagement, setEngagement] = useState<UserEngagement[]>([]);
   const [showChat, setShowChat] = useState(true);
+  const [mockFullscreen, setMockFullscreen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -314,12 +315,19 @@ export function WorkspaceClient({ ticketId }: Props) {
           <div className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
             {ticketData?.summary ?? ticketId}
           </div>
-          <div className="flex items-center gap-2">
-            <JiraTicketLink ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} className="sm:hidden hover:underline" />
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <JiraTicketLink ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} className="hover:underline" />
             <SessionStatusChip status={sessionStatus} />
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <IconButton
+            label="Full screen"
+            onClick={() => setMockFullscreen(true)}
+            disabled={!activeHtml || isStreaming || isGenerating}
+          >
+            ⛶
+          </IconButton>
           <IconButton label="Share" onClick={handleShare} disabled={!activeHtml}>
             ↗
           </IconButton>
@@ -339,9 +347,8 @@ export function WorkspaceClient({ ticketId }: Props) {
         </div>
       )}
 
-      {/* Split: ticket link + mockup + chat */}
+      {/* Split: mockup + chat */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <TicketSidebar ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <div className="flex-1 relative min-h-0 bg-white">
             {isStreaming && activeHtml && (
@@ -439,11 +446,6 @@ export function WorkspaceClient({ ticketId }: Props) {
               <button type="button" onClick={() => setShowChat((v) => !v)} className="text-xs font-medium" style={{ color: COLORS.muted }}>
                 {showChat ? "Hide chat" : "Show chat"}
               </button>
-              {activeHtml && (
-                <button type="button" onClick={() => openHtmlInNewTab(activeHtml)} className="text-xs font-medium" style={{ color: COLORS.accent }}>
-                  Open full page
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -492,6 +494,43 @@ export function WorkspaceClient({ ticketId }: Props) {
             onRefreshEngagement={refreshEngagement}
             chatEndRef={chatEndRef}
           />
+        </div>
+      )}
+
+      {mockFullscreen && activeHtml && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: COLORS.bg }}>
+          <div
+            className="flex-none flex items-center justify-between gap-3 px-4 py-3 border-b"
+            style={{ background: COLORS.surface, borderColor: COLORS.border }}
+          >
+            <div className="min-w-0">
+              <p className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
+                {ticketData?.summary ?? ticketId}
+              </p>
+              <JiraTicketLink ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => openHtmlInNewTab(activeHtml)}
+                className="px-3 py-1.5 text-xs font-medium"
+                style={{ color: COLORS.accent, ...F.body }}
+              >
+                Open in new tab
+              </button>
+              <button
+                type="button"
+                onClick={() => setMockFullscreen(false)}
+                className="px-4 py-1.5 text-xs font-semibold"
+                style={{ background: COLORS.text, color: "#fff", borderRadius: RADIUS.pill, ...F.body }}
+              >
+                Exit full screen
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 bg-white">
+            <iframe srcDoc={activeHtml} sandbox="allow-scripts" className="w-full h-full" style={{ border: "none" }} title="Mockup full screen" />
+          </div>
         </div>
       )}
     </div>
