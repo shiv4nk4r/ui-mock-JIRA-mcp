@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM Orchestrator — Demo Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground:    #EFF3F9;
+  --ground-2:  #E2E9F4;
+  --text:      #0C1B38;
+  --text-muted:#4A6080;
+  --accent:    #D97706;
+  --accent-2:  #2557A7;
+  --card:      #FFFFFF;
+  --border:    #C8D5E8;
+  --green:     #1A7F5A;
+  --red:       #C43B2E;
+
+  --f-display: 'Space Grotesk', sans-serif;
+  --f-body:    'Inter', sans-serif;
+  --f-mono:    'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--ground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Blueprint dot-grid background ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(circle, rgba(37, 87, 167, 0.18) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 32px; }
+
+/* ─────────────────────────────────────────────
+   NAV
+───────────────────────────────────────────── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(239, 243, 249, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 960px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 52px;
+}
+.nav-brand {
+  font-family: var(--f-display);
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text);
+}
+.nav-brand span { color: var(--accent); }
+.nav-links { display: flex; gap: 28px; }
+.nav-links a {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); text-decoration: none; transition: color 0.15s;
+}
+.nav-links a:hover { color: var(--accent); }
+
+/* ─────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────── */
+.hero {
+  padding: 80px 0 60px;
+  border-bottom: 1px solid var(--border);
+}
+.hero-eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 20px;
+}
+.hero-eyebrow::before {
+  content: '//';
+  margin-right: 8px;
+  opacity: 0.5;
+}
+.hero h1 {
+  font-family: var(--f-display);
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  max-width: 680px;
+  margin-bottom: 20px;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.hero-sub {
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--text-muted);
+  max-width: 560px;
+  margin-bottom: 48px;
+  line-height: 1.6;
+}
+
+/* Transformation visual */
+.transform-stage {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: center;
+  gap: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 48px;
+}
+.transform-panel {
+  padding: 24px;
+}
+.transform-panel.input {
+  background: #0C1B38;
+  color: #7D9BC4;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.transform-panel.output {
+  background: var(--card);
+}
+.transform-arrow {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent);
+  height: 100%;
+  padding: 12px 0;
+}
+.transform-arrow svg { color: white; }
+.jira-label {
+  font-family: var(--f-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: block;
+}
+.ticket-id { color: #F9C96B; font-weight: 600; }
+.ticket-field { color: #8BB4D6; }
+.ticket-val { color: #B8D0ED; }
+.stream-line { color: #4A7BAF; }
+.stream-line.active { color: #7BBF94; }
+
+/* Mockup preview in output panel */
+.mockup-preview {
+  background: #F5F5F5;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--f-body);
+}
+.mp-nav { background: #101a5c; height: 28px; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
+.mp-nav-dot { width: 6px; height: 6px; border-radius: 50%; }
+.mp-tabs { background: #101a5c; height: 18px; display: flex; align-items: center; padding: 0 10px; gap: 0; }
+.mp-tab { font-size: 7px; color: rgba(255,255,255,0.7); padding: 0 8px; }
+.mp-tab.active { color: white; border-bottom: 2px solid #FE8400; }
+.mp-content { padding: 8px; }
+.mp-table-header { display: flex; gap: 0; margin-bottom: 4px; }
+.mp-th { font-size: 7px; font-weight: 600; color: #636f83; padding: 3px 6px; background: #F6F6F6; flex: 1; border: 0.5px solid #e0e0e0; }
+.mp-row { display: flex; gap: 0; margin-bottom: 2px; }
+.mp-td { font-size: 7px; color: #4D5055; padding: 3px 6px; flex: 1; border: 0.5px solid #e8e8e8; background: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-chip { display: inline-block; padding: 1px 5px; border-radius: 10px; font-size: 6px; font-weight: 600; }
+.mp-chip.green { background: #ebf5e8; color: #1A7F5A; }
+.mp-chip.orange { background: #ffeedc; color: #B45309; }
+.mp-chip.grey { background: #ececec; color: #636f83; }
+.mp-pagination { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-top: 1px solid #e0e0e0; font-size: 6px; color: #636f83; background: white; }
+
+/* Hero metrics */
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.metric {
+  background: var(--card);
+  padding: 20px 24px;
+}
+.metric-val {
+  font-family: var(--f-display);
+  font-size: 32px; font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.metric-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* ─────────────────────────────────────────────
+   SECTION SHARED STYLES
+───────────────────────────────────────────── */
+section {
+  padding: 72px 0;
+  border-bottom: 1px solid var(--border);
+}
+.section-header {
+  margin-bottom: 48px;
+}
+.section-tag {
+  font-family: var(--f-mono);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-2);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.section-tag::before {
+  content: '';
+  display: inline-block;
+  width: 24px; height: 1px;
+  background: var(--accent-2);
+}
+h2 {
+  font-family: var(--f-display);
+  font-size: clamp(26px, 3.5vw, 36px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.section-intro {
+  font-size: 16px;
+  color: var(--text-muted);
+  max-width: 580px;
+  line-height: 1.65;
+}
+
+/* ─────────────────────────────────────────────
+   PROBLEM SECTION
+───────────────────────────────────────────── */
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.problem-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+}
+.problem-card h3 {
+  font-family: var(--f-display);
+  font-size: 15px; font-weight: 600;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.badge {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px;
+}
+.badge.before { background: #FEE2E2; color: #991B1B; }
+.badge.after  { background: #D1FAE5; color: #065F46; }
+.problem-card ul { list-style: none; padding: 0; }
+.problem-card li {
+  font-size: 14px; color: var(--text-muted);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ground-2);
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.problem-card li:last-child { border-bottom: none; }
+.problem-card li::before {
+  content: '—';
+  color: var(--border);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.problem-card.after li::before { content: '✓'; color: var(--green); }
+
+/* ─────────────────────────────────────────────
+   REQUIREMENTS
+───────────────────────────────────────────── */
+.req-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+.req-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  position: relative;
+}
+.req-card::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -1px; right: 20px;
+  font-family: var(--f-mono);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent-2);
+  background: var(--ground);
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+.req-card h3 {
+  font-family: var(--f-display);
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.req-card ul {
+  list-style: none; padding: 0;
+}
+.req-card li {
+  font-size: 13px; color: var(--text-muted);
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--ground-2);
+  padding-left: 16px;
+  position: relative;
+}
+.req-card li::before {
+  content: '·';
+  position: absolute; left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+.req-card li:last-child { border-bottom: none; }
+
+/* ─────────────────────────────────────────────
+   ARCHITECTURE
+───────────────────────────────────────────── */
+.arch-diagram {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 40px;
+  margin-bottom: 32px;
+}
+.arch-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.arch-box {
+  flex: 1;
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 20px;
+  font-size: 13px;
+}
+.arch-box.primary {
+  border-color: var(--accent-2);
+  background: #EBF2FC;
+}
+.arch-box.accent-box {
+  border-color: var(--accent);
+  background: #FEF3CD;
+}
+.arch-box-title {
+  font-family: var(--f-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 4px;
+}
+.arch-box.accent-box .arch-box-title { color: #92400E; }
+.arch-box-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.arch-arrow {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--border); font-size: 18px;
+  flex-shrink: 0; width: 24px;
+}
+.arch-separator {
+  text-align: center; margin: 20px 0;
+  font-family: var(--f-mono);
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.1em;
+  display: flex; align-items: center; gap: 12px;
+}
+.arch-separator::before, .arch-separator::after {
+  content: ''; flex: 1;
+  border-top: 1px dashed var(--border);
+}
+.arch-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.arch-mini {
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.arch-mini-title {
+  font-family: var(--f-mono);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 3px;
+}
+
+/* ─────────────────────────────────────────────
+   TECHNICAL
+───────────────────────────────────────────── */
+.tech-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.tech-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.tech-card-head {
+  background: var(--text);
+  color: white;
+  padding: 14px 20px;
+  font-family: var(--f-display);
+  font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+.tech-card-head small {
+  font-size: 10px; font-weight: 400;
+  opacity: 0.6;
+  font-family: var(--f-mono);
+  letter-spacing: 0.06em;
+}
+.tech-card-body { padding: 20px; }
+.stack-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ground-2);
+  font-size: 13px;
+}
+.stack-row:last-child { border-bottom: none; }
+.stack-name { color: var(--text); font-weight: 500; }
+.stack-ver {
+  font-family: var(--f-mono); font-size: 11px;
+  color: var(--accent-2); font-weight: 500;
+}
+
+.code-block {
+  background: #0C1B38;
+  border-radius: 6px;
+  padding: 20px 24px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+.code-comment { color: #4A7BAF; }
+.code-key { color: #7BBFEA; }
+.code-str { color: #F9C96B; }
+.code-val { color: #96D6B0; }
+.code-num { color: #F4A261; }
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.tool-pill {
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--f-mono);
+  font-size: 10px; font-weight: 500;
+  color: var(--accent-2);
+  letter-spacing: 0.04em;
+}
+.tool-pill small { display: block; font-family: var(--f-body); font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0; }
+
+/* ─────────────────────────────────────────────
+   DEMO PLAN — THE MAIN EVENT
+───────────────────────────────────────────── */
+.demo-timeline {
+  position: relative;
+  padding-left: 40px;
+}
+.demo-timeline::before {
+  content: '';
+  position: absolute;
+  left: 14px; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent-2), var(--accent), var(--accent-2));
+}
+.demo-step {
+  position: relative;
+  margin-bottom: 28px;
+}
+.demo-step::before {
+  content: '';
+  position: absolute;
+  left: -32px; top: 18px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  border: 2px solid var(--ground);
+  box-shadow: 0 0 0 2px var(--accent-2);
+}
+.demo-step.highlight::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  width: 14px; height: 14px;
+  left: -34px; top: 16px;
+}
+.demo-step-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.demo-step.highlight .demo-step-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+}
+.demo-step-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ground-2);
+  background: var(--ground);
+}
+.demo-step.highlight .demo-step-head {
+  background: #FEF3CD;
+  border-bottom-color: #FDE68A;
+}
+.demo-step-meta {
+  display: flex; align-items: center; gap: 12px;
+}
+.demo-time {
+  font-family: var(--f-mono);
+  font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  min-width: 80px;
+}
+.demo-title {
+  font-family: var(--f-display);
+  font-size: 15px; font-weight: 600;
+  color: var(--text);
+}
+.demo-dur {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--ground-2);
+  padding: 3px 8px; border-radius: 12px;
+  white-space: nowrap;
+}
+.demo-step-body { padding: 20px; }
+.demo-step-body p {
+  font-size: 14px; color: var(--text-muted);
+  margin-bottom: 16px; line-height: 1.6;
+}
+.demo-checklist { list-style: none; padding: 0; }
+.demo-checklist li {
+  font-size: 13px; color: var(--text);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ground-2);
+  display: flex; align-items: flex-start; gap: 10px;
+  line-height: 1.5;
+}
+.demo-checklist li:last-child { border-bottom: none; }
+.check-icon {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--accent-2);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  color: var(--accent-2);
+  margin-top: 1px;
+}
+.talking-point {
+  background: linear-gradient(135deg, #EBF2FC, #EFF3F9);
+  border: 1px solid #C8D5E8;
+  border-left: 3px solid var(--accent-2);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  font-style: italic;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+.talking-point strong { font-style: normal; color: var(--accent-2); }
+
+/* Total time indicator */
+.demo-total {
+  background: var(--text);
+  color: white;
+  border-radius: 8px;
+  padding: 20px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 32px;
+}
+.demo-total-label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+.demo-total-val {
+  font-family: var(--f-display);
+  font-size: 28px; font-weight: 700;
+  color: var(--accent);
+}
+.demo-phase-list { display: flex; flex-direction: column; gap: 6px; }
+.demo-phase {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12px;
+}
+.demo-phase-bar {
+  height: 6px; border-radius: 3px;
+  background: var(--accent-2);
+}
+.demo-phase-label { color: rgba(255,255,255,0.7); min-width: 120px; }
+.demo-phase-time {
+  font-family: var(--f-mono);
+  font-size: 10px; color: rgba(255,255,255,0.4);
+}
+
+/* ─────────────────────────────────────────────
+   SETUP SECTION
+───────────────────────────────────────────── */
+.setup-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+.setup-step {
+  background: var(--card);
+  padding: 24px 20px;
+}
+.setup-num {
+  font-family: var(--f-display);
+  font-size: 32px; font-weight: 700;
+  color: var(--ground-2);
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.setup-step h4 {
+  font-family: var(--f-display);
+  font-size: 13px; font-weight: 600;
+  margin-bottom: 8px;
+}
+.setup-step p {
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.6;
+}
+.cmd {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  background: #0C1B38;
+  color: #96D6B0;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   FOOTER
+───────────────────────────────────────────── */
+footer {
+  padding: 40px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-brand {
+  font-family: var(--f-display);
+  font-size: 13px; font-weight: 600;
+  color: var(--text-muted);
+}
+.footer-brand span { color: var(--accent); }
+.footer-meta {
+  font-family: var(--f-mono);
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ─────────────────────────────────────────────
+   STREAMING ANIMATION
+   One moment, justified: this IS the product
+───────────────────────────────────────────── */
+.stream-cursor {
+  display: inline-block;
+  width: 6px; height: 13px;
+  background: #7BBFEA;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.stream-line { opacity: 0; }
+.stream-line.s1 { animation: fadeIn 0.3s 0.5s forwards; }
+.stream-line.s2 { animation: fadeIn 0.3s 1.0s forwards; }
+.stream-line.s3 { animation: fadeIn 0.3s 1.5s forwards; }
+.stream-line.s4 { animation: fadeIn 0.3s 2.0s forwards; }
+.stream-line.s5 { animation: fadeIn 0.3s 2.5s forwards; }
+.stream-line.s6 { animation: fadeIn 0.3s 3.0s forwards; }
+.stream-line.s7 { animation: fadeIn 0.3s 3.5s forwards; }
+.stream-line.s8 { animation: fadeIn 0.3s 4.0s forwards; }
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-line { opacity: 1; animation: none; }
+  .stream-cursor { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .transform-stage { grid-template-columns: 1fr; }
+  .transform-arrow { display: none; }
+  .hero-metrics { grid-template-columns: 1fr; }
+  .problem-grid, .req-grid, .tech-grid { grid-template-columns: 1fr; }
+  .setup-steps { grid-template-columns: 1fr 1fr; }
+  .tool-grid { grid-template-columns: repeat(2, 1fr); }
+  .arch-mini-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-brand">PM Orchestrator <span>·</span> Demo Brief</div>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#technical">Technical</a>
+      <a href="#demo">Demo Script</a>
+      <a href="#setup">Setup</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<div class="hero">
+  <div class="hero-eyebrow">GreyOrange · Internal Demo · 30 Minutes</div>
+  <h1>Ticket to mockup<br>in <em>90 seconds.</em></h1>
+  <p class="hero-sub">
+    PM Orchestrator reads your JIRA ticket, analyzes the actual Manager Dashboard codebase, and generates a production-quality UI mockup — automatically.
+  </p>
+
+  <!-- Transformation visual with stream animation -->
+  <div class="transform-stage">
+    <div class="transform-panel input">
+      <span class="jira-label">JIRA Ticket Input</span>
+      <div class="stream-line s1"><span class="ticket-id">GM-29847</span></div>
+      <div class="stream-line s2"><span class="ticket-field">summary: </span><span class="ticket-val">"Outbound SLA breach alert…"</span></div>
+      <div class="stream-line s3"><span class="ticket-field">priority: </span><span class="ticket-val">High</span></div>
+      <div class="stream-line s4"><span class="ticket-field">description: </span><span class="ticket-val">Add visual…</span></div>
+      <div class="stream-line s5" style="margin-top:8px;"><span class="stream-line active">→ find-related-context(outbound,sla)</span></div>
+      <div class="stream-line s6"><span class="stream-line active">→ get-page-template(/outbound/ordersV2)</span></div>
+      <div class="stream-line s7"><span class="stream-line active">→ get-domain-status-map(outbound)</span></div>
+      <div class="stream-line s8"><span class="stream-line active">→ building HTML… <span class="stream-cursor"></span></span></div>
+    </div>
+    <div class="transform-arrow">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+      </svg>
+    </div>
+    <div class="transform-panel output">
+      <span class="jira-label" style="color:var(--accent);">Rendered Mockup Output</span>
+      <div class="mockup-preview">
+        <div class="mp-nav">
+          <div class="mp-nav-dot" style="background:#FE8400;"></div>
+          <div class="mp-nav-dot" style="background:rgba(255,255,255,0.3);"></div>
+          <div class="mp-nav-dot" style="background:rgba(255,255,255,0.3);"></div>
+        </div>
+        <div class="mp-tabs">
+          <div class="mp-tab">ANALYTICS</div>
+          <div class="mp-tab active">OUTBOUND</div>
+          <div class="mp-tab">INBOUND</div>
+        </div>
+        <div class="mp-content">
+          <div class="mp-table-header">
+            <div class="mp-th" style="flex:1.8">Order Info</div>
+            <div class="mp-th">Status</div>
+            <div class="mp-th">SLA</div>
+            <div class="mp-th">Priority</div>
+            <div class="mp-th">Action</div>
+          </div>
+          <div class="mp-row">
+            <div class="mp-td" style="flex:1.8;color:#101a5c;font-weight:600">ORD-0124</div>
+            <div class="mp-td"><span class="mp-chip orange">In Progress</span></div>
+            <div class="mp-td" style="color:#C43B2E">BREACHED</div>
+            <div class="mp-td" style="color:#C43B2E">Critical</div>
+            <div class="mp-td">···</div>
+          </div>
+          <div class="mp-row">
+            <div class="mp-td" style="flex:1.8;color:#101a5c;font-weight:600">ORD-0125</div>
+            <div class="mp-td"><span class="mp-chip green">Completed</span></div>
+            <div class="mp-td" style="color:#1A7F5A">On Track</div>
+            <div class="mp-td">Normal</div>
+            <div class="mp-td">···</div>
+          </div>
+          <div class="mp-row">
+            <div class="mp-td" style="flex:1.8;color:#101a5c;font-weight:600">ORD-0126</div>
+            <div class="mp-td"><span class="mp-chip grey">Created</span></div>
+            <div class="mp-td">18:00</div>
+            <div class="mp-td" style="color:#C43B2E">Critical</div>
+            <div class="mp-td">···</div>
+          </div>
+          <div class="mp-pagination">
+            <span>72 results found</span>
+            <span>Results per page: 50 &nbsp; &lt; 1 2 &gt;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="metric">
+      <div class="metric-val">&lt; 90s</div>
+      <div class="metric-label">First mockup from ticket to screen</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val">17</div>
+      <div class="metric-label">Live codebase analysis tools via MCP</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val">2</div>
+      <div class="metric-label">Rendering modes — HTML and Vue/Quasar UMD</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PROBLEM
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="problem">
+  <div class="section-header">
+    <div class="section-tag">The Problem</div>
+    <h2>The mockup gap costs real time</h2>
+    <p class="section-intro">Before a developer writes a line of code, a PM or designer needs to sketch what the feature looks like. Today that process is manual, disconnected from the codebase, and produces throwaway artifacts.</p>
+  </div>
+  <div class="problem-grid">
+    <div class="problem-card">
+      <h3><span class="badge before">Before</span> Manual process</h3>
+      <ul>
+        <li>PM writes ticket → shares in Slack → someone picks it up</li>
+        <li>Designer opens Figma, starts from scratch or adapts a template</li>
+        <li>No access to actual component library — invents colors, fonts, spacing</li>
+        <li>First version misses real column names, status values, action labels</li>
+        <li>2–4 revision cycles before it matches the real app style</li>
+        <li>Mockup becomes stale the moment a developer starts working</li>
+        <li>Total time to acceptable mockup: 4–8 hours per feature</li>
+      </ul>
+    </div>
+    <div class="problem-card after">
+      <h3><span class="badge after">After</span> PM Orchestrator</h3>
+      <ul>
+        <li>PM pastes a JIRA ticket ID into the tool</li>
+        <li>Tool reads the ticket + crawls the live app + analyzes the codebase</li>
+        <li>Generates a mockup using real Quasar components and actual CSS</li>
+        <li>Real column names sourced from Vue component <code>tableFields()</code></li>
+        <li>Real status values from domain <code>STATUS_COLOR_MAP</code></li>
+        <li>Refine with a sentence: "add a filter chip for SLA breach"</li>
+        <li>Total time to acceptable mockup: 2–5 minutes per feature</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     REQUIREMENTS
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="requirements">
+  <div class="section-header">
+    <div class="section-tag">Product Requirements</div>
+    <h2>What it must do</h2>
+    <p class="section-intro">Functional requirements grouped by capability. All requirements implemented and shipped.</p>
+  </div>
+  <div class="req-grid">
+    <div class="req-card" data-num="FR-01">
+      <h3>JIRA Integration</h3>
+      <ul>
+        <li>Fetch ticket by ID from Atlassian REST API v3</li>
+        <li>Parse Atlassian Document Format (ADF) to plain text</li>
+        <li>Extract linked URLs — Figma, Confluence, web links</li>
+        <li>Scrape and embed linked URL content into prompt</li>
+        <li>Fall back to mock data when credentials absent</li>
+      </ul>
+    </div>
+    <div class="req-card" data-num="FR-02">
+      <h3>Codebase Analysis via MCP</h3>
+      <ul>
+        <li>17 MCP tools — routes, components, GraphQL, store, AST graph</li>
+        <li>Persistent HTTP MCP server on port 3100 (warm code graph)</li>
+        <li>Resolve <code>$t('key')</code> i18n labels to English text</li>
+        <li>Extract real <code>tableFields()</code> column definitions</li>
+        <li>Domain-specific status color maps from source constants</li>
+        <li>Batch multi-file reads to reduce round-trip latency</li>
+      </ul>
+    </div>
+    <div class="req-card" data-num="FR-03">
+      <h3>Capture Grounding</h3>
+      <ul>
+        <li>Playwright crawler snapshots live Manager Dashboard</li>
+        <li>Captures compiled Quasar CSS bundle + DOM templates</li>
+        <li>Post-crawl analysis classifies pages by archetype</li>
+        <li>CSS injected inline into mockup for iframe rendering</li>
+        <li>Page template catalog embedded in system prompt</li>
+      </ul>
+    </div>
+    <div class="req-card" data-num="FR-04">
+      <h3>Mockup Generation</h3>
+      <ul>
+        <li>Pure HTML mode: standalone HTML + CSS + vanilla JS</li>
+        <li>Vue/Quasar mode: real components via UMD CDN</li>
+        <li>Real-time SSE streaming to browser</li>
+        <li>HTML rendered in sandboxed iframe</li>
+        <li>LEAN_MOCKUP_RUN: max 3 MCP rounds before HTML output</li>
+      </ul>
+    </div>
+    <div class="req-card" data-num="FR-05">
+      <h3>Refinement Loop</h3>
+      <ul>
+        <li>Unlimited refinement iterations on a generated mockup</li>
+        <li>Injected CSS stripped before refinement, re-injected after</li>
+        <li>File + screenshot attachment support</li>
+        <li>Optimized refinement prompt — 17k fewer tokens vs generation</li>
+        <li>Each iteration versioned in session history</li>
+      </ul>
+    </div>
+    <div class="req-card" data-num="FR-06">
+      <h3>Session &amp; Observability</h3>
+      <ul>
+        <li>Sessions persisted to localStorage by ticket ID</li>
+        <li>Per-session dual log: human-readable <code>.log.md</code> + <code>.log.json</code></li>
+        <li>Token usage + cost per model logged per session</li>
+        <li>All MCP tool calls captured in debug log</li>
+        <li>Full system prompt + user message stored for replay</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ARCHITECTURE
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="architecture">
+  <div class="section-header">
+    <div class="section-tag">System Design</div>
+    <h2>Two processes, one pipeline</h2>
+    <p class="section-intro">The tool runs as two separate processes that work together. Next.js builds the prompt and streams the output. A persistent MCP server keeps the code graph warm.</p>
+  </div>
+
+  <div class="arch-diagram">
+    <!-- Layer 1: Browser -->
+    <div class="arch-row">
+      <div class="arch-box primary">
+        <div class="arch-box-title">Browser — Next.js UI (port 3000)</div>
+        <div class="arch-box-desc">React workspace: ticket input, mode toggle (HTML / Vue·Quasar), iframe preview, refinement strip, session history, token usage</div>
+      </div>
+    </div>
+
+    <div class="arch-separator">POST /api/chat → SSE stream</div>
+
+    <!-- Layer 2: API Route -->
+    <div class="arch-row">
+      <div class="arch-box primary">
+        <div class="arch-box-title">Next.js API Route — app/api/chat/route.ts</div>
+        <div class="arch-box-desc">Pre-fetches context (mcp-bridge, capture grounding, template survey) → builds system prompt → pings MCP health → spawns Claude Code CLI subprocess → streams SSE events to browser</div>
+      </div>
+    </div>
+
+    <div class="arch-separator">stdin / stdout (stream-json)</div>
+
+    <!-- Layer 3: Claude CLI -->
+    <div class="arch-row">
+      <div class="arch-box accent-box">
+        <div class="arch-box-title">Claude Code CLI subprocess</div>
+        <div class="arch-box-desc">Connects to MCP server via --mcp-config (HTTP or stdio fallback) · calls 17 mcp__md__* tools · produces RAW_HTML_COMPONENT_START … END markers · max 3 MCP rounds (LEAN_MOCKUP_RUN)</div>
+      </div>
+    </div>
+
+    <div class="arch-separator">HTTP  ·  StreamableHTTPServerTransport</div>
+
+    <!-- Layer 4: MCP Server -->
+    <div class="arch-row">
+      <div class="arch-box primary">
+        <div class="arch-box-title">HTTP MCP Server — src/mcp-http-server.ts (port 3100)</div>
+        <div class="arch-box-desc">Persistent Express process · per-session McpServer instances · shared in-memory AST graph (warm across all requests) · GET /health · POST/GET/DELETE /mcp</div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <div class="arch-separator">17 tools backed by</div>
+      <div class="arch-mini-grid">
+        <div class="arch-mini">
+          <div class="arch-mini-title">Filesystem tools (7)</div>
+          list-routes · find-components · read-source-file · list-graphql · find-usages · list-store-modules · list-resolvers
+        </div>
+        <div class="arch-mini">
+          <div class="arch-mini-title">AST / Graph tools (6)</div>
+          rebuild-code-index · search-code-symbols · get-file-structure · find-callers · get-vue-component · get-resolver-info
+        </div>
+        <div class="arch-mini">
+          <div class="arch-mini-title">Compound + Capture (7)</div>
+          find-related-context · get-table-columns · get-domain-status-map · resolve-i18n-keys · read-files-batch · survey-page-templates · get-page-template
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TECHNICAL
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="technical">
+  <div class="section-header">
+    <div class="section-tag">Technical Implementation</div>
+    <h2>Built on the actual stack</h2>
+    <p class="section-intro">Implementation choices that make the quality possible — reading real source, not approximating it.</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-card">
+      <div class="tech-card-head">
+        Core Stack
+        <small>RUNTIME DEPENDENCIES</small>
+      </div>
+      <div class="tech-card-body">
+        <div class="stack-row"><span class="stack-name">Next.js</span><span class="stack-ver">14.2.0</span></div>
+        <div class="stack-row"><span class="stack-name">Claude Code CLI</span><span class="stack-ver">2.1.161</span></div>
+        <div class="stack-row"><span class="stack-name">@modelcontextprotocol/sdk</span><span class="stack-ver">1.0.0</span></div>
+        <div class="stack-row"><span class="stack-name">Express (via MCP SDK)</span><span class="stack-ver">5.2.1</span></div>
+        <div class="stack-row"><span class="stack-name">Playwright (crawler)</span><span class="stack-ver">1.61.1</span></div>
+        <div class="stack-row"><span class="stack-name">fast-glob + Babel AST</span><span class="stack-ver">—</span></div>
+        <div class="stack-row"><span class="stack-name">concurrently</span><span class="stack-ver">9.2.3</span></div>
+      </div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-card-head">
+        Key Engineering Decisions
+        <small>DESIGN CHOICES</small>
+      </div>
+      <div class="tech-card-body">
+        <div class="stack-row"><span class="stack-name">Persistent MCP over stdio</span><span class="stack-ver">warm graph, no cold start</span></div>
+        <div class="stack-row"><span class="stack-name">Context cache (5 min TTL)</span><span class="stack-ver">no MCP roundtrip per req</span></div>
+        <div class="stack-row"><span class="stack-name">CSS injected server-side</span><span class="stack-ver">iframe srcDoc safe</span></div>
+        <div class="stack-row"><span class="stack-name">LEAN_MOCKUP_RUN protocol</span><span class="stack-ver">max 3 MCP rounds</span></div>
+        <div class="stack-row"><span class="stack-name">Refinement prompt trimmed</span><span class="stack-ver">−17k tokens vs generation</span></div>
+        <div class="stack-row"><span class="stack-name">Dual log (MD + JSON)</span><span class="stack-ver">human + machine readable</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;">
+    <h3 style="font-family:var(--f-display);font-size:16px;font-weight:600;margin-bottom:12px;">MCP Config: HTTP (primary) with stdio fallback</h3>
+    <div class="code-block">
+<span class="code-comment">// Health check → HTTP if server up, stdio subprocess if not</span>
+<span class="code-key">const</span> mcpConfig = mcpServerReady
+  ? { <span class="code-key">mcpServers</span>: { <span class="code-key">md</span>: { <span class="code-key">type</span>: <span class="code-str">"http"</span>, <span class="code-key">url</span>: <span class="code-str">"http://127.0.0.1:3100/mcp"</span> } } }
+  : { <span class="code-key">mcpServers</span>: { <span class="code-key">md</span>: { <span class="code-key">command</span>: <span class="code-str">"npx tsx src/md-mcp-server.ts"</span> } } };
+
+<span class="code-comment">// Claude CLI spawn</span>
+<span class="code-key">spawn</span>(<span class="code-str">"claude"</span>, [
+  <span class="code-str">"--print"</span>, <span class="code-str">"--output-format"</span>, <span class="code-str">"stream-json"</span>,
+  <span class="code-str">"--model"</span>, model,
+  <span class="code-str">"--system-prompt-file"</span>, tmpFile,
+  <span class="code-str">"--mcp-config"</span>, mcpConfigFile,
+  <span class="code-str">"--allowedTools"</span>, <span class="code-str">"Write,Read,mcp__md__*"</span>
+]);</div>
+  </div>
+
+  <div style="margin-top:24px;">
+    <h3 style="font-family:var(--f-display);font-size:16px;font-weight:600;margin-bottom:12px;">All 21 MCP Tools</h3>
+    <div class="tool-grid">
+      <div class="tool-pill">list-routes<small>Vue Router tree</small></div>
+      <div class="tool-pill">find-components<small>Search Vue SFCs</small></div>
+      <div class="tool-pill">read-source-file<small>Read any repo file</small></div>
+      <div class="tool-pill">list-graphql<small>GQL by domain</small></div>
+      <div class="tool-pill">find-usages<small>Symbol references</small></div>
+      <div class="tool-pill">list-store-modules<small>Vuex modules</small></div>
+      <div class="tool-pill">list-resolvers<small>BFF resolvers</small></div>
+      <div class="tool-pill">rebuild-code-index<small>Force re-index</small></div>
+      <div class="tool-pill">search-code-symbols<small>AST name search</small></div>
+      <div class="tool-pill">get-file-structure<small>Symbols + edges</small></div>
+      <div class="tool-pill">find-callers<small>Call graph lookup</small></div>
+      <div class="tool-pill">get-vue-component<small>Props/methods/apollo</small></div>
+      <div class="tool-pill">get-resolver-info<small>GQL resolver meta</small></div>
+      <div class="tool-pill">find-related-context<small>Keyword → components</small></div>
+      <div class="tool-pill">get-table-columns<small>Real column defs</small></div>
+      <div class="tool-pill">get-domain-status-map<small>Status → color map</small></div>
+      <div class="tool-pill">resolve-i18n-keys<small>$t() → English</small></div>
+      <div class="tool-pill">read-files-batch<small>6 files in 1 call</small></div>
+      <div class="tool-pill">list-captured-pages<small>Crawler page list</small></div>
+      <div class="tool-pill">survey-page-templates<small>Template catalog</small></div>
+      <div class="tool-pill">get-page-template<small>DOM template HTML</small></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     DEMO SCRIPT — THE MAIN EVENT
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="demo">
+  <div class="section-header">
+    <div class="section-tag">30-Minute Demo Script</div>
+    <h2>Step by step</h2>
+    <p class="section-intro">Each block is a self-contained unit. The highlighted blocks are the live moments — prepare a real JIRA ticket that has good description content before the demo.</p>
+  </div>
+
+  <div class="demo-timeline">
+
+    <!-- Step 1 -->
+    <div class="demo-step">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">0:00</span>
+            <span class="demo-title">Context — What we're solving</span>
+          </div>
+          <span class="demo-dur">2 min</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Open with the status quo, not the tool. Make the audience feel the problem before you show the solution.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">→</div>Show a real JIRA ticket — a medium-complexity UI feature (listing page, new filter, status column addition)</li>
+            <li><div class="check-icon">→</div>Ask: "How long would it take to sketch this in Figma so a developer knows what to build?" — pause for answers</li>
+            <li><div class="check-icon">→</div>Answer: "We do it in under 90 seconds, reading your actual codebase."</li>
+          </ul>
+          <div class="talking-point">
+            <strong>Key line:</strong> "Every Figma mockup you've seen for Manager Dashboard was built from scratch. This tool builds from the code that's already running."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="demo-step">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">2:00</span>
+            <span class="demo-title">Architecture — Two slides maximum</span>
+          </div>
+          <span class="demo-dur">3 min</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Show the architecture section of this document. Point at two things only: the Claude CLI subprocess and the MCP server.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">→</div>The browser sends a ticket ID → Next.js fetches ticket, builds a system prompt, spawns Claude CLI</li>
+            <li><div class="check-icon">→</div>Claude CLI connects to port 3100 (the MCP server) — a persistent process with your codebase already loaded in memory</li>
+            <li><div class="check-icon">→</div>Claude reads the real Vue components, GraphQL files, and status maps — then writes HTML</li>
+            <li><div class="check-icon">→</div>The HTML streams back to the browser and renders in an iframe</li>
+          </ul>
+          <div class="talking-point">
+            <strong>Avoid:</strong> deep-dive into LEAN_MOCKUP_RUN, context caching, i18n resolution. Those are for Q&A. Keep architecture to the 30-second version here.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: LIVE DEMO -->
+    <div class="demo-step highlight">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">5:00</span>
+            <span class="demo-title">Live Demo — First generation</span>
+          </div>
+          <span class="demo-dur">8 min ★ LIVE</span>
+        </div>
+        <div class="demo-step-body">
+          <p>The centrepiece. Have the browser open at localhost:3000 before you start. Pre-pick a ticket with good description content and subtasks — avoid tickets with only a one-line description.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">★</div>Type the JIRA ticket ID in the gateway field and hit Initialize</li>
+            <li><div class="check-icon">★</div>While the generation screen is animating: narrate what's happening — "Claude is calling the MCP server right now, reading the outbound listing component"</li>
+            <li><div class="check-icon">★</div>Watch the thinking stream scroll — point out the tool calls: <code>get-page-template</code>, <code>find-related-context</code></li>
+            <li><div class="check-icon">★</div>When the mockup appears — let the audience see it for 15 seconds before talking</li>
+            <li><div class="check-icon">★</div>Point out: nav bar color, table structure, status chip colors, the real column names from the codebase</li>
+            <li><div class="check-icon">★</div>Switch to History tab — show the generated analysis text and effort estimate alongside the mockup</li>
+          </ul>
+          <div class="talking-point">
+            <strong>Key line:</strong> "Those column names — 'Audit Details', 'Priority &amp; Deletable After' — came from reading <code>Audit.vue</code>'s <code>tableFields()</code> with the i18n keys resolved. No one typed those."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="demo-step">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">13:00</span>
+            <span class="demo-title">Quality review — Compare with real app</span>
+          </div>
+          <span class="demo-dur">3 min</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Side-by-side if you have a browser tab of the real Manager Dashboard open. If not, use product screenshots from src/mcp-context/.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">→</div>Open the mockup in full-page view (the expand icon in the toolbar)</li>
+            <li><div class="check-icon">→</div>Point at: navy nav bar, filter pill, table header colors (#F6F6F6), sticky first column, pagination bar format</li>
+            <li><div class="check-icon">→</div>Acknowledge what isn't pixel-perfect yet — the crawler grounding makes it closer, but it's a starting point, not a finished design</li>
+          </ul>
+          <div class="talking-point">
+            <strong>Key line:</strong> "This is the real Quasar CSS that's running on your live instance — we crawled it, stored it, and injected it here. The font and the table chrome are exactly what the real app renders."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: REFINEMENT -->
+    <div class="demo-step highlight">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">16:00</span>
+            <span class="demo-title">Refinement — Iterate in plain English</span>
+          </div>
+          <span class="demo-dur">4 min ★ LIVE</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Type a refinement that makes a visible change. Keep it concrete — not "make it better" but a specific layout or data change.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">★</div>Suggested prompt: <em>"Add a red SLA Breach warning badge next to the Audit SLA column header, and highlight breached rows in a light red background"</em></li>
+            <li><div class="check-icon">★</div>While it generates: "Refinement sends only the existing HTML back — Claude edits it directly. No MCP tools, no codebase reads. It's faster."</li>
+            <li><div class="check-icon">★</div>When it arrives: point at the change. Show that everything else stayed intact.</li>
+            <li><div class="check-icon">★</div>Do one more: <em>"Change the section banner stats to show: Total: 72 | Breached: 8 | In Progress: 15"</em></li>
+          </ul>
+          <div class="talking-point">
+            <strong>Key line:</strong> "The refinement prompt is 17,000 tokens smaller than a fresh generation. We strip the design docs and keep only the BASE CSS rules — Claude only needs the current HTML and the change."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6: VUE MODE -->
+    <div class="demo-step highlight">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">20:00</span>
+            <span class="demo-title">Vue / Quasar mode — Real components</span>
+          </div>
+          <span class="demo-dur">4 min ★ LIVE</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Switch the mode toggle in the header from "HTML" to "Vue / Quasar" and regenerate the same ticket.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">★</div>Show the toggle: "This changes the output format from pure HTML to a page that uses Vue 2 + Quasar 1 UMD loaded from CDN"</li>
+            <li><div class="check-icon">★</div>Regenerate — the generation takes the same time but Claude writes <code>&lt;q-table&gt;</code>, <code>&lt;q-chip&gt;</code>, <code>&lt;q-btn&gt;</code></li>
+            <li><div class="check-icon">★</div>Point out the interactive behaviors: hover states on buttons, Quasar's built-in ripple effects, proper tooltip rendering</li>
+            <li><div class="check-icon">★</div>View source of the iframe (right-click → Inspect in the iframe) — show the Vue instance, the Quasar brand config</li>
+          </ul>
+          <div class="talking-point">
+            <strong>Key line:</strong> "In HTML mode we're simulating Quasar with our own CSS. In Vue mode, that IS Quasar 1.20.1 — the exact version your production app runs. A developer could take this file and drop it into the codebase as a starting point."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="demo-step">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">24:00</span>
+            <span class="demo-title">Observability — Logs and cost tracking</span>
+          </div>
+          <span class="demo-dur">3 min</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Switch to the Usage tab. Then open a terminal and show the log files.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">→</div>Usage tab: show input/output tokens, cost in USD, model used for this session</li>
+            <li><div class="check-icon">→</div>Terminal: <code>cat ~/claude-ui-designs/logs/GM-XXXXX-*.log.md</code> — show the step-by-step log with MCP tool calls listed</li>
+            <li><div class="check-icon">→</div>Open the <code>.log.json</code> — "This is machine-readable. You can grep tool calls, measure round-trip times, replay sessions for debugging"</li>
+            <li><div class="check-icon">→</div>Show cost: "A Haiku 4.5 generation is typically $0.002–0.004. Sonnet is 4× that. You pick the model per ticket."</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="demo-step">
+      <div class="demo-step-card">
+        <div class="demo-step-head">
+          <div class="demo-step-meta">
+            <span class="demo-time">27:00</span>
+            <span class="demo-title">What's next + Q&amp;A</span>
+          </div>
+          <span class="demo-dur">3 min</span>
+        </div>
+        <div class="demo-step-body">
+          <p>Close with honest scope and open the floor.</p>
+          <ul class="demo-checklist">
+            <li><div class="check-icon">→</div>Current: listing pages are the strongest output. Forms and dashboards work but need more refinement</li>
+            <li><div class="check-icon">→</div>Planned: capture crawler re-run automation when app deploys, component library updates for new domains</li>
+            <li><div class="check-icon">→</div>Possible: export generated Vue files directly into the codebase as a PR starting point</li>
+            <li><div class="check-icon">→</div>Open for questions — the architecture diagram is visible for reference during Q&amp;A</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end demo-timeline -->
+
+  <!-- Phase bar summary -->
+  <div class="demo-total">
+    <div>
+      <div class="demo-total-label">Total demo time</div>
+      <div class="demo-total-val">30 min</div>
+    </div>
+    <div class="demo-phase-list">
+      <div class="demo-phase">
+        <div class="demo-phase-bar" style="width:40px"></div>
+        <span class="demo-phase-label">Context + Architecture</span>
+        <span class="demo-phase-time">5 min</span>
+      </div>
+      <div class="demo-phase">
+        <div class="demo-phase-bar" style="width:120px; background:var(--accent);"></div>
+        <span class="demo-phase-label">Live generation + quality review</span>
+        <span class="demo-phase-time">11 min</span>
+      </div>
+      <div class="demo-phase">
+        <div class="demo-phase-bar" style="width:90px; background:var(--accent);"></div>
+        <span class="demo-phase-label">Refinement + Vue/Quasar mode</span>
+        <span class="demo-phase-time">8 min</span>
+      </div>
+      <div class="demo-phase">
+        <div class="demo-phase-bar" style="width:50px;"></div>
+        <span class="demo-phase-label">Logs + Q&amp;A</span>
+        <span class="demo-phase-time">6 min</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SETUP
+═══════════════════════════════════════════ -->
+<div class="wrap">
+<section id="setup">
+  <div class="section-header">
+    <div class="section-tag">Demo Setup Checklist</div>
+    <h2>Before you present</h2>
+    <p class="section-intro">Run through this 10 minutes before the demo starts. Most failures happen because the MCP server wasn't running.</p>
+  </div>
+
+  <div class="setup-steps">
+    <div class="setup-step">
+      <div class="setup-num">01</div>
+      <h4>Environment</h4>
+      <p>Copy <code>.env.example</code> → <code>.env.local</code>. Set <code>MD_REPO_ROOT</code> to your manager-dashboard path. Set JIRA credentials.</p>
+      <div><span class="cmd">cp .env.example .env.local</span></div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-num">02</div>
+      <h4>Dependencies</h4>
+      <p>Install packages. Requires Node 18+. The MCP SDK ships Express as a transitive dependency — no extra install needed.</p>
+      <div><span class="cmd">npm install</span></div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-num">03</div>
+      <h4>Start both servers</h4>
+      <p>Single command starts the MCP server (port 3100) AND Next.js (port 3000) via concurrently. Wait for both to show "ready".</p>
+      <div><span class="cmd">npm run dev</span></div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-num">04</div>
+      <h4>Warm the index</h4>
+      <p>Hit the MCP health endpoint. First run builds the AST index (~20s). Wait for <code>indexReady: true</code> before demo.</p>
+      <div><span class="cmd">curl :3100/health</span></div>
+    </div>
+  </div>
+
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-top:0;">
+    <h3 style="font-family:var(--f-display);font-size:14px;font-weight:600;margin-bottom:16px;">Pre-demo ticket selection</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div style="font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">✓ Good demo tickets</div>
+        <ul style="list-style:none;padding:0;">
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">Outbound/Inbound listing page feature</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">New column / filter addition to existing table</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">Status badge or SLA indicator</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0">Has &gt;3 acceptance criteria in description</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:8px;">✗ Avoid for demo</div>
+        <ul style="list-style:none;padding:0;">
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">One-line description tickets</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">Backend-only tickets (no UI)</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--ground-2)">Tickets with only image attachments</li>
+          <li style="font-size:13px;color:var(--text-muted);padding:5px 0">Deeply nested sub-domain routes not yet crawled</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <div class="footer-brand">PM Orchestrator <span>·</span> GreyOrange</div>
+    <div class="footer-meta">JIRA TICKET → MOCKUP · 30 MIN DEMO BRIEF · 2026</div>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -20,7 +20,10 @@ This file contains two sections:
 
 ```html
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Source Sans Pro — matches the self-hosted SourceSansPro OTF the real app uses.
+     DO NOT use Source+Sans+3 — that is a different family name and will fall back to Arial. -->
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
 ```
@@ -58,11 +61,18 @@ Icon usage: `<span class="material-symbols-outlined">keyboard_arrow_right</span>
   --card-bg:     #FFFFFF;
 }
 
-body {
-  font-family: 'Source Sans Pro', 'DINNextLTPro-Regular', Arial, sans-serif;
+/* Font stack matches quasar.variables.scss: $typography-font-family: 'SourceSansPro','DINNextLTPro'
+   CDN equivalent: 'Source Sans Pro' (NOT 'Source Sans 3' — different family) */
+body, * {
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body {
   background: var(--page-bg);
   color: var(--body-text);
+  line-height: 1.5;
 }
 
 /* --- TOP BAR --- */
@@ -246,6 +256,11 @@ body {
   color: #4D5055;            /* REAL: tbody color #4D5055 */
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  /* Force left-alignment on ALL data cells.
+     Right-aligned text wider than the cell clips from the LEFT (shows "nal" not "Normal").
+     Only .td-actions overrides this to center. Never set text-align:right on data cells. */
+  text-align: left !important;
+  overflow: hidden;
 }
 .md-v2-table tbody tr:hover td { background: #fafafa; }
 
@@ -330,8 +345,14 @@ body {
 .chip-offline                                   { background: #ffd8d7; }
 /* NEUTRAL GREY — created / closed / n-a (#ececec) */
 .chip-created, .chip-closed, .chip-na           { background: #ececec; }
-/* CRITICAL — only true destructive/critical (solid red, white text) */
+/* CRITICAL STATUS chip — solid red background, white text (for status use only) */
 .chip-critical { background: #ED3324; color: #FFFFFF; }
+
+/* PRIORITY — plain text only, NO chip, NO background.
+   Critical priority = red text. Normal/other = inherit.
+   NEVER use .chip-critical or any chip class for priority. */
+.priority-critical { color: #ED3324; font-weight: 400; }
+.priority-normal    { color: inherit;  font-weight: 400; }
 
 /* --- ROW ACTION BUTTONS ---
    REAL outbound v2 row actions are FLAT ROUND icon buttons (no border),
@@ -661,7 +682,11 @@ body {
 
 ```html
 <!-- SNIPPET: table-row — REAL outbound v2 row. Col 1 = checkbox + expand arrow together.
-     Status cell = chip + small progress label. Actions = flat round Material-icon buttons. -->
+     Status cell = chip + small progress label. Actions = flat round Material-icon buttons.
+     ⚠ PRIORITY RULE: Priority is NEVER a chip. Always plain <span> text.
+       Critical → <span class="priority-critical">Critical</span>  (red text, NO background)
+       Normal   → <span class="priority-normal">Normal</span>       (plain text)
+     Using .chip-critical or any chip/badge for priority causes left-side text clipping. -->
 <tr>
   <td class="td-select-expand">
     <span class="select-expand-wrap">
@@ -679,7 +704,8 @@ body {
     </span>
   </td>
   <td>PPS-07</td>
-  <td>High</td>
+  <!-- Priority: plain text, never a chip -->
+  <td><span class="priority-critical">Critical</span></td>
   <td>14:32</td>
   <td>18:00</td>
   <td>B2C</td>
@@ -832,11 +858,13 @@ function toggleExpand(btn) {
 
 ```html
 <!-- SNIPPET: status-chips — real status buckets from STATUS_COLOR_MAP; text #4D5055 except chip-critical.
-     Pick the class whose bucket matches the ticket's status string:
+     For ORDER/ENTITY STATUS only. Pick the class whose bucket matches the ticket's status string:
        GREEN  #ebf5e8 → Completed, Released, Completed - Short Picked
        AMBER  #ffeedc → In Progress (+ Staging/Picking/Put/Cancellation/On Hold/Staged Failed)
        RED    #ffd8d7 → Cancelled, Unfulfillable, Abandoned, Failed
-       GREY   #ececec → Created (and Closed / N/A) -->
+       GREY   #ececec → Created (and Closed / N/A)
+     ⚠ chip-critical is for error/failed STATUS only (e.g., system critical alert status).
+       For PRIORITY "Critical" use .priority-critical (plain red text, NO chip background). -->
 <div style="display:flex; flex-wrap:wrap; gap:8px; padding:8px">
   <span class="chip chip-completed">Completed</span>
   <span class="chip chip-released">Released</span>
@@ -848,7 +876,11 @@ function toggleExpand(btn) {
   <span class="chip chip-unfulfillable">Unfulfillable</span>
   <span class="chip chip-failed">Failed</span>
   <span class="chip chip-abandoned">Abandoned</span>
-  <span class="chip chip-critical">Critical</span>
+</div>
+<!-- Priority display (NOT a chip): -->
+<div style="display:flex; gap:12px; padding:8px; align-items:center;">
+  <span class="priority-critical">Critical</span>  <!-- red text, no background -->
+  <span class="priority-normal">Normal</span>        <!-- plain text -->
 </div>
 ```
 

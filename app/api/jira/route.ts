@@ -82,15 +82,18 @@ export interface LinkedUrl {
   content: string;
 }
 
-function extractUrls(texts: string[]): string[] {
+function extractUrls(texts: string[], jiraBaseUrl?: string): string[] {
   const urlRegex = /https?:\/\/[^\s<>"'\])\},;]+/g;
   const all = texts.flatMap((t) => t.match(urlRegex) ?? []);
   return Array.from(new Set(all))
-    .map((u) => u.replace(/[.,;!?]+$/, ""))          // strip trailing punctuation
-    .filter((u) => u.length > 10 && u.length < 500)  // sanity bounds
-    .filter((u) => !IMAGE_EXT.test(u))                // skip media
+    .map((u) => u.replace(/[.,;!?]+$/, ""))           // strip trailing punctuation
+    .filter((u) => u.length > 10 && u.length < 500)   // sanity bounds
+    .filter((u) => !IMAGE_EXT.test(u))                 // skip media
     .filter((u) => !u.includes("/secure/attachment/")) // Jira attachments handled separately
     .filter((u) => !u.includes("/rest/api/"))          // Jira API calls
+    // Never scrape Jira ticket pages — they would pull in parent/linked ticket data
+    .filter((u) => !u.includes("/browse/"))
+    .filter((u) => !jiraBaseUrl || !u.startsWith(jiraBaseUrl))
     .slice(0, 10);                                     // hard cap
 }
 
@@ -241,7 +244,8 @@ export async function GET(request: Request) {
     const fields = [
       "summary","description","comment","attachment",
       "subtasks","issuelinks","labels","priority","status",
-      "assignee","reporter","issuetype","parent",
+      "assignee","reporter","issuetype",
+      // "parent" intentionally excluded — we only want the entered ticket's own data
       "customfield_10016","customfield_10028",
     ].join(",");
 
@@ -295,14 +299,20 @@ export async function GET(request: Request) {
       inwardIssue?:  { key?: string; fields?: { summary?: string; status?: { name?: string } } };
       outwardIssue?: { key?: string; fields?: { summary?: string; status?: { name?: string } } };
     };
+    // Link types that express parent-child hierarchy — exclude from linked issues
+    // so we only show peer/blocking/related links, not ancestry.
+    const PARENT_LINK_PATTERNS = /\b(parent|child|epic.?link|is.?part.?of|belongs.?to|is.?child.?of|is.?subtask.?of|epic)/i;
+
     const linkedIssues = ((f.issuelinks ?? []) as RawLink[]).flatMap((l) => {
       const results = [];
-      if (l.inwardIssue) results.push({
-        id: l.inwardIssue.key ?? "", type: l.type?.inward ?? "linked to",
+      const inwardType  = l.type?.inward  ?? "";
+      const outwardType = l.type?.outward ?? "";
+      if (l.inwardIssue  && !PARENT_LINK_PATTERNS.test(inwardType)) results.push({
+        id: l.inwardIssue.key ?? "", type: inwardType || "linked to",
         summary: l.inwardIssue.fields?.summary ?? "", status: l.inwardIssue.fields?.status?.name ?? "Unknown",
       });
-      if (l.outwardIssue) results.push({
-        id: l.outwardIssue.key ?? "", type: l.type?.outward ?? "linked to",
+      if (l.outwardIssue && !PARENT_LINK_PATTERNS.test(outwardType)) results.push({
+        id: l.outwardIssue.key ?? "", type: outwardType || "linked to",
         summary: l.outwardIssue.fields?.summary ?? "", status: l.outwardIssue.fields?.status?.name ?? "Unknown",
       });
       return results;
@@ -331,9 +341,9 @@ export async function GET(request: Request) {
     );
 
     // ── URL extraction + fetch ────────────────────────────────────────────
-    // Collect all text sources: description + all comment bodies
+    // Only extract URLs from the current ticket's own text — not parent/linked tickets.
     const commentBodies = comments.map((c) => c.body);
-    const allUrls = extractUrls([description, ...commentBodies]);
+    const allUrls = extractUrls([description, ...commentBodies], baseUrl);
 
     // Fetch up to MAX_LINKS_TO_FETCH URLs in parallel
     const urlsToFetch = allUrls.slice(0, MAX_LINKS_TO_FETCH);
