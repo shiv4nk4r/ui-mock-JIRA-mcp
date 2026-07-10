@@ -167,7 +167,15 @@ export interface Comment {
   authorId?: string;
   text: string;
   createdAt: number;
+  kind?: ReviewEventKind;
 }
+
+export type ReviewEventKind =
+  | "message"
+  | "submission"
+  | "resubmission"
+  | "approval"
+  | "changes_requested";
 
 export type EngagementType = "feedback" | "testimonial" | "feature_request";
 

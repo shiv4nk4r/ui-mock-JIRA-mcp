@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { Message, TicketData, UsageRecord, UserRole } from "@lib/types";
 import { EFFORT_MARKER, stripEffortFromText } from "@lib/utils/parse-chat";
+import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 interface StreamOptions {
   userRole: UserRole;
@@ -94,8 +95,8 @@ export function useMockupGeneration() {
                 updateLastMessage({ text: display, isStreaming: true });
               }
               if (ev.html) {
-                streamingHtml = ev.html as string;
-                options.onHtml?.(ev.html as string);
+                streamingHtml = normalizeMockupHtml(ev.html as string);
+                if (streamingHtml) options.onHtml?.(streamingHtml);
               }
               if (ev.done) {
                 const parsed = stripEffortFromText(accumulated);

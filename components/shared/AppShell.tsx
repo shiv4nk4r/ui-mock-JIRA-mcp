@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen w-full flex flex-col" style={{ background: COLORS.bg }}>
       {!inWorkspace && (
         <header
-          className="w-full flex-none flex items-center justify-between px-6 py-3"
+          className="relative z-[100] w-full flex-none flex items-center justify-between px-6 py-3"
           style={{ background: "rgba(245,245,247,0.85)", backdropFilter: "blur(12px)" }}
         >
           <Link href="/dashboard" className="shrink-0" style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.02em" }}>
@@ -120,9 +120,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+                <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} aria-hidden />
                 <div
-                  className="absolute right-0 top-full mt-2 z-50 py-2 min-w-[180px] shadow-lg"
+                  className="absolute right-0 top-full mt-2 z-[110] py-2 min-w-[180px] shadow-lg"
                   style={{ background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}
                 >
                   <div className="px-4 py-2 border-b text-xs" style={{ borderColor: COLORS.border, color: COLORS.muted }}>

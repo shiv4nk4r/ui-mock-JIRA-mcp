@@ -1,4 +1,5 @@
 import type { AttachedFile } from "@lib/types";
+import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -52,8 +53,9 @@ export async function readFileContent(file: File): Promise<AttachedFile> {
 }
 
 export function openHtmlInNewTab(html: string) {
-  if (!html) return;
-  const blob = new Blob([html], { type: "text/html" });
+  const clean = normalizeMockupHtml(html);
+  if (!clean) return;
+  const blob = new Blob([clean], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank", "noopener,noreferrer");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);

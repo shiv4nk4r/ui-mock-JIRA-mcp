@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
-import { repository, generateId } from "@lib/storage";
-import type { MockupSession, ReviewItem, UserEngagement } from "@lib/types";
+import { repository } from "@lib/storage";
+import type { MockupSession, ReviewItem } from "@lib/types";
 import { buildExecutionDetails } from "@lib/utils/execution-details";
+import { finalizeReview } from "@lib/utils/review-workflow";
 import { relativeTime } from "@lib/utils/review-ui";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ExecutionDetailsPanel } from "@/components/reviews/ExecutionDetailsPanel";
@@ -14,6 +15,9 @@ import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewActionBar } from "@/components/reviews/ReviewActionBar";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
+import { MockupIframe } from "@/components/shared/MockupIframe";
+import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
+import { IconButton } from "@/components/shared/Toast";
 
 function latestEffortMarkdown(session: MockupSession | null): string | undefined {
   if (!session) return undefined;
@@ -29,10 +33,10 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const { user } = useAuth();
   const [review, setReview] = useState<ReviewItem | null>(null);
   const [session, setSession] = useState<MockupSession | null>(null);
-  const [engagement, setEngagement] = useState<UserEngagement[]>([]);
   const [busy, setBusy] = useState(false);
   const [planOpen, setPlanOpen] = useState(true);
   const [threadKey, setThreadKey] = useState(0);
+  const [mockFullscreen, setMockFullscreen] = useState(false);
 
   async function load() {
     const r = await repository.getReview(params.id);
@@ -47,7 +51,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     setReview(r);
     const s = await repository.getSession(r.userId, r.ticketId);
     setSession(s);
-    setEngagement(await repository.getEngagement({ sessionId: r.sessionId, ticketId: r.ticketId }));
     setThreadKey((k) => k + 1);
   }
 
@@ -61,44 +64,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     [review, session],
   );
 
-  async function addComment(text: string) {
-    if (!user || !review) return;
-    await repository.addComment({
-      id: generateId(),
-      targetId: review.id,
-      authorName: user.name,
-      authorId: user.id,
-      text,
-      createdAt: Date.now(),
-    });
-  }
+  const previewHtml = session?.activeHtml || review?.activeHtml || "";
 
-  async function finalize(status: ReviewItem["status"], message?: string) {
+  async function finalize(status: "approved" | "needs_changes", message?: string) {
     if (!review || !user) return;
     setBusy(true);
     try {
-      if (message) await addComment(message);
-      else if (status === "approved") {
-        await addComment("Approved for implementation — engineering can proceed with the build plan.");
-      }
-      await repository.updateReview(review.id, {
-        status,
-        reviewedAt: Date.now(),
-        internalNotes: message,
-      });
-      const saved = await repository.getSession(review.userId, review.ticketId);
-      if (saved) {
-        await repository.saveSession({
-          ...saved,
-          status:
-            status === "approved" || status === "reviewed"
-              ? "reviewed"
-              : status === "needs_changes"
-                ? "needs_changes"
-                : saved.status,
-        });
-      }
-      router.push("/reviews");
+      await finalizeReview({ review, user, status, message });
+      await load();
     } finally {
       setBusy(false);
     }
@@ -117,7 +90,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       <PmReviewDetailView
         review={review}
         session={session}
-        engagement={engagement}
         onRefresh={load}
         threadKey={threadKey}
       />
@@ -139,18 +111,25 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
       >
         <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap">
-          <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Reviews</Link>
+          <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Channels</Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span style={{ ...F.mono, fontSize: 14, fontWeight: 600, color: COLORS.accent }}>{review.ticketId}</span>
+              <p className="truncate" style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
+                {review.ticketSummary}
+              </p>
               <ReviewStatusChip status={review.status} />
             </div>
-            <p className="truncate" style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
-              {review.ticketSummary}
-            </p>
+            <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
           <div className="text-right shrink-0" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
-            <div className="flex items-center gap-2 justify-end">
+            <div className="flex items-center gap-2 justify-end flex-wrap">
+              <IconButton
+                label="Full screen"
+                onClick={() => setMockFullscreen(true)}
+                disabled={!previewHtml}
+              >
+                ⛶
+              </IconButton>
               <span
                 className="w-7 h-7 flex items-center justify-center text-xs font-semibold"
                 style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
@@ -170,11 +149,9 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           style={{ borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}`, background: COLORS.surface }}
         >
           <div className="lg:col-span-3 min-h-[400px] lg:min-h-[560px] bg-white border-b lg:border-b-0 lg:border-r" style={{ borderColor: COLORS.border }}>
-            <iframe
-              srcDoc={review.activeHtml}
-              sandbox="allow-scripts"
+            <MockupIframe
+              html={previewHtml}
               className="w-full h-full min-h-[400px] lg:min-h-[560px]"
-              style={{ border: "none" }}
               title="Review mockup"
             />
           </div>
@@ -182,7 +159,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <ReviewCommunicationPanel
               review={review}
               session={session}
-              engagement={engagement}
               onCommentAdded={load}
               refreshKey={threadKey}
             />
@@ -230,6 +206,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           )}
         </div>
       </div>
+
+      <MockupFullscreenOverlay
+        open={mockFullscreen}
+        onClose={() => setMockFullscreen(false)}
+        html={previewHtml}
+        title={review.ticketSummary}
+        subtitle={review.ticketId}
+      />
     </div>
   );
 }

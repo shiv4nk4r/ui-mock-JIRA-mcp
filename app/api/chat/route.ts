@@ -375,6 +375,7 @@ function extractHtmlFromMarkers(text: string): { displayText: string; html: stri
   let html          = text.slice(si + HTML_MARKER_START.length, ei).trim();
   // Strip markdown code fences Claude sometimes wraps around the HTML (```html … ```)
   html = html.replace(/^```(?:html|HTML)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+  html = html.replace(/^html\s*(\r?\n)/i, "").trim();
   const displayText = (text.slice(0, si) + text.slice(ei + HTML_MARKER_END.length)).trim();
   return { displayText, html };
 }

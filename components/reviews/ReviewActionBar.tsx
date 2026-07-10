@@ -19,7 +19,11 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
 
   async function submitApprove() {
     setError("");
-    await onApprove(note.trim() || undefined);
+    try {
+      await onApprove(note.trim() || undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save approval");
+    }
   }
 
   async function submitChanges() {
@@ -28,8 +32,14 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
       return;
     }
     setError("");
-    await onRequestChanges(note.trim());
+    try {
+      await onRequestChanges(note.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send change request");
+    }
   }
+
+  const changesNoteMissing = mode === "changes" && !note.trim();
 
   return (
     <div
@@ -45,15 +55,15 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
         <div>
           <h3 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Your decision</h3>
           <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, marginTop: 2 }}>
-            The PM is notified via session status and conversation thread
+            Approve or request changes — your reply goes into the review channel
           </p>
         </div>
         <Link
-          href={`/workspace/${encodeURIComponent(review.ticketId)}`}
+          href={`/reviews/${review.id}`}
           className="text-sm font-medium hover:underline shrink-0"
           style={{ ...F.body, color: COLORS.accent }}
         >
-          Open workspace ↗
+          Open channel ↗
         </Link>
       </div>
 
@@ -63,9 +73,10 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
             rows={3}
             value={note}
             onChange={(e) => { setNote(e.target.value); setError(""); }}
+            required={mode === "changes"}
             placeholder={
               mode === "changes"
-                ? "Describe what needs to change — be specific so the PM can refine the mockup…"
+                ? "Required — describe what needs to change so the PM can refine the mockup…"
                 : "Optional note for the PM (e.g. approved scope, caveats)…"
             }
             className="w-full px-4 py-3 text-sm outline-none resize-none focus:ring-2 focus:ring-amber-500/20"
@@ -116,9 +127,9 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || (mode === "changes" && changesNoteMissing)}
               onClick={mode === "approve" ? submitApprove : submitChanges}
-              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50"
+              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: mode === "approve" ? "#34C759" : COLORS.accent,
                 color: "#fff",

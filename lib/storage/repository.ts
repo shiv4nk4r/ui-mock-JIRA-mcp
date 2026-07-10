@@ -16,6 +16,7 @@ export interface IRepository {
 
   getReviews(filter?: ReviewFilter): Promise<ReviewItem[]>;
   getReview(id: string): Promise<ReviewItem | null>;
+  getReviewByTicket(ticketId: string, userId?: string): Promise<ReviewItem | null>;
   createReview(item: ReviewItem): Promise<void>;
   updateReview(id: string, patch: Partial<ReviewItem>): Promise<void>;
 

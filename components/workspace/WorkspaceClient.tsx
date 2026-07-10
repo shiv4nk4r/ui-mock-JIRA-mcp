@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository, generateId } from "@lib/storage";
 import { useMockupGeneration } from "@lib/hooks/use-mockup-generation";
-import type { AttachedFile, MockupSession, ProviderConfig, TicketData, UserEngagement, UserRole } from "@lib/types";
+import type { AttachedFile, MockupSession, ProviderConfig, ReviewStatus, TicketData, UserEngagement, UserRole } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { readFileContent, openHtmlInNewTab } from "@lib/utils/files";
+import { normalizeMockupHtml } from "@lib/utils/mockup-html";
+import { MockupIframe } from "@/components/shared/MockupIframe";
+import { submitOrResubmitReview } from "@lib/utils/review-workflow";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { Toast, IconButton } from "@/components/shared/Toast";
 import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
@@ -36,7 +39,8 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [selectedModel, setSelectedModel] = useState("");
   const [fetchError, setFetchError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [reviewSent, setReviewSent] = useState(false);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(null);
   const [engagement, setEngagement] = useState<UserEngagement[]>([]);
   const [showChat, setShowChat] = useState(true);
   const [mockFullscreen, setMockFullscreen] = useState(false);
@@ -75,7 +79,7 @@ export function WorkspaceClient({ ticketId }: Props) {
         selectedModel || "claude-haiku-4-5-20251001",
         role,
         (html) => {
-          setActiveHtml(html);
+          setActiveHtml(normalizeMockupHtml(html));
           setSessionStatus("in_progress");
         },
       );
@@ -135,11 +139,15 @@ export function WorkspaceClient({ ticketId }: Props) {
         if (saved?.activeHtml) {
           setSessionId(saved.id);
           setSessionStatus(saved.status);
-          setActiveHtml(saved.activeHtml);
+          setActiveHtml(normalizeMockupHtml(saved.activeHtml));
           setMessages(saved.messages ?? []);
           setUsageRecords(saved.usageRecords ?? []);
           if (saved.selectedModel) setSelectedModel(saved.selectedModel);
-          setReviewSent(saved.status === "pending_review" || saved.status === "reviewed");
+          const existingReview = await repository.getReviewByTicket(ticketId, user.id);
+          if (existingReview) {
+            setReviewId(existingReview.id);
+            setReviewStatus(existingReview.status);
+          }
           setEngagement(await repository.getEngagement({ sessionId: saved.id }));
           return;
         }
@@ -154,7 +162,7 @@ export function WorkspaceClient({ ticketId }: Props) {
             selectedModel || "claude-haiku-4-5-20251001",
             user.role,
             (html) => {
-              setActiveHtml(html);
+              setActiveHtml(normalizeMockupHtml(html));
               setSessionStatus("in_progress");
             },
           );
@@ -196,8 +204,9 @@ export function WorkspaceClient({ ticketId }: Props) {
       selectedModel,
       status: sessionStatus,
       savedAt: Date.now(),
+      reviewId: reviewId ?? undefined,
     });
-  }, [messages, activeHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus]);
+  }, [messages, activeHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus, reviewId]);
 
   async function handleRefine() {
     const prompt = refineInput.trim();
@@ -216,7 +225,7 @@ export function WorkspaceClient({ ticketId }: Props) {
         activeHtml,
         user.role,
         (html) => {
-          setActiveHtml(html);
+          setActiveHtml(normalizeMockupHtml(html));
           setSessionStatus("in_progress");
         },
         filesToSend,
@@ -255,22 +264,35 @@ export function WorkspaceClient({ ticketId }: Props) {
   }
 
   async function handleSendToReview() {
-    if (!user || !ticketData || !activeHtml || reviewSent) return;
-    await repository.createReview({
-      id: generateId(),
-      sessionId,
-      userId: user.id,
-      userName: user.name,
-      userEmail: user.email,
-      ticketId: ticketData.id,
-      ticketSummary: ticketData.summary,
-      activeHtml,
-      status: "pending_review",
-      submittedAt: Date.now(),
-    });
-    setSessionStatus("pending_review");
-    setReviewSent(true);
-    setToast("Sent to the engineering team for review");
+    if (!user || !ticketData || !activeHtml) return;
+    try {
+      const { reviewId: id, resubmitted } = await submitOrResubmitReview({
+        user,
+        sessionId,
+        ticketId: ticketData.id,
+        ticketSummary: ticketData.summary,
+        activeHtml,
+      });
+      setReviewId(id);
+      setReviewStatus("pending_review");
+      setSessionStatus("pending_review");
+      setToast(resubmitted ? "Updated mockup sent back for review" : "Sent to the engineering team for review");
+      await repository.saveSession({
+        id: sessionId,
+        userId: user.id,
+        ticketId: ticketData.id,
+        ticketData,
+        messages: messages.map((m) => ({ ...m, isStreaming: false })),
+        activeHtml,
+        usageRecords,
+        selectedModel,
+        status: "pending_review",
+        savedAt: Date.now(),
+        reviewId: id,
+      });
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Could not send for review");
+    }
   }
 
   async function refreshEngagement() {
@@ -331,12 +353,23 @@ export function WorkspaceClient({ ticketId }: Props) {
           <IconButton label="Share" onClick={handleShare} disabled={!activeHtml}>
             ↗
           </IconButton>
-          {!reviewSent ? (
+          {reviewId && (
+            <IconButton label="Review channel" onClick={() => router.push(`/reviews/${reviewId}`)}>
+              💬
+            </IconButton>
+          )}
+          {(reviewStatus === "pending_review" || sessionStatus === "pending_review") ? (
+            <span style={{ ...F.body, fontSize: 13, color: "#f9b115", fontWeight: 500 }}>In review</span>
+          ) : reviewStatus === "needs_changes" ? (
+            <IconButton label="Resubmit for review" onClick={handleSendToReview} disabled={!activeHtml} primary>
+              Resubmit
+            </IconButton>
+          ) : reviewStatus === "approved" || sessionStatus === "reviewed" ? (
+            <span style={{ ...F.body, fontSize: 13, color: "#34C759", fontWeight: 500 }}>✓ Approved</span>
+          ) : (
             <IconButton label="Send to review" onClick={handleSendToReview} disabled={!activeHtml} primary>
               Review
             </IconButton>
-          ) : (
-            <span style={{ ...F.body, fontSize: 13, color: "#34C759", fontWeight: 500 }}>✓ In review</span>
           )}
         </div>
       </header>
@@ -372,7 +405,7 @@ export function WorkspaceClient({ ticketId }: Props) {
               </div>
             )}
             {activeHtml ? (
-              <iframe srcDoc={activeHtml} sandbox="allow-scripts" className="w-full h-full" style={{ border: "none" }} title="Mockup" />
+              <MockupIframe html={activeHtml} className="w-full h-full" title="Mockup" />
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-4 px-6" style={{ ...F.body, color: COLORS.muted }}>
                 {!isGenerating && (
@@ -512,7 +545,7 @@ export function WorkspaceClient({ ticketId }: Props) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => openHtmlInNewTab(activeHtml)}
+                onClick={() => openHtmlInNewTab(normalizeMockupHtml(activeHtml))}
                 className="px-3 py-1.5 text-xs font-medium"
                 style={{ color: COLORS.accent, ...F.body }}
               >
@@ -529,7 +562,7 @@ export function WorkspaceClient({ ticketId }: Props) {
             </div>
           </div>
           <div className="flex-1 min-h-0 bg-white">
-            <iframe srcDoc={activeHtml} sandbox="allow-scripts" className="w-full h-full" style={{ border: "none" }} title="Mockup full screen" />
+            <MockupIframe html={activeHtml} className="w-full h-full" title="Mockup full screen" />
           </div>
         </div>
       )}

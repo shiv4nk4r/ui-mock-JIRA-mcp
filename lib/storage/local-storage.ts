@@ -79,6 +79,18 @@ export class LocalStorageRepository implements IRepository {
     return items.find((r) => r.id === id) ?? null;
   }
 
+  async getReviewByTicket(ticketId: string, userId?: string): Promise<ReviewItem | null> {
+    let items = await this.getReviews();
+    items = items.filter((r) => r.ticketId === ticketId);
+    if (userId) items = items.filter((r) => r.userId === userId);
+    if (items.length === 0) return null;
+    return items.sort((a, b) => {
+      const aAt = Math.max(a.submittedAt, a.reviewedAt ?? 0);
+      const bAt = Math.max(b.submittedAt, b.reviewedAt ?? 0);
+      return bAt - aAt;
+    })[0];
+  }
+
   async createReview(item: ReviewItem): Promise<void> {
     const items = await this.getReviews();
     items.unshift(item);

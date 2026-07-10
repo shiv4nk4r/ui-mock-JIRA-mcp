@@ -1,32 +1,88 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import type { Comment, MockupSession, ReviewItem, UserEngagement } from "@lib/types";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { Comment, MockupSession, ReviewItem, ReviewEventKind } from "@lib/types";
 import { repository, generateId } from "@lib/storage";
 import { useAuth } from "@lib/auth/auth-context";
 import { getMockUser } from "@lib/auth/mock-users";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import { extractPmRevisions, initialMockLabel, relativeTime } from "@lib/utils/review-ui";
+import { relativeTime } from "@lib/utils/review-ui";
 
 interface Props {
   review: ReviewItem;
   session: MockupSession | null;
-  engagement: UserEngagement[];
   onCommentAdded: () => void;
   refreshKey?: number;
 }
 
-export function ReviewCommunicationPanel({ review, session, engagement, onCommentAdded, refreshKey = 0 }: Props) {
+interface TimelineEntry {
+  id: string;
+  kind: ReviewEventKind | "submission";
+  authorName: string;
+  authorId?: string;
+  text: string;
+  createdAt: number;
+  isSystem: boolean;
+}
+
+function buildTimeline(review: ReviewItem, comments: Comment[]): TimelineEntry[] {
+  const entries: TimelineEntry[] = comments.map((c) => ({
+    id: c.id,
+    kind: c.kind ?? "message",
+    authorName: c.authorName,
+    authorId: c.authorId,
+    text: c.text,
+    createdAt: c.createdAt,
+    isSystem: c.kind !== undefined && c.kind !== "message",
+  }));
+
+  if (!entries.some((e) => e.kind === "submission")) {
+    entries.unshift({
+      id: `submission-${review.id}`,
+      kind: "submission",
+      authorName: review.userName,
+      authorId: review.userId,
+      text: "Submitted mockup for engineering review.",
+      createdAt: review.submittedAt,
+      isSystem: true,
+    });
+  }
+
+  return entries.sort((a, b) => a.createdAt - b.createdAt);
+}
+
+function systemLabel(kind: TimelineEntry["kind"]): string {
+  switch (kind) {
+    case "submission":
+      return "Mockup submitted";
+    case "resubmission":
+      return "Mockup updated";
+    case "approval":
+      return "Approved for build";
+    case "changes_requested":
+      return "Changes requested";
+    default:
+      return "";
+  }
+}
+
+export function ReviewCommunicationPanel({ review, session: _session, onCommentAdded, refreshKey = 0 }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isInternal = user?.role === "internal";
+  const counterpart = isInternal ? review.userName : "Engineering";
 
   useEffect(() => {
     repository.getComments(review.id).then(setComments);
   }, [review.id, refreshKey]);
 
-  const revisions = extractPmRevisions(session);
-  const feedback = engagement.filter((e) => e.type === "feedback");
+  const timeline = useMemo(() => buildTimeline(review, comments), [review, comments]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [timeline.length]);
 
   async function sendComment(e: FormEvent) {
     e.preventDefault();
@@ -38,6 +94,7 @@ export function ReviewCommunicationPanel({ review, session, engagement, onCommen
       authorId: user.id,
       text: draft.trim(),
       createdAt: Date.now(),
+      kind: "message",
     };
     await repository.addComment(comment);
     setComments((prev) => [...prev, comment]);
@@ -45,153 +102,161 @@ export function ReviewCommunicationPanel({ review, session, engagement, onCommen
     onCommentAdded();
   }
 
+  const placeholder = isInternal
+    ? `Reply to ${review.userName} — questions, clarifications, or change requests…`
+    : `Message engineering — ask questions or share context…`;
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-none px-5 py-4 border-b" style={{ borderColor: COLORS.border }}>
-        <h2 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Conversation</h2>
+        <h2 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Review channel</h2>
         <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 2 }}>
-          Thread with {review.userName}
+          {isInternal ? `Thread with ${review.userName}` : `Back-and-forth with ${counterpart}`}
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
-        <ThreadEvent
-          avatar={review.userName.charAt(0)}
-          author={review.userName}
-          role="pm"
-          time={review.submittedAt}
-          title="Submitted mockup for review"
-          body={initialMockLabel(session?.messages ?? [])}
-        />
-
-        {revisions.map((rev) => (
-          <ThreadEvent
-            key={rev.id}
-            avatar={review.userName.charAt(0)}
-            author={review.userName}
-            role="pm"
-            time={rev.timestamp ?? review.submittedAt}
-            title="Requested a revision"
-            body={rev.prompt}
-          />
-        ))}
-
-        {feedback.map((f) => (
-          <ThreadEvent
-            key={f.id}
-            avatar={review.userName.charAt(0)}
-            author={review.userName}
-            role="pm"
-            time={f.createdAt}
-            title="Session feedback"
-            body={f.rating === "positive" ? "👍 Helpful mockup session" : "👎 Mockup needs improvement"}
-          />
-        ))}
-
-        {comments.map((c) => {
-          const isEngineer = c.authorId ? getMockUser(c.authorId)?.role === "internal" : false;
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+        {timeline.map((entry) => {
+          if (entry.isSystem) {
+            return <SystemEvent key={entry.id} entry={entry} />;
+          }
+          const isOwn = entry.authorId === user?.id;
+          const isEngineer = entry.authorId ? getMockUser(entry.authorId)?.role === "internal" : false;
           return (
-            <ThreadEvent
-              key={c.id}
-              avatar={c.authorName.charAt(0)}
-              author={c.authorName}
+            <ChatBubble
+              key={entry.id}
+              side={isOwn ? "right" : "left"}
+              author={entry.authorName}
               role={isEngineer ? "engineer" : "pm"}
-              time={c.createdAt}
-              body={c.text}
+              time={entry.createdAt}
+              text={entry.text}
             />
           );
         })}
 
-        {revisions.length === 0 && feedback.length === 0 && comments.length === 0 && (
-          <p className="text-center py-6" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
-            No replies yet — approve or request changes below
+        {timeline.length <= 1 && review.status === "pending_review" && isInternal && (
+          <p className="text-center py-4" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
+            Review the mockup and approve or request changes below
           </p>
         )}
       </div>
 
       <form
         onSubmit={sendComment}
-        className="flex-none p-4 border-t space-y-2"
+        className="flex-none p-4 border-t"
         style={{ borderColor: COLORS.border, background: COLORS.subtle }}
       >
-        <textarea
-          rows={3}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message the PM — questions, clarifications, or change requests…"
-          className="w-full px-4 py-3 text-sm outline-none resize-none focus:ring-2 focus:ring-amber-500/20"
-          style={{
-            ...F.body,
-            background: COLORS.surface,
-            borderRadius: RADIUS.md,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim()}
-          className="w-full py-2.5 text-sm font-semibold disabled:opacity-40"
-          style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+        <div
+          className="flex items-end gap-2 px-3 py-2"
+          style={{ background: COLORS.surface, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}` }}
         >
-          Send message
-        </button>
+          <textarea
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 px-1 py-1 text-sm outline-none resize-none bg-transparent"
+            style={{ ...F.body, color: COLORS.text }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (draft.trim()) e.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            className="shrink-0 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+          >
+            Send
+          </button>
+        </div>
       </form>
     </div>
   );
 }
 
-function ThreadEvent({
-  avatar,
-  author,
-  role,
-  time,
-  title,
-  body,
-}: {
-  avatar: string;
-  author: string;
-  role: "pm" | "engineer";
-  time: number;
-  title?: string;
-  body: string;
-}) {
-  const isEngineer = role === "engineer";
+function SystemEvent({ entry }: { entry: TimelineEntry }) {
+  const label = systemLabel(entry.kind);
+  const isPositive = entry.kind === "approval" || entry.kind === "submission" || entry.kind === "resubmission";
+  const isNegative = entry.kind === "changes_requested";
+
   return (
-    <div className="flex gap-3">
+    <div className="flex flex-col items-center gap-1 py-1">
       <span
-        className="shrink-0 w-8 h-8 flex items-center justify-center text-xs font-semibold"
+        className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
         style={{
-          background: isEngineer ? "rgba(41,130,204,0.12)" : COLORS.accentSoft,
-          color: isEngineer ? "#2982cc" : COLORS.accent,
-          borderRadius: "50%",
+          ...F.body,
+          color: isNegative ? "#FF3B30" : isPositive ? "#34C759" : COLORS.muted,
+          background: isNegative
+            ? "rgba(255,59,48,0.08)"
+            : isPositive
+              ? "rgba(52,199,89,0.08)"
+              : COLORS.subtle,
+          borderRadius: RADIUS.pill,
         }}
       >
-        {avatar}
+        {label}
       </span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span style={{ ...F.body, fontSize: 14, fontWeight: 600, color: COLORS.text }}>{author}</span>
-          <span style={{ ...F.body, fontSize: 11, color: COLORS.muted }}>
-            {isEngineer ? "Engineering" : "Product"}
-          </span>
-          <span style={{ ...F.body, fontSize: 11, color: COLORS.muted }}>{relativeTime(time)}</span>
-        </div>
-        {title && (
-          <p style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.muted, marginTop: 2 }}>{title}</p>
-        )}
+      {entry.text && entry.kind !== "submission" && (
         <p
-          className="mt-1.5 px-3 py-2.5 text-sm whitespace-pre-wrap"
+          className="max-w-[90%] text-center text-sm px-4 py-2"
           style={{
             ...F.body,
             color: COLORS.text,
-            background: isEngineer ? "rgba(41,130,204,0.06)" : COLORS.subtle,
+            background: COLORS.subtle,
             borderRadius: RADIUS.md,
-            borderLeft: `3px solid ${isEngineer ? "#2982cc" : COLORS.accent}`,
+            lineHeight: 1.5,
+          }}
+        >
+          {entry.text}
+        </p>
+      )}
+      <span style={{ ...F.body, fontSize: 11, color: COLORS.muted }}>
+        {entry.authorName} · {relativeTime(entry.createdAt)}
+      </span>
+    </div>
+  );
+}
+
+function ChatBubble({
+  side,
+  author,
+  role,
+  time,
+  text,
+}: {
+  side: "left" | "right";
+  author: string;
+  role: "pm" | "engineer";
+  time: number;
+  text: string;
+}) {
+  const isEngineer = role === "engineer";
+  const isRight = side === "right";
+
+  return (
+    <div className={`flex ${isRight ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[85%] ${isRight ? "items-end" : "items-start"} flex flex-col gap-1`}>
+        <div className={`flex items-baseline gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
+          <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.text }}>{author}</span>
+          <span style={{ ...F.body, fontSize: 10, color: COLORS.muted }}>
+            {isEngineer ? "Engineering" : "Product"} · {relativeTime(time)}
+          </span>
+        </div>
+        <p
+          className="px-3.5 py-2.5 text-sm whitespace-pre-wrap"
+          style={{
+            ...F.body,
+            color: isRight ? "#fff" : COLORS.text,
+            background: isRight ? COLORS.accent : isEngineer ? "rgba(41,130,204,0.1)" : COLORS.subtle,
+            borderRadius: isRight ? `${RADIUS.md}px ${RADIUS.md}px 4px ${RADIUS.md}px` : `${RADIUS.md}px ${RADIUS.md}px ${RADIUS.md}px 4px`,
             lineHeight: 1.55,
           }}
         >
-          {body}
+          {text}
         </p>
       </div>
     </div>
