@@ -72,6 +72,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             {user.role === "internal" && (
               <Link
+                href="/mockups"
+                className="px-4 py-1.5 text-sm font-medium transition-colors"
+                style={{
+                  borderRadius: RADIUS.pill,
+                  background: pathname.startsWith("/mockups") || pathname.startsWith("/generate") ? COLORS.surface : "transparent",
+                  color: pathname.startsWith("/mockups") || pathname.startsWith("/generate") ? COLORS.text : COLORS.muted,
+                  boxShadow: pathname.startsWith("/mockups") || pathname.startsWith("/generate") ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                Gallery
+              </Link>
+            )}
+            {user.role === "internal" && (
+              <Link
                 href="/reviews"
                 className="px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5"
                 style={{
