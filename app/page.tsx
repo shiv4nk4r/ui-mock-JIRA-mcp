@@ -507,7 +507,7 @@ export default function Home() {
 
   const [usageRecords, setUsageRecords]     = useState<UsageRecord[]>([]);
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
-  const [savedAt, setSavedAt]               = useState<Date | null>(null);
+  const [, setSavedAt]                       = useState<Date | null>(null);
 
   const chatEndRef   = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -714,8 +714,20 @@ export default function Home() {
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank", "noopener,noreferrer");
-    // Revoke after the new tab has had time to load.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  function downloadHtml(html: string, filename?: string) {
+    if (!html) return;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename ?? `${ticketData?.id ?? "mockup"}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   // ── Clear ──────────────────────────────────────────────────────────────────
@@ -734,8 +746,7 @@ export default function Home() {
     e.target.value = "";
   }
 
-  const totalCost   = usageRecords.reduce((s, r) => s + r.costUsd, 0);
-  const totalTokens = usageRecords.reduce((s, r) => s + r.inputTokens + r.outputTokens, 0);
+  const totalCost = usageRecords.reduce((s, r) => s + r.costUsd, 0);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: GATEWAY
@@ -935,12 +946,20 @@ export default function Home() {
               </div>
             )}
             {activeHtml && activeTab === "mockup" && (
-              <button onClick={() => openFullPage(activeHtml)}
-                className="flex items-center gap-1.5 px-4 transition-colors duration-150 hover:bg-amber-50"
-                style={{ ...F.condensed, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#D97706", borderLeft: "1px solid #E2DDD8" }}
-                title="Open this mockup in a new full-page browser tab">
-                ⤢ Full Page
-              </button>
+              <>
+                <button onClick={() => openFullPage(activeHtml)}
+                  className="flex items-center gap-1.5 px-4 transition-colors duration-150 hover:bg-amber-50"
+                  style={{ ...F.condensed, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#D97706", borderLeft: "1px solid #E2DDD8" }}
+                  title="Open this mockup in a new full-page browser tab">
+                  ⤢ Full Page
+                </button>
+                <button onClick={() => downloadHtml(activeHtml)}
+                  className="flex items-center gap-1.5 px-4 transition-colors duration-150 hover:bg-amber-50"
+                  style={{ ...F.condensed, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#D97706", borderLeft: "1px solid #E2DDD8" }}
+                  title={`Download ${ticketData?.id ?? "mockup"}.html`}>
+                  ↓ Download
+                </button>
+              </>
             )}
           </div>
 
