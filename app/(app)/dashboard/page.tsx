@@ -9,6 +9,7 @@ import type { MockupSession } from "@lib/types";
 import { F, COLORS, RADIUS, greeting } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { DashboardEngagementPanel } from "@/components/feedback/DashboardEngagementPanel";
+import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -144,6 +145,8 @@ export default function DashboardPage() {
       )}
 
       {!loading && user?.role === "external" && <DashboardEngagementPanel />}
+
+      {!loading && user?.role === "internal" && <FeatureRequestsPanel />}
     </div>
   );
 }

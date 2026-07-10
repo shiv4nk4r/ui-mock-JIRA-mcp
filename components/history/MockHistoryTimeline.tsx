@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import type { TicketHistoryGroup } from "@lib/utils/session-history";
+import { useMemo, useState } from "react";
+import type { HistorySort, TicketHistoryGroup } from "@lib/utils/session-history";
+import { filterHistoryGroups, sortHistoryGroups } from "@lib/utils/session-history";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { jiraTicketUrl } from "@lib/utils/jira";
+
+const SORT_OPTIONS: { value: HistorySort; label: string }[] = [
+  { value: "time_desc", label: "Newest first" },
+  { value: "time_asc", label: "Oldest first" },
+  { value: "ticket_asc", label: "Ticket A → Z" },
+  { value: "ticket_desc", label: "Ticket Z → A" },
+];
 
 function formatWhen(ts?: number) {
   if (!ts) return "";
@@ -160,6 +168,14 @@ export function MockHistoryTimeline({
   groups: TicketHistoryGroup[];
   jiraBaseUrl: string;
 }) {
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<HistorySort>("time_desc");
+
+  const visible = useMemo(
+    () => sortHistoryGroups(filterHistoryGroups(groups, search), sort),
+    [groups, search, sort],
+  );
+
   if (groups.length === 0) {
     return (
       <p className="text-center py-16" style={{ ...F.body, fontSize: 15, color: COLORS.muted }}>
@@ -170,9 +186,92 @@ export function MockHistoryTimeline({
 
   return (
     <div className="space-y-4">
-      {groups.map((group) => (
-        <TicketGroup key={group.ticketId} group={group} jiraBaseUrl={jiraBaseUrl} />
-      ))}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <svg
+            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={COLORS.muted}
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3-3" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search ticket ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/25"
+            style={{
+              ...F.body,
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}
+          />
+        </div>
+        <div className="relative sm:min-w-[180px]">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as HistorySort)}
+            className="w-full appearance-none pl-4 pr-10 py-3 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-amber-500/25"
+            style={{
+              ...F.body,
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              backgroundImage: "none",
+            }}
+            aria-label="Sort history"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <svg
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={COLORS.muted}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
+      </div>
+
+      {search.trim() && (
+        <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, paddingLeft: 4 }}>
+          {visible.length} {visible.length === 1 ? "ticket" : "tickets"} matching “{search.trim()}”
+        </p>
+      )}
+
+      {visible.length === 0 ? (
+        <p className="text-center py-12" style={{ ...F.body, fontSize: 15, color: COLORS.muted }}>
+          No tickets match your search
+        </p>
+      ) : (
+        visible.map((group) => (
+          <TicketGroup key={group.ticketId} group={group} jiraBaseUrl={jiraBaseUrl} />
+        ))
+      )}
     </div>
   );
 }

@@ -105,3 +105,40 @@ export function groupSessionsByTicket(sessions: MockupSession[], userRole: UserR
     })
     .sort((a, b) => b.savedAt - a.savedAt);
 }
+
+export type HistorySort = "time_desc" | "time_asc" | "ticket_asc" | "ticket_desc";
+
+function ticketSortKey(ticketId: string): string {
+  const match = ticketId.match(/(\d+)\s*$/);
+  if (match) {
+    return `${ticketId.replace(/\d+\s*$/, "").padEnd(12, "0")}${match[1].padStart(12, "0")}`;
+  }
+  return ticketId.toUpperCase();
+}
+
+export function filterHistoryGroups(
+  groups: TicketHistoryGroup[],
+  query: string,
+): TicketHistoryGroup[] {
+  const q = query.trim().toUpperCase();
+  if (!q) return groups;
+  return groups.filter((g) => g.ticketId.toUpperCase().includes(q));
+}
+
+export function sortHistoryGroups(
+  groups: TicketHistoryGroup[],
+  sort: HistorySort,
+): TicketHistoryGroup[] {
+  const sorted = [...groups];
+  switch (sort) {
+    case "time_asc":
+      return sorted.sort((a, b) => a.savedAt - b.savedAt);
+    case "ticket_asc":
+      return sorted.sort((a, b) => ticketSortKey(a.ticketId).localeCompare(ticketSortKey(b.ticketId)));
+    case "ticket_desc":
+      return sorted.sort((a, b) => ticketSortKey(b.ticketId).localeCompare(ticketSortKey(a.ticketId)));
+    case "time_desc":
+    default:
+      return sorted.sort((a, b) => b.savedAt - a.savedAt);
+  }
+}
