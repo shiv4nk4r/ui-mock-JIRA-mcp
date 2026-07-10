@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@lib/auth/auth-context";
 
 export const metadata: Metadata = {
-  title: "PM Orchestrator — GreyOrange",
-  description: "Product Management Automation Platform powered by MCP + Claude",
+  title: "Mock Studio — GreyOrange",
+  description: "JIRA to UI mockup platform for product teams",
 };
 
 export default function RootLayout({
@@ -21,7 +22,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full antialiased">{children}</body>
+      <body className="h-full antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

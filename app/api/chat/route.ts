@@ -349,6 +349,7 @@ interface ChatRequest {
   attachedFiles?: UserAttachedFile[];
   isRefinement?: boolean;
   currentHtml?: string;
+  userRole?: "external" | "internal";
 }
 
 
@@ -358,6 +359,13 @@ interface ChatRequest {
 
 const HTML_MARKER_START = "RAW_HTML_COMPONENT_START";
 const HTML_MARKER_END   = "RAW_HTML_COMPONENT_END";
+
+const EFFORT_MARKER = "### 📊 Engineering Effort Estimation Summary";
+
+function stripEffortEstimation(text: string): string {
+  const mi = text.indexOf(EFFORT_MARKER);
+  return mi >= 0 ? text.slice(0, mi).trim() : text;
+}
 
 function extractHtmlFromMarkers(text: string): { displayText: string; html: string | undefined } {
   const si = text.indexOf(HTML_MARKER_START);
@@ -387,8 +395,25 @@ function buildSystemPrompt(
   componentLibraryContext = "",
   templateSurveyContext = "",
   mockupGrounding: MockupGrounding | null = null,
+  userRole: "external" | "internal" = "internal",
 ): string {
-  const base = `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.
+  const isExternal = userRole === "external";
+  const base = isExternal
+    ? `You are a senior product design assistant for GreyOrange's Manager Dashboard warehouse system. Analyse Jira tickets and produce product-focused requirement analyses and UI mockups. Keep responses concise and actionable for product managers.
+
+IMPORTANT — EXTERNAL PM MODE:
+- Focus on user experience, workflows, and product requirements only.
+- Do NOT include engineering effort estimates, story points, file paths, or code change details.
+- Do NOT mention Vue components, GraphQL resolvers, or internal architecture unless directly relevant to UX.
+
+IMPORTANT — WEB API MODE:
+- You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
+- The Jira ticket data is already provided below — do NOT call any Atlassian MCP tools.
+- Do NOT read or follow any CLAUDE.md files in the project directory.
+- Do NOT ask the user to run /mcp or authenticate with any service.
+- The Read tool is ONLY for product screenshot images in the src/mcp-context/ directory.
+- Use mcp__md__* tools sparingly — only when needed for accurate UI mockups.`
+    : `You are a senior product engineering assistant for GreyOrange's Manager Dashboard warehouse system (Vue 2 + Quasar 1.20.1 frontend, Apollo GraphQL BFF). Analyse Jira tickets and produce structured requirement analyses with effort estimations. Keep responses concise and actionable.
 
 IMPORTANT — WEB API MODE:
 - You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
@@ -560,21 +585,29 @@ IMPORTANT — WEB API MODE:
   }
 
   // This section MUST be last — the UI parser splits on this exact heading.
-  sections.push(
-    "OUTPUT FORMAT — REQUIRED:",
-    "After your analysis, append engineering effort estimation using this EXACT heading (it is machine-parsed, do not change it):",
-    "",
-    "### 📊 Engineering Effort Estimation Summary [TICKET_ID]",
-    "Replace TICKET_ID with the actual ticket number. Then include:",
-    "- **T-Shirt Size:** [S / M / L / XL based on complexity]",
-    "- **Estimated Story Points:** [2 / 3 / 5 / 8 / 13] Points",
-    "- **Breakdown Analysis:**",
-    "  * [Affected layer or component]: [X] Days — [specific reason from ticket]",
-    "  * (add as many lines as needed)",
-    "- **Architecture Risk Factor:** [Low / Medium / High] — [one-sentence reason]",
-    "",
-    "Make the estimation SPECIFIC to this ticket — not generic. Derive sizing from actual scope described in the ticket."
-  );
+  if (!isExternal) {
+    sections.push(
+      "OUTPUT FORMAT — REQUIRED:",
+      "After your analysis, append engineering effort estimation using this EXACT heading (it is machine-parsed, do not change it):",
+      "",
+      "### 📊 Engineering Effort Estimation Summary [TICKET_ID]",
+      "Replace TICKET_ID with the actual ticket number. Then include:",
+      "- **T-Shirt Size:** [S / M / L / XL based on complexity]",
+      "- **Estimated Story Points:** [2 / 3 / 5 / 8 / 13] Points",
+      "- **Breakdown Analysis:**",
+      "  * [Affected layer or component]: [X] Days — [specific reason from ticket]",
+      "  * (add as many lines as needed)",
+      "- **Architecture Risk Factor:** [Low / Medium / High] — [one-sentence reason]",
+      "",
+      "Make the estimation SPECIFIC to this ticket — not generic. Derive sizing from actual scope described in the ticket."
+    );
+  } else {
+    sections.push(
+      "OUTPUT FORMAT — REQUIRED:",
+      "Provide a clear product analysis followed by the HTML mockup markers.",
+      "Do NOT include any engineering effort estimation section."
+    );
+  }
 
   return sections.join("\n\n");
 }
@@ -843,6 +876,7 @@ function streamClaudeCode(
   componentLibraryContext = "",
   templateSurveyContext = "",
   mockupGrounding: MockupGrounding | null = null,
+  userRole: "external" | "internal" = "internal",
 ): Response {
   const encoder = new TextEncoder();
 
@@ -873,7 +907,7 @@ function streamClaudeCode(
           userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext, attachedFiles);
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
-          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding);
+          systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding, userRole);
           userMessage  = buildUserMessage(ticketId, jiraData, additionalPmContext, attachedFiles);
 
           const ticketText = jiraData.summary + " " + (jiraData.description ?? "");
@@ -1074,7 +1108,8 @@ function streamClaudeCode(
           let htmlSizeBytes = 0;
           let htmlExtracted = false;
           if (allText) {
-            const { displayText, html } = extractHtmlFromMarkers(allText);
+            const textForDisplay = userRole === "external" ? stripEffortEstimation(allText) : allText;
+            const { displayText, html } = extractHtmlFromMarkers(textForDisplay);
             if (displayText) send({ delta: displayText });
             if (html) {
               htmlExtracted = true;
@@ -1137,7 +1172,7 @@ export async function POST(request: Request) {
 
   const {
     jiraTicketId, jiraData, additionalPmContext, enableVisualSkill,
-    model, attachedFiles, isRefinement, currentHtml,
+    model, attachedFiles, isRefinement, currentHtml, userRole = "internal",
   } = body;
 
   let archContext = "", designContext = "", sitemapContext = "", componentLibraryContext = "";
@@ -1178,6 +1213,6 @@ export async function POST(request: Request) {
     activeModel, jiraTicketId, jiraData, additionalPmContext,
     enableVisualSkill, archContext, designContext, sitemapContext,
     attachedFiles, isRefinement, currentHtml, componentLibraryContext,
-    templateSurveyContext, mockupGrounding,
+    templateSurveyContext, mockupGrounding, userRole,
   );
 }
