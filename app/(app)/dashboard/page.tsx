@@ -10,7 +10,6 @@ import { F, COLORS, RADIUS, greeting } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { DashboardEngagementPanel } from "@/components/feedback/DashboardEngagementPanel";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
-import { PmReviewFeedbackBanner } from "@/components/reviews/PmReviewFeedbackBanner";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -101,11 +100,7 @@ export default function DashboardPage() {
       </form>
 
       {!loading && recentSession && (
-        <div className="space-y-3">
-          {user?.role === "external" && (
-            <PmReviewFeedbackBanner ticketId={recentSession.ticketId} userId={user.id} />
-          )}
-          <button
+        <button
           type="button"
           onClick={() => goToTicket(recentSession.ticketId)}
           className="w-full text-left p-5 transition-transform active:scale-[0.99]"
@@ -131,7 +126,6 @@ export default function DashboardPage() {
             </span>
           </div>
         </button>
-        </div>
       )}
 
       {!loading && historyCount > 0 && (

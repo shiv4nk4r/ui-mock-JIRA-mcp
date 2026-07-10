@@ -10,6 +10,7 @@ import { buildExecutionDetails } from "@lib/utils/execution-details";
 import { relativeTime } from "@lib/utils/review-ui";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ExecutionDetailsPanel } from "@/components/reviews/ExecutionDetailsPanel";
+import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewActionBar } from "@/components/reviews/ReviewActionBar";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
@@ -35,20 +36,23 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
 
   async function load() {
     const r = await repository.getReview(params.id);
-    setReview(r);
-    if (r) {
-      const s = await repository.getSession(r.userId, r.ticketId);
-      setSession(s);
-      setEngagement(await repository.getEngagement({ sessionId: r.sessionId, ticketId: r.ticketId }));
-      setThreadKey((k) => k + 1);
+    if (!r) {
+      setReview(null);
+      return;
     }
+    if (user && user.role === "external" && r.userId !== user.id) {
+      router.replace("/reviews");
+      return;
+    }
+    setReview(r);
+    const s = await repository.getSession(r.userId, r.ticketId);
+    setSession(s);
+    setEngagement(await repository.getEngagement({ sessionId: r.sessionId, ticketId: r.ticketId }));
+    setThreadKey((k) => k + 1);
   }
 
   useEffect(() => {
-    if (user?.role !== "internal") {
-      router.replace("/dashboard");
-      return;
-    }
+    if (!user) return;
     load();
   }, [user, params.id, router]);
 
@@ -100,7 +104,27 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     }
   }
 
-  if (!review || !executionDetails) {
+  if (!review) {
+    return (
+      <div className="py-20 flex justify-center" style={{ background: COLORS.bg }}>
+        <div className="signal-bars"><span /><span /><span /><span /><span /></div>
+      </div>
+    );
+  }
+
+  if (user?.role === "external") {
+    return (
+      <PmReviewDetailView
+        review={review}
+        session={session}
+        engagement={engagement}
+        onRefresh={load}
+        threadKey={threadKey}
+      />
+    );
+  }
+
+  if (!executionDetails) {
     return (
       <div className="py-20 flex justify-center" style={{ background: COLORS.bg }}>
         <div className="signal-bars"><span /><span /><span /><span /><span /></div>

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
+import { fetchReviewsForNav } from "@lib/utils/review-notifications";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -19,9 +20,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user?.role === "internal") {
-      repository.getReviews({ status: "pending_review" }).then((r) => setReviewCount(r.length));
-    }
+    if (!user) return;
+    fetchReviewsForNav(user.id, user.role, (filter) => repository.getReviews(filter)).then(setReviewCount);
   }, [user, pathname]);
 
   if (isLoading || !user) {
@@ -84,25 +84,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Gallery
               </Link>
             )}
-            {user.role === "internal" && (
-              <Link
-                href="/reviews"
-                className="px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5"
-                style={{
-                  borderRadius: RADIUS.pill,
-                  background: pathname.startsWith("/reviews") ? COLORS.surface : "transparent",
-                  color: pathname.startsWith("/reviews") ? COLORS.text : COLORS.muted,
-                  boxShadow: pathname.startsWith("/reviews") ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                }}
-              >
-                Reviews
-                {reviewCount > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-semibold text-white" style={{ background: COLORS.accent, borderRadius: RADIUS.pill }}>
-                    {reviewCount}
-                  </span>
-                )}
-              </Link>
-            )}
+            <Link
+              href="/reviews"
+              className="px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5"
+              style={{
+                borderRadius: RADIUS.pill,
+                background: pathname.startsWith("/reviews") ? COLORS.surface : "transparent",
+                color: pathname.startsWith("/reviews") ? COLORS.text : COLORS.muted,
+                boxShadow: pathname.startsWith("/reviews") ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              Reviews
+              {reviewCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-semibold text-white" style={{ background: COLORS.accent, borderRadius: RADIUS.pill }}>
+                  {reviewCount}
+                </span>
+              )}
+            </Link>
           </nav>
 
           <div className="relative shrink-0">
