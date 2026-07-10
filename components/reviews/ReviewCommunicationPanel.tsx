@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { Comment, MockupSession, ReviewItem, UserEngagement } from "@lib/types";
 import { repository, generateId } from "@lib/storage";
 import { useAuth } from "@lib/auth/auth-context";
+import { getMockUser } from "@lib/auth/mock-users";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { extractPmRevisions, initialMockLabel, relativeTime } from "@lib/utils/review-ui";
 
@@ -12,16 +13,17 @@ interface Props {
   session: MockupSession | null;
   engagement: UserEngagement[];
   onCommentAdded: () => void;
+  refreshKey?: number;
 }
 
-export function ReviewCommunicationPanel({ review, session, engagement, onCommentAdded }: Props) {
+export function ReviewCommunicationPanel({ review, session, engagement, onCommentAdded, refreshKey = 0 }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
     repository.getComments(review.id).then(setComments);
-  }, [review.id]);
+  }, [review.id, refreshKey]);
 
   const revisions = extractPmRevisions(session);
   const feedback = engagement.filter((e) => e.type === "feedback");
@@ -86,16 +88,19 @@ export function ReviewCommunicationPanel({ review, session, engagement, onCommen
           />
         ))}
 
-        {comments.map((c) => (
-          <ThreadEvent
-            key={c.id}
-            avatar={c.authorName.charAt(0)}
-            author={c.authorName}
-            role={c.authorId?.includes("internal") ? "engineer" : "pm"}
-            time={c.createdAt}
-            body={c.text}
-          />
-        ))}
+        {comments.map((c) => {
+          const isEngineer = c.authorId ? getMockUser(c.authorId)?.role === "internal" : false;
+          return (
+            <ThreadEvent
+              key={c.id}
+              avatar={c.authorName.charAt(0)}
+              author={c.authorName}
+              role={isEngineer ? "engineer" : "pm"}
+              time={c.createdAt}
+              body={c.text}
+            />
+          );
+        })}
 
         {revisions.length === 0 && feedback.length === 0 && comments.length === 0 && (
           <p className="text-center py-6" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>

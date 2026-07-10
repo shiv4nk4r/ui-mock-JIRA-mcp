@@ -1,15 +1,18 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
-import { repository } from "@lib/storage";
+import { repository, generateId } from "@lib/storage";
 import type { MockupSession, ReviewItem, UserEngagement } from "@lib/types";
 import { buildExecutionDetails } from "@lib/utils/execution-details";
+import { relativeTime } from "@lib/utils/review-ui";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import { EngagementSummary } from "@/components/feedback/InternalFeedbackWidget";
 import { ExecutionDetailsPanel } from "@/components/reviews/ExecutionDetailsPanel";
+import { ReviewActionBar } from "@/components/reviews/ReviewActionBar";
+import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
+import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
 
 function latestEffortMarkdown(session: MockupSession | null): string | undefined {
   if (!session) return undefined;
@@ -26,24 +29,27 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const [review, setReview] = useState<ReviewItem | null>(null);
   const [session, setSession] = useState<MockupSession | null>(null);
   const [engagement, setEngagement] = useState<UserEngagement[]>([]);
-  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [planOpen, setPlanOpen] = useState(true);
+  const [threadKey, setThreadKey] = useState(0);
+
+  async function load() {
+    const r = await repository.getReview(params.id);
+    setReview(r);
+    if (r) {
+      const s = await repository.getSession(r.userId, r.ticketId);
+      setSession(s);
+      setEngagement(await repository.getEngagement({ sessionId: r.sessionId, ticketId: r.ticketId }));
+      setThreadKey((k) => k + 1);
+    }
+  }
 
   useEffect(() => {
     if (user?.role !== "internal") {
       router.replace("/dashboard");
       return;
     }
-    (async () => {
-      const r = await repository.getReview(params.id);
-      setReview(r);
-      if (r) {
-        const s = await repository.getSession(r.userId, r.ticketId);
-        setSession(s);
-        const eng = await repository.getEngagement({ sessionId: r.sessionId, ticketId: r.ticketId });
-        setEngagement(eng);
-        setNote(r.internalNotes ?? "");
-      }
-    })();
+    load();
   }, [user, params.id, router]);
 
   const executionDetails = useMemo(
@@ -51,120 +57,155 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     [review, session],
   );
 
-  async function updateStatus(status: ReviewItem["status"]) {
-    if (!review) return;
-    await repository.updateReview(review.id, {
-      status,
-      reviewedAt: Date.now(),
-      internalNotes: note.trim() || undefined,
+  async function addComment(text: string) {
+    if (!user || !review) return;
+    await repository.addComment({
+      id: generateId(),
+      targetId: review.id,
+      authorName: user.name,
+      authorId: user.id,
+      text,
+      createdAt: Date.now(),
     });
-    const saved = await repository.getSession(review.userId, review.ticketId);
-    if (saved) {
-      await repository.saveSession({
-        ...saved,
-        status: status === "approved" || status === "reviewed" ? "reviewed" : status === "needs_changes" ? "needs_changes" : saved.status,
+  }
+
+  async function finalize(status: ReviewItem["status"], message?: string) {
+    if (!review || !user) return;
+    setBusy(true);
+    try {
+      if (message) await addComment(message);
+      else if (status === "approved") {
+        await addComment("Approved for implementation — engineering can proceed with the build plan.");
+      }
+      await repository.updateReview(review.id, {
+        status,
+        reviewedAt: Date.now(),
+        internalNotes: message,
       });
+      const saved = await repository.getSession(review.userId, review.ticketId);
+      if (saved) {
+        await repository.saveSession({
+          ...saved,
+          status:
+            status === "approved" || status === "reviewed"
+              ? "reviewed"
+              : status === "needs_changes"
+                ? "needs_changes"
+                : saved.status,
+        });
+      }
+      router.push("/reviews");
+    } finally {
+      setBusy(false);
     }
-    router.push("/reviews");
   }
 
   if (!review || !executionDetails) {
     return (
-      <div className="py-20 text-center" style={{ ...F.body, color: COLORS.muted }}>Loading review…</div>
+      <div className="py-20 flex justify-center" style={{ background: COLORS.bg }}>
+        <div className="signal-bars"><span /><span /><span /><span /><span /></div>
+      </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
-      <Link href="/reviews" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>← Back to queue</Link>
-
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 style={{ ...F.body, fontSize: 28, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.02em" }}>
-            {review.ticketId}
-          </h1>
-          <p style={{ ...F.body, fontSize: 15, color: COLORS.muted }}>{review.ticketSummary}</p>
-          <p className="mt-2" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
-            Submitted by {review.userName} · {new Date(review.submittedAt).toLocaleString()}
-          </p>
+    <div className="min-h-screen flex flex-col" style={{ background: COLORS.bg }}>
+      <header
+        className="flex-none px-6 py-4 border-b"
+        style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap">
+          <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Reviews</Link>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span style={{ ...F.mono, fontSize: 14, fontWeight: 600, color: COLORS.accent }}>{review.ticketId}</span>
+              <ReviewStatusChip status={review.status} />
+            </div>
+            <p className="truncate" style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
+              {review.ticketSummary}
+            </p>
+          </div>
+          <div className="text-right shrink-0" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
+            <div className="flex items-center gap-2 justify-end">
+              <span
+                className="w-7 h-7 flex items-center justify-center text-xs font-semibold"
+                style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
+              >
+                {review.userName.charAt(0)}
+              </span>
+              <span>{review.userName}</span>
+            </div>
+            <p>{relativeTime(review.submittedAt)}</p>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <ActionButton label="Approve" onClick={() => updateStatus("approved")} variant="success" />
-          <ActionButton label="Needs changes" onClick={() => updateStatus("needs_changes")} variant="outline" />
-          <ActionButton label="Mark reviewed" onClick={() => updateStatus("reviewed")} variant="primary" />
-        </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
         <div
-          className="lg:col-span-2 border overflow-hidden"
-          style={{ borderColor: COLORS.border, borderRadius: RADIUS.lg, minHeight: 480 }}
+          className="grid grid-cols-1 lg:grid-cols-5 overflow-hidden min-h-[520px]"
+          style={{ borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}`, background: COLORS.surface }}
         >
-          <iframe
-            srcDoc={review.activeHtml}
-            sandbox="allow-scripts"
-            className="w-full h-full bg-white"
-            style={{ minHeight: 480, border: "none" }}
-            title="Review mockup"
-          />
-        </div>
-        <div className="space-y-4">
-          <EngagementSummary items={engagement} />
-          <form onSubmit={(e: FormEvent) => e.preventDefault()} className="space-y-2">
-            <label style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Internal notes
-            </label>
-            <textarea
-              rows={4}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full px-3 py-2 border text-sm outline-none resize-none"
-              style={{ borderColor: COLORS.border, borderRadius: RADIUS.sm, ...F.body }}
-              placeholder="Notes for the team…"
+          <div className="lg:col-span-3 min-h-[400px] lg:min-h-[560px] bg-white border-b lg:border-b-0 lg:border-r" style={{ borderColor: COLORS.border }}>
+            <iframe
+              srcDoc={review.activeHtml}
+              sandbox="allow-scripts"
+              className="w-full h-full min-h-[400px] lg:min-h-[560px]"
+              style={{ border: "none" }}
+              title="Review mockup"
             />
-          </form>
-          <Link
-            href={`/workspace/${encodeURIComponent(review.ticketId)}`}
-            style={{ ...F.body, fontSize: 13, color: COLORS.accent }}
+          </div>
+          <div className="lg:col-span-2 flex flex-col min-h-[420px] lg:min-h-[560px]">
+            <ReviewCommunicationPanel
+              review={review}
+              session={session}
+              engagement={engagement}
+              onCommentAdded={load}
+              refreshKey={threadKey}
+            />
+          </div>
+        </div>
+
+        {review.status === "pending_review" && (
+          <ReviewActionBar
+            review={review}
+            busy={busy}
+            onApprove={(note) => finalize("approved", note)}
+            onRequestChanges={(msg) => finalize("needs_changes", msg)}
+          />
+        )}
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setPlanOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left"
+            style={{
+              background: COLORS.surface,
+              borderRadius: planOpen ? `${RADIUS.lg}px ${RADIUS.lg}px 0 0` : RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+            }}
           >
-            Open full workspace →
-          </Link>
+            <div>
+              <span style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Implementation plan</span>
+              <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 2 }}>
+                Execution breakdown and AI agent prompt
+              </p>
+            </div>
+            <span style={{ ...F.body, fontSize: 18, color: COLORS.muted }}>{planOpen ? "−" : "+"}</span>
+          </button>
+          {planOpen && (
+            <div className="border border-t-0 overflow-hidden" style={{ borderColor: COLORS.border, borderRadius: `0 0 ${RADIUS.lg}px ${RADIUS.lg}px` }}>
+              <ExecutionDetailsPanel
+                review={review}
+                session={session}
+                details={executionDetails}
+                effortMarkdown={latestEffortMarkdown(session)}
+                embedded
+              />
+            </div>
+          )}
         </div>
       </div>
-
-      <ExecutionDetailsPanel
-        review={review}
-        session={session}
-        details={executionDetails}
-        effortMarkdown={latestEffortMarkdown(session)}
-      />
     </div>
-  );
-}
-
-function ActionButton({
-  label,
-  onClick,
-  variant,
-}: {
-  label: string;
-  onClick: () => void;
-  variant: "primary" | "success" | "outline";
-}) {
-  const styles = {
-    primary: { background: COLORS.accent, color: "#fff", border: "none" },
-    success: { background: "#34C759", color: "#fff", border: "none" },
-    outline: { background: COLORS.surface, color: COLORS.text, border: `1px solid ${COLORS.border}` },
-  }[variant];
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="px-4 py-2 text-sm font-semibold"
-      style={{ ...styles, borderRadius: RADIUS.pill, ...F.body }}
-    >
-      {label}
-    </button>
   );
 }

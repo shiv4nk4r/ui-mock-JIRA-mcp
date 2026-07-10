@@ -15,6 +15,7 @@ import { ChatMarkdown, EffortMarkdown } from "@/components/chat/ChatMarkdown";
 import { JiraTicketLink, TicketSidebar } from "@/components/workspace/JiraTicketLink";
 import { ExternalEngagementWidget } from "@/components/feedback/ExternalEngagementWidget";
 import { InternalFeedbackWidget } from "@/components/feedback/InternalFeedbackWidget";
+import { PmReviewFeedbackBanner } from "@/components/reviews/PmReviewFeedbackBanner";
 
 type Phase = "loading" | "ready";
 
@@ -336,6 +337,12 @@ export function WorkspaceClient({ ticketId }: Props) {
       {fetchError && (
         <div className="px-4 py-2 text-sm text-center" style={{ background: "rgba(255,59,48,0.08)", color: "#FF3B30" }}>
           {fetchError}
+        </div>
+      )}
+
+      {user?.role === "external" && (sessionStatus === "needs_changes" || sessionStatus === "reviewed") && (
+        <div className="px-4 py-2">
+          <PmReviewFeedbackBanner ticketId={ticketId} userId={user.id} />
         </div>
       )}
 

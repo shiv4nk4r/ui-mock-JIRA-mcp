@@ -18,9 +18,10 @@ interface Props {
   session: MockupSession | null;
   details: ExecutionDetails;
   effortMarkdown?: string;
+  embedded?: boolean;
 }
 
-export function ExecutionDetailsPanel({ review, session, details, effortMarkdown }: Props) {
+export function ExecutionDetailsPanel({ review, session, details, effortMarkdown, embedded }: Props) {
   const [prompt, setPrompt] = useState("");
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -65,11 +66,15 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
   return (
     <section
       className="space-y-5 p-5 sm:p-6"
-      style={{
-        background: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-      }}
+      style={
+        embedded
+          ? undefined
+          : {
+              background: COLORS.surface,
+              borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`,
+            }
+      }
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
