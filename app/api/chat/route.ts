@@ -1158,13 +1158,22 @@ function streamClaudeCode(
               htmlSizeBytes = Buffer.byteLength(finalHtml, "utf8");
               logger.record("HTML mockup extracted from response", { detail: `${(htmlSizeBytes / 1024).toFixed(1)} KB` });
 
-              // Save final HTML to disk — overwrite on every generation/refinement so
-              // ~/claude-ui-designs/<ticketId>.html always has the latest iteration.
+              // Save final HTML — overwrite on every generation/refinement.
               const htmlOutputFile = join(designOutputDir, `${ticketId}.html`);
-              try {
-                writeFileSync(htmlOutputFile, finalHtml, "utf8");
-                logger.record("Saved mockup HTML to disk", { detail: htmlOutputFile });
-              } catch { /* non-fatal — disk write failure should not break streaming */ }
+              try { writeFileSync(htmlOutputFile, finalHtml, "utf8"); } catch { /* non-fatal */ }
+
+              // Save analysis (effort estimation + display text) for the gallery page.
+              if (displayText && !isRefinement) {
+                const analysisFile = join(designOutputDir, `${ticketId}.analysis.json`);
+                try {
+                  writeFileSync(analysisFile, JSON.stringify({
+                    ticketId,
+                    displayText,
+                    model,
+                    generatedAt: new Date().toISOString(),
+                  }, null, 2), "utf8");
+                } catch { /* non-fatal */ }
+              }
 
               send({ html: finalHtml, savedHtmlPath: htmlOutputFile });
             }
