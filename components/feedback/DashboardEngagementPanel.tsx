@@ -47,6 +47,7 @@ export function DashboardEngagementPanel() {
       if (!title.trim()) return;
       item.title = title.trim();
       item.description = description.trim() || undefined;
+      item.requestStatus = "submitted";
     }
 
     await repository.saveEngagement(item);
@@ -80,7 +81,7 @@ export function DashboardEngagementPanel() {
       <div className="text-center space-y-1">
         <p style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>Share with us</p>
         <p style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
-          Leave a testimonial or suggest a feature for Mock Studio
+          Leave a testimonial or suggest a feature for GCC Studio
         </p>
       </div>
 
@@ -107,7 +108,7 @@ export function DashboardEngagementPanel() {
               className="flex-1 px-4 py-3 text-sm font-semibold transition-transform active:scale-[0.98]"
               style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: RADIUS.md, border: `1px solid rgba(217,119,6,0.2)` }}
             >
-              💡 Suggest a feature
+              ◇ Suggest a feature
             </button>
           )}
         </div>
@@ -116,7 +117,7 @@ export function DashboardEngagementPanel() {
           <textarea
             rows={3}
             maxLength={280}
-            placeholder="What do you love about Mock Studio?"
+            placeholder="What do you love about GCC Studio?"
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="w-full px-4 py-3 text-sm outline-none resize-none focus:ring-2 focus:ring-amber-500/20"

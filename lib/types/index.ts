@@ -180,6 +180,14 @@ export type ReviewEventKind =
 
 export type EngagementType = "feedback" | "testimonial" | "feature_request";
 
+export type FeatureRequestStatus =
+  | "submitted"
+  | "under_review"
+  | "planned"
+  | "in_progress"
+  | "shipped"
+  | "declined";
+
 export interface UserEngagement {
   id: string;
   userId: string;
@@ -192,6 +200,7 @@ export interface UserEngagement {
   description?: string;
   priority?: "nice_to_have" | "important";
   showName?: boolean;
+  requestStatus?: FeatureRequestStatus;
   createdAt: number;
 }
 

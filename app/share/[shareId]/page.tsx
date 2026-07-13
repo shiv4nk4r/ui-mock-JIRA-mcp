@@ -55,7 +55,7 @@ export default function SharePage({ params }: { params: { shareId: string } }) {
   return (
     <div className="min-h-screen" style={{ background: COLORS.bg }}>
       <header className="px-6 py-4 border-b" style={{ background: COLORS.surface, borderColor: COLORS.border }}>
-        <div style={{ ...F.display, fontSize: 24, color: COLORS.accent }}>MOCK STUDIO</div>
+        <div style={{ ...F.display, fontSize: 24, color: COLORS.accent }}>GCC STUDIO</div>
         <div className="mt-1 flex items-center gap-3 flex-wrap">
           <span style={{ ...F.mono, fontSize: 12, color: COLORS.accent }}>{share.ticketId}</span>
           <span style={{ ...F.body, fontSize: 14, color: COLORS.text }}>{share.ticketSummary}</span>
@@ -108,7 +108,7 @@ export default function SharePage({ params }: { params: { shareId: string } }) {
         </div>
 
         <p className="text-center pb-8" style={{ ...F.condensed, fontSize: 9, color: "#C4C0BA", letterSpacing: "0.2em" }}>
-          Powered by GreyOrange Mock Studio
+          Powered by GreyOrange GCC Studio
         </p>
       </div>
     </div>

@@ -2,25 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import type { UserEngagement } from "@lib/types";
+import type { FeatureRequestStatus, UserEngagement } from "@lib/types";
 import { repository } from "@lib/storage";
 import { getMockUser } from "@lib/auth/mock-users";
+import { useAuth } from "@lib/auth/auth-context";
+import {
+  FEATURE_REQUEST_LABELS,
+  FEATURE_REQUEST_STATUSES,
+  FeatureRequestStatusChip,
+} from "@lib/utils/feature-request-status";
+import { relativeTime } from "@lib/utils/review-ui";
 
 function submitterName(userId: string): string {
-  return getMockUser(userId)?.name ?? "External PM";
+  return getMockUser(userId)?.name ?? "Product team";
 }
 
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-export function FeatureRequestsPanel({ compact }: { compact?: boolean }) {
+export function FeatureRequestsPanel({ compact, manageable }: { compact?: boolean; manageable?: boolean }) {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<UserEngagement[]>([]);
   const [loading, setLoading] = useState(true);
+  const canManage = manageable && user?.role === "internal";
 
   useEffect(() => {
     repository.getEngagement({ type: "feature_request" }).then((items) => {
@@ -28,6 +29,11 @@ export function FeatureRequestsPanel({ compact }: { compact?: boolean }) {
       setLoading(false);
     });
   }, []);
+
+  async function updateStatus(id: string, requestStatus: FeatureRequestStatus) {
+    await repository.updateEngagement(id, { requestStatus });
+    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, requestStatus } : r)));
+  }
 
   if (loading) return null;
 
@@ -59,7 +65,7 @@ export function FeatureRequestsPanel({ compact }: { compact?: boolean }) {
         </h2>
         {!compact && (
           <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, marginTop: 4 }}>
-            Ideas submitted by product managers
+            {canManage ? "Update status as ideas move through the pipeline" : "Ideas submitted by product teams"}
           </p>
         )}
       </div>
@@ -74,16 +80,24 @@ export function FeatureRequestsPanel({ compact }: { compact?: boolean }) {
       >
         {requests.map((req) => (
           <article key={req.id} className="px-5 py-4 space-y-2">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
               <h3 style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
                 {req.title}
               </h3>
-              <span
-                className="shrink-0 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: RADIUS.pill }}
-              >
-                New
-              </span>
+              {canManage ? (
+                <select
+                  value={req.requestStatus ?? "submitted"}
+                  onChange={(e) => updateStatus(req.id, e.target.value as FeatureRequestStatus)}
+                  className="text-xs font-medium px-2 py-1 outline-none shrink-0"
+                  style={{ borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, ...F.body, color: COLORS.text }}
+                >
+                  {FEATURE_REQUEST_STATUSES.map((s) => (
+                    <option key={s} value={s}>{FEATURE_REQUEST_LABELS[s]}</option>
+                  ))}
+                </select>
+              ) : (
+                <FeatureRequestStatusChip status={req.requestStatus} />
+              )}
             </div>
             {req.description && (
               <p style={{ ...F.body, fontSize: 14, color: COLORS.text, lineHeight: 1.55 }}>
@@ -93,17 +107,11 @@ export function FeatureRequestsPanel({ compact }: { compact?: boolean }) {
             <div className="flex items-center gap-2 flex-wrap text-xs" style={{ ...F.body, color: COLORS.muted }}>
               <span>{submitterName(req.userId)}</span>
               <span>·</span>
-              <span>{formatDate(req.createdAt)}</span>
+              <span>{relativeTime(req.createdAt)}</span>
               {req.ticketId && req.ticketId !== "GENERAL" && (
                 <>
                   <span>·</span>
                   <span style={{ ...F.mono, color: COLORS.accent }}>{req.ticketId}</span>
-                </>
-              )}
-              {req.ticketId === "GENERAL" && (
-                <>
-                  <span>·</span>
-                  <span>Product feedback</span>
                 </>
               )}
             </div>

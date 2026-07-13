@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, KeyboardEvent } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository, generateId } from "@lib/storage";
@@ -18,6 +18,9 @@ import { ChatMarkdown, EffortMarkdown } from "@/components/chat/ChatMarkdown";
 import { JiraTicketLink } from "@/components/workspace/JiraTicketLink";
 import { ExternalEngagementWidget } from "@/components/feedback/ExternalEngagementWidget";
 import { InternalFeedbackWidget } from "@/components/feedback/InternalFeedbackWidget";
+import { SendForReviewModal } from "@/components/workspace/SendForReviewModal";
+import { MockVersionPicker } from "@/components/workspace/MockVersionPicker";
+import { buildRevisions } from "@lib/utils/session-history";
 
 type Phase = "loading" | "ready";
 
@@ -44,6 +47,12 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [engagement, setEngagement] = useState<UserEngagement[]>([]);
   const [showChat, setShowChat] = useState(true);
   const [mockFullscreen, setMockFullscreen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewModalResubmit, setReviewModalResubmit] = useState(false);
+  const [sendingReview, setSendingReview] = useState(false);
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
+
+  const prevRevisionCountRef = useRef(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +69,47 @@ export function WorkspaceClient({ ticketId }: Props) {
     generate,
     refine,
   } = useMockupGeneration();
+
+  const revisions = useMemo(() => {
+    if (!sessionId || !ticketData || !user) return [];
+    return buildRevisions(
+      {
+        id: sessionId,
+        userId: user.id,
+        ticketId,
+        ticketData,
+        messages,
+        activeHtml,
+        usageRecords,
+        selectedModel,
+        status: sessionStatus,
+        savedAt: Date.now(),
+      },
+      user.role,
+    );
+  }, [sessionId, ticketData, user, ticketId, messages, activeHtml, usageRecords, selectedModel, sessionStatus]);
+
+  const selectedRevision =
+    revisions.find((r) => r.id === selectedRevisionId) ?? revisions[revisions.length - 1];
+  const previewHtml = selectedRevision?.html ?? activeHtml;
+
+  useEffect(() => {
+    if (revisions.length === 0) {
+      setSelectedRevisionId(null);
+      prevRevisionCountRef.current = 0;
+      return;
+    }
+    setSelectedRevisionId((prev) => {
+      if (revisions.length > prevRevisionCountRef.current) {
+        return revisions[revisions.length - 1].id;
+      }
+      if (!prev || !revisions.some((r) => r.id === prev)) {
+        return revisions[revisions.length - 1].id;
+      }
+      return prev;
+    });
+    prevRevisionCountRef.current = revisions.length;
+  }, [revisions]);
 
   useEffect(() => {
     fetch("/api/config")
@@ -265,6 +315,7 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   async function handleSendToReview() {
     if (!user || !ticketData || !activeHtml) return;
+    setSendingReview(true);
     try {
       const { reviewId: id, resubmitted } = await submitOrResubmitReview({
         user,
@@ -276,6 +327,7 @@ export function WorkspaceClient({ ticketId }: Props) {
       setReviewId(id);
       setReviewStatus("pending_review");
       setSessionStatus("pending_review");
+      setReviewModalOpen(false);
       setToast(resubmitted ? "Updated mockup sent back for review" : "Sent to the engineering team for review");
       await repository.saveSession({
         id: sessionId,
@@ -292,7 +344,14 @@ export function WorkspaceClient({ ticketId }: Props) {
       });
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not send for review");
+    } finally {
+      setSendingReview(false);
     }
+  }
+
+  function openReviewModal(resubmit: boolean) {
+    setReviewModalResubmit(resubmit);
+    setReviewModalOpen(true);
   }
 
   async function refreshEngagement() {
@@ -318,6 +377,13 @@ export function WorkspaceClient({ ticketId }: Props) {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
       <Toast message={toast} onDone={() => setToast(null)} />
+      <SendForReviewModal
+        open={reviewModalOpen}
+        resubmit={reviewModalResubmit}
+        busy={sendingReview}
+        onCancel={() => setReviewModalOpen(false)}
+        onConfirm={handleSendToReview}
+      />
 
       {/* Minimal top bar */}
       <header
@@ -361,13 +427,13 @@ export function WorkspaceClient({ ticketId }: Props) {
           {(reviewStatus === "pending_review" || sessionStatus === "pending_review") ? (
             <span style={{ ...F.body, fontSize: 13, color: "#f9b115", fontWeight: 500 }}>In review</span>
           ) : reviewStatus === "needs_changes" ? (
-            <IconButton label="Resubmit for review" onClick={handleSendToReview} disabled={!activeHtml} primary>
+            <IconButton label="Resubmit for review" onClick={() => openReviewModal(true)} disabled={!activeHtml} primary>
               Resubmit
             </IconButton>
           ) : reviewStatus === "approved" || sessionStatus === "reviewed" ? (
             <span style={{ ...F.body, fontSize: 13, color: "#34C759", fontWeight: 500 }}>✓ Approved</span>
           ) : (
-            <IconButton label="Send to review" onClick={handleSendToReview} disabled={!activeHtml} primary>
+            <IconButton label="Send to review" onClick={() => openReviewModal(false)} disabled={!activeHtml} primary>
               Review
             </IconButton>
           )}

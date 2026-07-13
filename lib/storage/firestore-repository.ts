@@ -262,8 +262,12 @@ export class FirestoreRepository implements IRepository {
 
   async saveEngagement(item: UserEngagement): Promise<void> {
     const db = requireDb();
-    const docId = `${item.userId}_${item.sessionId}_${item.type}`;
-    await setDoc(doc(db, "engagement", docId), item, { merge: true });
+    await setDoc(doc(db, "engagement", item.id), item, { merge: true });
+  }
+
+  async updateEngagement(id: string, patch: Partial<UserEngagement>): Promise<void> {
+    const db = requireDb();
+    await setDoc(doc(db, "engagement", id), patch, { merge: true });
   }
 
   async getEngagement(filter: EngagementFilter): Promise<UserEngagement[]> {

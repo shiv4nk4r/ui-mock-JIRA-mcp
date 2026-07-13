@@ -12,6 +12,21 @@ export function relativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+export function formatVersionTime(ts?: number): string {
+  if (!ts) return "Unknown time";
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return `Yesterday ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 export interface PmRevisionEntry {
   id: string;
   prompt: string;

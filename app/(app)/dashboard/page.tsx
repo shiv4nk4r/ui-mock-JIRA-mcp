@@ -146,7 +146,7 @@ export default function DashboardPage() {
 
       {!loading && user?.role === "external" && <DashboardEngagementPanel />}
 
-      {!loading && user?.role === "internal" && <FeatureRequestsPanel />}
+      {!loading && user?.role === "internal" && <FeatureRequestsPanel manageable />}
     </div>
   );
 }

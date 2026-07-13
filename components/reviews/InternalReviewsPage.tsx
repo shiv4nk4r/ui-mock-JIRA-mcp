@@ -53,7 +53,7 @@ export function InternalReviewsPage() {
         </p>
       </div>
 
-      <FeatureRequestsPanel compact />
+      <FeatureRequestsPanel compact manageable />
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} highlightTab="pending" />
 

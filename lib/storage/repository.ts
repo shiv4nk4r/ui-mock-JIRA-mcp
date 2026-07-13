@@ -27,6 +27,7 @@ export interface IRepository {
   addComment(comment: Comment): Promise<void>;
 
   saveEngagement(item: UserEngagement): Promise<void>;
+  updateEngagement(id: string, patch: Partial<UserEngagement>): Promise<void>;
   getEngagement(filter: EngagementFilter): Promise<UserEngagement[]>;
 
   migrateLegacySessions(userId: string): Promise<void>;

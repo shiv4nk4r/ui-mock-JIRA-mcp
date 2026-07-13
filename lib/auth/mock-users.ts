@@ -4,14 +4,14 @@ export const MOCK_USERS: User[] = [
   {
     id: "user-external-1",
     email: "pm@partner.com",
-    name: "Alex Morgan",
+    name: "Jasmine",
     role: "external",
     avatarUrl: undefined,
   },
   {
     id: "user-internal-1",
     email: "engineer@greyorange.com",
-    name: "Priya Sharma",
+    name: "Shivankar Sharma",
     role: "internal",
     avatarUrl: undefined,
   },

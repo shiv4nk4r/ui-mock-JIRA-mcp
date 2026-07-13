@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { GreyOrangeLogo } from "@/components/shared/GreyOrangeLogo";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
 import { fetchReviewsForNav } from "@lib/utils/review-notifications";
@@ -41,8 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="relative z-[100] w-full flex-none flex items-center justify-between px-6 py-3"
           style={{ background: "rgba(245,245,247,0.85)", backdropFilter: "blur(12px)" }}
         >
-          <Link href="/dashboard" className="shrink-0" style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.02em" }}>
-            Mock Studio
+          <Link href="/dashboard" className="shrink-0 flex items-center">
+            <GreyOrangeLogo height={24} />
           </Link>
 
           <nav className="flex items-center gap-1 p-1 max-w-[calc(100vw-8rem)] overflow-x-auto" style={{ background: COLORS.subtle, borderRadius: RADIUS.pill }}>

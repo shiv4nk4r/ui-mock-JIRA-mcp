@@ -136,7 +136,7 @@ new Vue({
       shifts: [
         { zone: 'GTP-A', morning: 'R. Kumar (4)', afternoon: 'S. Patel (3)', night: null, headcount: 7, full: false },
         { zone: 'GTP-B', morning: 'A. Singh (5)', afternoon: 'T. Mehta (5)', night: 'K. Das (2)', headcount: 12, full: true },
-        { zone: 'Reserve', morning: 'P. Sharma (3)', afternoon: null, night: null, headcount: 3, full: false },
+        { zone: 'Reserve', morning: 'S. Sharma (3)', afternoon: null, night: null, headcount: 3, full: false },
         { zone: 'Outbound', morning: 'V. Nair (4)', afternoon: 'M. Rao (4)', night: 'L. Iyer (3)', headcount: 11, full: true },
         { zone: 'Inbound', morning: 'D. Gupta (3)', afternoon: 'H. Verma (3)', night: null, headcount: 6, full: false },
       ],

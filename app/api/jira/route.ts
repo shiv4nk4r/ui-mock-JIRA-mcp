@@ -191,12 +191,12 @@ function mockResponse(id: string) {
       "Specification: The planner must support drag-and-drop assignment, conflict detection, " +
       "and real-time headcount tracking per zone. Must integrate with the existing WMS shift management APIs.",
     metadata: {
-      status: "In Progress", priority: "High", assignee: "Priya Sharma",
+      status: "In Progress", priority: "High", assignee: "Shivankar Sharma",
       reporter: "Rahul Mehta", issueType: "Story", labels: ["frontend", "ux", "phase-2"],
       storyPoints: undefined,
     },
     comments: [
-      { author: "Priya Sharma", body: "The drag-and-drop needs to work on touch devices. See Marvel prototype: https://marvelapp.com/mock-prototype", created: "Jun 1, 2026" },
+      { author: "Shivankar Sharma", body: "The drag-and-drop needs to work on touch devices. See Marvel prototype: https://marvelapp.com/mock-prototype", created: "Jun 1, 2026" },
       { author: "Dev Lead",     body: "Use qcalendar — already in the stack. Docs at https://quasar.dev/vue-components/calendar", created: "Jun 3, 2026" },
     ],
     subtasks: [

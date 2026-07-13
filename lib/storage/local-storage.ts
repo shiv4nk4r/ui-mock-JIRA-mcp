@@ -140,6 +140,15 @@ export class LocalStorageRepository implements IRepository {
     writeJson(KEYS.engagement, all);
   }
 
+  async updateEngagement(id: string, patch: Partial<UserEngagement>): Promise<void> {
+    const all = readJson<UserEngagement[]>(KEYS.engagement, []);
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], ...patch };
+      writeJson(KEYS.engagement, all);
+    }
+  }
+
   async getEngagement(filter: EngagementFilter): Promise<UserEngagement[]> {
     let items = readJson<UserEngagement[]>(KEYS.engagement, []);
     if (filter.sessionId) items = items.filter((e) => e.sessionId === filter.sessionId);

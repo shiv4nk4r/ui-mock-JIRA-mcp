@@ -1,9 +1,9 @@
-# Firebase setup for Mock Studio
+# Firebase setup for GCC Studio
 
 ## 1. Create a Firebase project
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a project (e.g. `mock-studio-greyorange`)
+2. Create a project (e.g. `gcc-studio-greyorange`)
 3. Enable **Authentication** → Sign-in method → **Google**
 4. Enable **Firestore Database** (production mode, pick a region)
 5. Enable **Storage** (default bucket)
