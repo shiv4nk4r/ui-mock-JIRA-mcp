@@ -102,6 +102,8 @@ export interface Message {
   text?: string;
   htmlComponent?: string;
   effortEstimation?: string;
+  changeLog?: string;
+  agentPrompt?: string;
   rawBlocks?: ContentBlock[];
   isStreaming?: boolean;
   thinking?: { log: string[]; elapsed?: number; done: boolean };

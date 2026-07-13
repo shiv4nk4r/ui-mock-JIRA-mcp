@@ -153,8 +153,34 @@ export function FloatingChatWidget({
                   )}
                   {isInternal && msg.effortEstimation && (
                     <div className="mt-3 pt-3 border-t text-sm" style={{ borderColor: COLORS.border }}>
+                      <p style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.muted, marginBottom: 6 }}>
+                        Effort estimation
+                      </p>
                       <EffortMarkdown text={msg.effortEstimation} />
                     </div>
+                  )}
+                  {isInternal && msg.changeLog && !msg.isStreaming && (
+                    <details className="mt-3 pt-3 border-t" style={{ borderColor: COLORS.border }}>
+                      <summary style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.accent, cursor: "pointer" }}>
+                        Implementation change log
+                      </summary>
+                      <div className="mt-2 text-sm">
+                        <EffortMarkdown text={msg.changeLog} />
+                      </div>
+                    </details>
+                  )}
+                  {isInternal && msg.agentPrompt && !msg.isStreaming && (
+                    <details className="mt-3 pt-3 border-t" style={{ borderColor: COLORS.border }}>
+                      <summary style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.accent, cursor: "pointer" }}>
+                        Standalone agent prompt
+                      </summary>
+                      <pre
+                        className="mt-2 text-xs whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto p-2"
+                        style={{ background: COLORS.surface, borderRadius: RADIUS.sm, color: COLORS.text, lineHeight: 1.5 }}
+                      >
+                        {msg.agentPrompt}
+                      </pre>
+                    </details>
                   )}
                 </div>
               </div>

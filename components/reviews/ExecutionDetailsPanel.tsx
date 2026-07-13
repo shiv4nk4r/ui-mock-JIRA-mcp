@@ -11,6 +11,7 @@ const SOURCE_LABELS: Record<ExecutionDetails["changes"][0]["source"], string> = 
   effort: "Engineering estimate",
   revision: "PM revision",
   ticket: "Ticket scope",
+  change_log: "Implementation plan",
 };
 
 interface Props {
@@ -52,7 +53,7 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
   }, [details, review, session]);
 
   useEffect(() => {
-    setPrompt(buildAgentPrompt(details, review, session));
+    setPrompt(details.generatedAgentPrompt ?? buildAgentPrompt(details, review, session));
   }, [details, review, session]);
 
   async function copyPrompt() {
@@ -134,10 +135,29 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
                 <p style={{ ...F.body, fontSize: 14, color: COLORS.text, lineHeight: 1.55 }}>
                   {change.description}
                 </p>
+                {change.acceptance && (
+                  <p style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginTop: 4 }}>
+                    ✓ {change.acceptance}
+                  </p>
+                )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {details.changeLogMarkdown && (
+        <details className="group">
+          <summary
+            className="cursor-pointer text-sm font-medium"
+            style={{ ...F.body, color: COLORS.muted }}
+          >
+            Full implementation change log
+          </summary>
+          <div className="mt-3 p-4 overflow-x-auto" style={{ background: COLORS.subtle, borderRadius: RADIUS.md }}>
+            <EffortMarkdown text={details.changeLogMarkdown} />
+          </div>
+        </details>
       )}
 
       {effortMarkdown && (
@@ -157,7 +177,7 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
       <div className="space-y-3 pt-2 border-t" style={{ borderColor: COLORS.border }}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
-            AI agent prompt
+            Standalone agent prompt
           </h3>
           <div className="flex gap-2">
             <button
@@ -194,7 +214,9 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
           spellCheck={false}
         />
         <p style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
-          Paste into Cursor, Claude Code, or your coding agent. Edit before sending if needed.
+          {details.generatedAgentPrompt
+            ? "Generated during mockup creation — paste into Cursor or Claude Code in the manager-dashboard repo."
+            : "Paste into Cursor, Claude Code, or your coding agent. Edit before sending if needed."}
         </p>
       </div>
     </section>

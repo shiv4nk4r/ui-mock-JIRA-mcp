@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { Message, TicketData, UsageRecord, UserRole } from "@lib/types";
-import { EFFORT_MARKER, stripEffortFromText } from "@lib/utils/parse-chat";
+import { parseAssistantSections } from "@lib/utils/parse-chat";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 interface StreamOptions {
@@ -88,10 +88,11 @@ export function useMockupGeneration() {
               }
               if (ev.delta) {
                 accumulated += ev.delta as string;
+                const parsed = parseAssistantSections(accumulated);
                 const display =
                   options.userRole === "external"
-                    ? stripEffortFromText(accumulated).text
-                    : accumulated;
+                    ? parsed.text
+                    : parsed.text;
                 updateLastMessage({ text: display, isStreaming: true });
               }
               if (ev.html) {
@@ -99,12 +100,14 @@ export function useMockupGeneration() {
                 if (streamingHtml) options.onHtml?.(streamingHtml);
               }
               if (ev.done) {
-                const parsed = stripEffortFromText(accumulated);
+                const parsed = parseAssistantSections(accumulated);
+                const isInternal = options.userRole === "internal";
                 updateLastMessage({
                   text: parsed.text,
                   htmlComponent: streamingHtml,
-                  effortEstimation:
-                    options.userRole === "internal" ? parsed.effortEstimation : undefined,
+                  effortEstimation: isInternal ? parsed.effortEstimation : undefined,
+                  changeLog: isInternal ? parsed.changeLog : undefined,
+                  agentPrompt: isInternal ? parsed.agentPrompt : undefined,
                   isStreaming: false,
                 });
                 const inT = (ev.inputTokens as number) ?? 0;
@@ -205,4 +208,4 @@ export function useMockupGeneration() {
   };
 }
 
-export { EFFORT_MARKER };
+export { EFFORT_MARKER } from "@lib/utils/parse-chat";

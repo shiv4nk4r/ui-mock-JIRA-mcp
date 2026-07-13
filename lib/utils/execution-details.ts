@@ -1,12 +1,14 @@
 import type { Message, MockupSession, ReviewItem, TicketData } from "@lib/types";
-import { EFFORT_MARKER } from "@lib/utils/parse-chat";
+import { EFFORT_MARKER, parseAssistantSections } from "@lib/utils/parse-chat";
 
 export interface ExecutionChange {
   id: string;
   location: string;
   effort?: string;
   description: string;
-  source: "effort" | "revision" | "ticket";
+  source: "effort" | "revision" | "ticket" | "change_log";
+  changeType?: string;
+  acceptance?: string;
 }
 
 export interface ExecutionDetails {
@@ -17,12 +19,72 @@ export interface ExecutionDetails {
   riskFactor?: string;
   changes: ExecutionChange[];
   hasEffortData: boolean;
+  changeLogMarkdown?: string;
+  generatedAgentPrompt?: string;
 }
 
 function parseMetaLine(text: string, label: string): string | undefined {
   const re = new RegExp(`\\*\\*${label}:\\*\\*\\s*(.+)`, "i");
   const match = text.match(re);
   return match?.[1]?.trim();
+}
+
+function parseChangeLogTable(text: string): ExecutionChange[] {
+  const changes: ExecutionChange[] = [];
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line.startsWith("|")) continue;
+    const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
+    if (cells.length < 4) continue;
+    if (cells[0] === "#" || /^-+$/.test(cells[0]) || cells.some((c) => /^-+$/.test(c))) continue;
+
+    const rowNum = cells[0].replace(/\D/g, "");
+    changes.push({
+      id: `change-log-${rowNum || changes.length}`,
+      location: cells[1] || "Unknown",
+      changeType: cells[2],
+      description: cells[3] || "",
+      acceptance: cells[4],
+      source: "change_log",
+    });
+  }
+
+  return changes;
+}
+
+function latestAssistantHandoff(messages: Message[]): {
+  effortText?: string;
+  changeLog?: string;
+  agentPrompt?: string;
+} {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "assistant") continue;
+    if (m.effortEstimation || m.changeLog || m.agentPrompt) {
+      return {
+        effortText: m.effortEstimation,
+        changeLog: m.changeLog,
+        agentPrompt: m.agentPrompt,
+      };
+    }
+    if (m.text) {
+      const parsed = parseAssistantSections(m.text);
+      if (parsed.effortEstimation || parsed.changeLog || parsed.agentPrompt) {
+        return {
+          effortText: parsed.effortEstimation,
+          changeLog: parsed.changeLog,
+          agentPrompt: parsed.agentPrompt,
+        };
+      }
+    }
+  }
+  return {};
+}
+
+export function getSessionAgentPrompt(session: MockupSession | null): string | undefined {
+  const { agentPrompt } = latestAssistantHandoff(session?.messages ?? []);
+  return agentPrompt?.trim() || undefined;
 }
 
 function parseBreakdownLine(line: string): Omit<ExecutionChange, "id" | "source"> | null {
@@ -141,18 +203,17 @@ export function buildExecutionDetails(
 ): ExecutionDetails {
   const ticket = session?.ticketData;
   const messages = session?.messages ?? [];
+  const handoff = latestAssistantHandoff(messages);
 
-  let effortText: string | undefined;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== "assistant") continue;
-    if (m.effortEstimation) {
-      effortText = m.effortEstimation;
-      break;
-    }
-    if (m.text?.includes(EFFORT_MARKER)) {
-      effortText = m.text.slice(m.text.indexOf(EFFORT_MARKER));
-      break;
+  let effortText = handoff.effortText;
+  if (!effortText) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      if (m.text?.includes(EFFORT_MARKER)) {
+        effortText = m.text.slice(m.text.indexOf(EFFORT_MARKER));
+        break;
+      }
     }
   }
 
@@ -161,18 +222,22 @@ export function buildExecutionDetails(
     parsed = parseEffortEstimation(effortText);
   }
 
+  const changeLogChanges = handoff.changeLog ? parseChangeLogTable(handoff.changeLog) : [];
   const revisionChanges = extractRevisionPrompts(messages);
   const ticketChanges = ticket ? ticketScopeChanges(ticket) : [];
 
-  const merged: ExecutionChange[] = [
-    ...(parsed.changes ?? []),
-    ...revisionChanges.filter(
-      (r) => !(parsed.changes ?? []).some((c) => c.description === r.description),
-    ),
-  ];
+  let merged: ExecutionChange[] =
+    changeLogChanges.length > 0
+      ? changeLogChanges
+      : [
+          ...(parsed.changes ?? []),
+          ...revisionChanges.filter(
+            (r) => !(parsed.changes ?? []).some((c) => c.description === r.description),
+          ),
+        ];
 
   if (merged.length === 0 && ticketChanges.length > 0) {
-    merged.push(...ticketChanges);
+    merged = ticketChanges;
   }
 
   return {
@@ -183,6 +248,8 @@ export function buildExecutionDetails(
     riskFactor: parsed.riskFactor,
     changes: merged,
     hasEffortData: !!parsed.hasEffortData,
+    changeLogMarkdown: handoff.changeLog,
+    generatedAgentPrompt: handoff.agentPrompt,
   };
 }
 
@@ -191,6 +258,11 @@ export function buildAgentPrompt(
   review: ReviewItem,
   session: MockupSession | null,
 ): string {
+  const generated = details.generatedAgentPrompt ?? getSessionAgentPrompt(session);
+  if (generated) {
+    return generated;
+  }
+
   const lines: string[] = [
     `# Implementation task: ${details.ticketId}`,
     "",
@@ -231,8 +303,10 @@ export function buildAgentPrompt(
     details.changes.forEach((c, i) => {
       lines.push(`### ${i + 1}. ${c.location}`);
       lines.push(`- **Where:** ${c.location}`);
+      if (c.changeType) lines.push(`- **Change type:** ${c.changeType}`);
       if (c.effort) lines.push(`- **Estimated effort:** ${c.effort}`);
       lines.push(`- **What to do:** ${c.description}`);
+      if (c.acceptance) lines.push(`- **Acceptance:** ${c.acceptance}`);
       lines.push("");
     });
   }

@@ -17,6 +17,12 @@ import {
 } from "@/capture-grounding";
 import { LEAN_MOCKUP_RUN, formatRouteHints } from "@/lean-mockup-run";
 import { resolveCaptureLabel, surveyPageTemplates } from "@/capture-catalog";
+import {
+  CHANGE_LOG_MARKER,
+  EFFORT_MARKER,
+  AGENT_PROMPT_MARKER,
+  stripInternalTechnicalSections,
+} from "@lib/utils/parse-chat";
 
 export const dynamic = "force-dynamic";
 
@@ -361,13 +367,6 @@ interface ChatRequest {
 const HTML_MARKER_START = "RAW_HTML_COMPONENT_START";
 const HTML_MARKER_END   = "RAW_HTML_COMPONENT_END";
 
-const EFFORT_MARKER = "### 📊 Engineering Effort Estimation Summary";
-
-function stripEffortEstimation(text: string): string {
-  const mi = text.indexOf(EFFORT_MARKER);
-  return mi >= 0 ? text.slice(0, mi).trim() : text;
-}
-
 function extractHtmlFromMarkers(text: string): { displayText: string; html: string | undefined } {
   const si = text.indexOf(HTML_MARKER_START);
   const ei = text.indexOf(HTML_MARKER_END);
@@ -620,12 +619,18 @@ IMPORTANT — WEB API MODE:
     );
   }
 
-  // This section MUST be last — the UI parser splits on this exact heading.
+  // Internal-only sections — machine-parsed by lib/utils/parse-chat.ts (order matters).
   if (!isExternal) {
     sections.push(
-      "OUTPUT FORMAT — REQUIRED:",
-      "After your analysis, append engineering effort estimation using this EXACT heading (it is machine-parsed, do not change it):",
+      "OUTPUT FORMAT — REQUIRED (internal engineering handoff):",
+      "After your product analysis, include the HTML mockup markers, then append these EXACT sections in order.",
       "",
+      "1) HTML mockup (required):",
+      "RAW_HTML_COMPONENT_START",
+      "<!DOCTYPE html>...complete HTML...",
+      "RAW_HTML_COMPONENT_END",
+      "",
+      "2) Effort estimation — EXACT heading (do not change):",
       "### 📊 Engineering Effort Estimation Summary [TICKET_ID]",
       "Replace TICKET_ID with the actual ticket number. Then include:",
       "- **T-Shirt Size:** [S / M / L / XL based on complexity]",
@@ -635,7 +640,41 @@ IMPORTANT — WEB API MODE:
       "  * (add as many lines as needed)",
       "- **Architecture Risk Factor:** [Low / Medium / High] — [one-sentence reason]",
       "",
-      "Make the estimation SPECIFIC to this ticket — not generic. Derive sizing from actual scope described in the ticket."
+      "3) Implementation change log — EXACT heading:",
+      CHANGE_LOG_MARKER + " [TICKET_ID]",
+      "Exhaustive file-level inventory of EVERY addition and modification to implement the mock in manager-dashboard (mdui/ + mdbff/). Use this EXACT markdown table:",
+      "",
+      "| # | File / route | Change type | What to add or change | Acceptance criteria |",
+      "|---|--------------|-------------|------------------------|---------------------|",
+      "| 1 | mdui/src/pages/... | add/modify/delete/configure | Precise implementation detail | How to verify |",
+      "",
+      "Change log rules:",
+      "- List EVERY UI element in the mock that is new or different from current product",
+      "- Name exact Vue paths, GraphQL operations/resolvers, hash routes (/#/...), Vuex modules, i18n keys",
+      "- No vague rows — each must be implementable in one focused PR slice",
+      "- Include nav tabs, columns, filters, modals, status chips, API fields, permissions",
+      "- Minimum 5 rows for non-trivial tickets; more for large scope",
+      "",
+      "4) Standalone agent prompt — EXACT heading (must be LAST section in response):",
+      AGENT_PROMPT_MARKER,
+      "Write a COMPLETE self-contained prompt (800–2000 words) for a coding agent with NO access to this chat.",
+      "The agent will run in the manager-dashboard repository using mcp__md__* tools. The prompt MUST include:",
+      "",
+      "- **Repository:** Vue 2.7 + Quasar 1.20.1 (mdui/src/), Apollo GraphQL BFF (mdbff/src/), hash routes",
+      "- **Ticket ID and summary** (inline — do not say 'see above')",
+      "- **Goal:** one paragraph on user-facing outcome",
+      "- **Mockup layout:** top-to-bottom description of the HTML mock (structure, components, columns, states, interactions)",
+      "- **Numbered file-level tasks:** mirror the change log with exact paths and edit instructions",
+      "- **MCP tool sequence:** which mcp__md__* tools to call, keywords/routes, read-source-file paths",
+      "- **Implementation rules:** reuse Quasar patterns, i18n keys, existing store/graphql patterns; no new UI libraries",
+      "- **Acceptance checks:** bullet list of done-when criteria",
+      "",
+      "Agent prompt rules:",
+      "- Do NOT reference 'the mockup above', 'this conversation', or 'as discussed'",
+      "- Be precise enough that an engineer can paste it into Cursor/Claude Code and implement without re-reading the ticket",
+      "- Include concrete file paths discovered via MCP during this run",
+      "",
+      "Make effort estimation and change log SPECIFIC to this ticket — not generic."
     );
   } else {
     sections.push(
@@ -1178,7 +1217,7 @@ function streamClaudeCode(
           let htmlSizeBytes = 0;
           let htmlExtracted = false;
           if (allText) {
-            const textForDisplay = userRole === "external" ? stripEffortEstimation(allText) : allText;
+            const textForDisplay = userRole === "external" ? stripInternalTechnicalSections(allText) : allText;
             const { displayText, html } = extractHtmlFromMarkers(textForDisplay);
             if (displayText) send({ delta: displayText });
             if (html) {
