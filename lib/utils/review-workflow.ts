@@ -37,7 +37,7 @@ export async function submitOrResubmitReview(params: {
     throw new Error("This mockup is already awaiting review");
   }
 
-  if (existing) {
+  if (existing && existing.status !== "approved" && existing.status !== "reviewed") {
     await repository.updateReview(existing.id, {
       activeHtml: cleanHtml,
       status: "pending_review",
@@ -106,6 +106,39 @@ export async function finalizeReview(params: {
     await repository.saveSession({
       ...saved,
       status: status === "approved" ? "reviewed" : "needs_changes",
+    });
+  }
+}
+
+export async function retractReview(params: {
+  review: ReviewItem;
+  user: User;
+}): Promise<void> {
+  const { review, user } = params;
+
+  if (review.userId !== user.id) {
+    throw new Error("Only the person who submitted this mockup can retract it");
+  }
+  if (review.status !== "pending_review") {
+    throw new Error("This mockup is not awaiting review");
+  }
+
+  await addReviewEvent(
+    review.id,
+    user,
+    "Withdrew the mockup from review to continue refining in the workspace.",
+    "retraction",
+  );
+  await repository.updateReview(review.id, {
+    status: "withdrawn",
+    reviewedAt: undefined,
+  });
+
+  const saved = await repository.getSession(review.userId, review.ticketId);
+  if (saved) {
+    await repository.saveSession({
+      ...saved,
+      status: "in_progress",
     });
   }
 }

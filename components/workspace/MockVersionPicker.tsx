@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { MockRevision } from "@lib/utils/session-history";
 import { formatVersionTime } from "@lib/utils/review-ui";
+import { formatCostUsd } from "@lib/utils/usage-cost";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 
 function shortLabel(label: string, max = 32): string {
@@ -116,6 +117,11 @@ export function MockVersionPicker({
                 </p>
                 <p style={{ ...F.body, fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
                   {formatVersionTime(r.timestamp)}
+                  {r.usage && (
+                    <span style={{ ...F.mono, color: COLORS.accent, marginLeft: 8 }}>
+                      {formatCostUsd(r.usage.costUsd)}
+                    </span>
+                  )}
                 </p>
               </div>
               {isSelected && (
@@ -153,6 +159,11 @@ export function MockVersionPicker({
         <span className="truncate">
           v{selected.index + 1} · {shortLabel(selected.label, compact ? 24 : 32)}
         </span>
+        {selected.usage && (
+          <span style={{ ...F.mono, fontSize: 10, color: COLORS.accent, fontWeight: 600, whiteSpace: "nowrap" }}>
+            {formatCostUsd(selected.usage.costUsd)}
+          </span>
+        )}
         <span style={{ color: COLORS.muted, fontSize: 10 }}>▾</span>
       </button>
 

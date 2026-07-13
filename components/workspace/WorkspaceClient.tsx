@@ -7,19 +7,23 @@ import { repository, generateId } from "@lib/storage";
 import { useMockupGeneration } from "@lib/hooks/use-mockup-generation";
 import type { AttachedFile, MockupSession, ProviderConfig, ReviewStatus, TicketData, UserEngagement, UserRole } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import { openHtmlInNewTab } from "@lib/utils/files";
-import { normalizeMockupHtml } from "@lib/utils/mockup-html";
+import { openHtmlInNewTab, downloadHtmlFile } from "@lib/utils/files";
+import { normalizeMockupHtml, getLatestMockHtml, sessionHasAssistantReply } from "@lib/utils/mockup-html";
 import { MockAnnotationLayer } from "@/components/mock/MockAnnotationLayer";
 import { MockupAspectFrame } from "@/components/shared/MockupAspectFrame";
+import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { MockupIframe } from "@/components/shared/MockupIframe";
-import { submitOrResubmitReview } from "@lib/utils/review-workflow";
+import { submitOrResubmitReview, retractReview } from "@lib/utils/review-workflow";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { Toast, IconButton } from "@/components/shared/Toast";
 import { JiraTicketLink } from "@/components/workspace/JiraTicketLink";
 import { SendForReviewModal } from "@/components/workspace/SendForReviewModal";
+import { RetractReviewModal } from "@/components/workspace/RetractReviewModal";
 import { MockVersionPicker } from "@/components/workspace/MockVersionPicker";
 import { FloatingChatWidget } from "@/components/workspace/FloatingChatWidget";
+import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
 import { buildRevisions } from "@lib/utils/session-history";
+import { sumUsageRecords } from "@lib/utils/usage-cost";
 
 type Phase = "loading" | "ready";
 
@@ -48,7 +52,10 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [mockFullscreen, setMockFullscreen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewModalResubmit, setReviewModalResubmit] = useState(false);
+  const [retractModalOpen, setRetractModalOpen] = useState(false);
+  const [retractingReview, setRetractingReview] = useState(false);
   const [sendingReview, setSendingReview] = useState(false);
+  const [costOpen, setCostOpen] = useState(false);
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
 
   const prevRevisionCountRef = useRef(0);
@@ -87,8 +94,23 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   const selectedRevision =
     revisions.find((r) => r.id === selectedRevisionId) ?? revisions[revisions.length - 1];
+  const latestMockHtml = useMemo(
+    () => getLatestMockHtml(messages, activeHtml),
+    [messages, activeHtml],
+  );
   const previewHtml =
-    isStreaming || isGenerating ? activeHtml : (selectedRevision?.html ?? activeHtml);
+    isStreaming || isGenerating
+      ? latestMockHtml
+      : (selectedRevision?.html ?? latestMockHtml);
+  const usageTotals = useMemo(() => sumUsageRecords(usageRecords), [usageRecords]);
+  const hasAssistantReply = sessionHasAssistantReply(messages);
+  const showGenerateMock = !previewHtml && !isGenerating && !isStreaming && !hasAssistantReply;
+
+  useEffect(() => {
+    if (isStreaming || isGenerating) return;
+    if (!latestMockHtml || latestMockHtml === activeHtml) return;
+    setActiveHtml(latestMockHtml);
+  }, [isStreaming, isGenerating, latestMockHtml, activeHtml]);
 
   useEffect(() => {
     if (revisions.length === 0) {
@@ -187,20 +209,24 @@ export function WorkspaceClient({ ticketId }: Props) {
         setTicketData(ticket);
         setPhase("ready");
 
-        if (saved?.activeHtml) {
+        if (saved) {
           setSessionId(saved.id);
           setSessionStatus(saved.status);
-          setActiveHtml(normalizeMockupHtml(saved.activeHtml));
           setMessages(saved.messages ?? []);
           setUsageRecords(saved.usageRecords ?? []);
           if (saved.selectedModel) setSelectedModel(saved.selectedModel);
+          const restoredHtml = getLatestMockHtml(saved.messages ?? [], saved.activeHtml);
+          if (restoredHtml) setActiveHtml(restoredHtml);
           const existingReview = await repository.getReviewByTicket(ticketId, user.id);
           if (existingReview) {
             setReviewId(existingReview.id);
             setReviewStatus(existingReview.status);
           }
           setEngagement(await repository.getEngagement({ sessionId: saved.id }));
-          return;
+
+          if (restoredHtml || sessionHasAssistantReply(saved.messages ?? [])) {
+            return;
+          }
         }
 
         if (cancelled) return;
@@ -246,14 +272,14 @@ export function WorkspaceClient({ ticketId }: Props) {
       ticketId: ticketData.id,
       ticketData,
       messages: messages.map((m) => ({ ...m, isStreaming: false })),
-      activeHtml,
+      activeHtml: latestMockHtml || activeHtml,
       usageRecords,
       selectedModel,
       status: sessionStatus,
       savedAt: Date.now(),
       reviewId: reviewId ?? undefined,
     });
-  }, [messages, activeHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus, reviewId]);
+  }, [messages, activeHtml, latestMockHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus, reviewId]);
 
   async function handleRefine() {
     const prompt = refineInput.trim();
@@ -339,6 +365,37 @@ export function WorkspaceClient({ ticketId }: Props) {
     }
   }
 
+  async function handleRetractReview() {
+    if (!user || !reviewId) return;
+    const review = await repository.getReview(reviewId);
+    if (!review) return;
+    setRetractingReview(true);
+    try {
+      await retractReview({ review, user });
+      setReviewStatus("withdrawn");
+      setSessionStatus("in_progress");
+      setRetractModalOpen(false);
+      setToast("Mockup retracted — continue refining in the workspace");
+      await repository.saveSession({
+        id: sessionId,
+        userId: user.id,
+        ticketId: ticketData!.id,
+        ticketData: ticketData!,
+        messages: messages.map((m) => ({ ...m, isStreaming: false })),
+        activeHtml: latestMockHtml || activeHtml,
+        usageRecords,
+        selectedModel,
+        status: "in_progress",
+        savedAt: Date.now(),
+        reviewId,
+      });
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Could not retract review");
+    } finally {
+      setRetractingReview(false);
+    }
+  }
+
   function openReviewModal(resubmit: boolean) {
     setReviewModalResubmit(resubmit);
     setReviewModalOpen(true);
@@ -377,6 +434,12 @@ export function WorkspaceClient({ ticketId }: Props) {
         onCancel={() => setReviewModalOpen(false)}
         onConfirm={handleSendToReview}
       />
+      <RetractReviewModal
+        open={retractModalOpen}
+        busy={retractingReview}
+        onCancel={() => setRetractModalOpen(false)}
+        onConfirm={handleRetractReview}
+      />
 
       {/* Minimal top bar */}
       <header
@@ -402,6 +465,13 @@ export function WorkspaceClient({ ticketId }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {(usageRecords.length > 0 || revisions.some((r) => r.usage)) && (
+            <MockCostBadge
+              costUsd={usageTotals.costUsd}
+              onClick={() => setCostOpen(true)}
+              disabled={isStreaming || isGenerating}
+            />
+          )}
           {revisions.length > 0 && (
             <MockVersionPicker
               revisions={revisions}
@@ -410,6 +480,13 @@ export function WorkspaceClient({ ticketId }: Props) {
               disabled={!previewHtml || isStreaming || isGenerating}
             />
           )}
+          <IconButton
+            label="Download mockup as HTML"
+            onClick={() => downloadHtmlFile(previewHtml, `${ticketData?.id ?? ticketId}.html`)}
+            disabled={!previewHtml || isStreaming || isGenerating}
+          >
+            <DownloadIcon />
+          </IconButton>
           <IconButton
             label="Full screen"
             onClick={() => setMockFullscreen(true)}
@@ -426,8 +503,13 @@ export function WorkspaceClient({ ticketId }: Props) {
             </IconButton>
           )}
           {(reviewStatus === "pending_review" || sessionStatus === "pending_review") ? (
-            <span style={{ ...F.body, fontSize: 13, color: "#f9b115", fontWeight: 500 }}>In review</span>
-          ) : reviewStatus === "needs_changes" ? (
+            <>
+              <span style={{ ...F.body, fontSize: 13, color: "#f9b115", fontWeight: 500 }}>In review</span>
+              <IconButton label="Retract from review" onClick={() => setRetractModalOpen(true)}>
+                ↩
+              </IconButton>
+            </>
+          ) : reviewStatus === "needs_changes" || reviewStatus === "withdrawn" ? (
             <IconButton label="Resubmit for review" onClick={() => openReviewModal(true)} disabled={!previewHtml} primary>
               Resubmit
             </IconButton>
@@ -484,7 +566,7 @@ export function WorkspaceClient({ ticketId }: Props) {
               )
             ) : null}
           </MockupAspectFrame>
-        ) : (
+        ) : showGenerateMock ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6" style={{ ...F.body, color: COLORS.muted, background: COLORS.subtle }}>
             <p>Mockup will appear here</p>
             {ticketData && user && (
@@ -495,6 +577,23 @@ export function WorkspaceClient({ ticketId }: Props) {
                 style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
               >
                 Generate mockup
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ ...F.body, color: COLORS.muted, background: COLORS.subtle }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>Response ready — mock HTML missing</p>
+            <p style={{ fontSize: 13, maxWidth: 360 }}>
+              The assistant replied in chat but no mock HTML was extracted. Try regenerating or refine in the conversation.
+            </p>
+            {ticketData && user && (
+              <button
+                type="button"
+                onClick={() => runGeneration(ticketData, user.role)}
+                className="px-4 py-2 text-sm font-semibold"
+                style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+              >
+                Regenerate mockup
               </button>
             )}
           </div>
@@ -539,6 +638,15 @@ export function WorkspaceClient({ ticketId }: Props) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => downloadHtmlFile(previewHtml, `${ticketData?.id ?? ticketId}.html`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
+                style={{ color: COLORS.text, ...F.body, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.pill }}
+              >
+                <DownloadIcon size={14} />
+                Download HTML
+              </button>
+              <button
+                type="button"
                 onClick={() => openHtmlInNewTab(normalizeMockupHtml(previewHtml))}
                 className="px-3 py-1.5 text-xs font-medium"
                 style={{ color: COLORS.accent, ...F.body }}
@@ -560,6 +668,15 @@ export function WorkspaceClient({ ticketId }: Props) {
           </MockupAspectFrame>
         </div>
       )}
+
+      <MockCostBreakdownModal
+        open={costOpen}
+        onClose={() => setCostOpen(false)}
+        records={usageRecords}
+        revisions={revisions}
+        selectedRevisionId={selectedRevisionId}
+        ticketLabel={ticketData?.id ?? ticketId}
+      />
     </div>
   );
 }

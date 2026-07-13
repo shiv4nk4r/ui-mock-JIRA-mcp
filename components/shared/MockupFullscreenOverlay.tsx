@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
+import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { openHtmlInNewTab, downloadHtmlFile } from "@lib/utils/files";
 import { MockupIframe } from "@/components/shared/MockupIframe";
 import { MockupAspectFrame } from "@/components/shared/MockupAspectFrame";
@@ -54,9 +55,10 @@ export function MockupFullscreenOverlay({ open, onClose, html, title, subtitle, 
           <button
             type="button"
             onClick={() => downloadHtmlFile(html, downloadFilename ?? `${title}.html`)}
-            className="px-3 py-1.5 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
             style={{ color: COLORS.text, ...F.body, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.pill }}
           >
+            <DownloadIcon size={14} />
             Download HTML
           </button>
           <button

@@ -133,7 +133,7 @@ export interface MockupSession {
   reviewId?: string;
 }
 
-export type ReviewStatus = "pending_review" | "approved" | "needs_changes" | "reviewed";
+export type ReviewStatus = "pending_review" | "approved" | "needs_changes" | "reviewed" | "withdrawn";
 
 export interface ReviewItem {
   id: string;
@@ -187,7 +187,8 @@ export type ReviewEventKind =
   | "submission"
   | "resubmission"
   | "approval"
-  | "changes_requested";
+  | "changes_requested"
+  | "retraction";
 
 export type EngagementType = "feedback" | "testimonial" | "feature_request";
 

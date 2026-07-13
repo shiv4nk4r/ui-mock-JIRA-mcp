@@ -1,4 +1,4 @@
-import { F, RADIUS, SESSION_STATUS_COLORS, SESSION_STATUS_LABELS } from "@lib/design/tokens";
+import { F, RADIUS, SESSION_STATUS_COLORS, SESSION_STATUS_LABELS, COLORS } from "@lib/design/tokens";
 import type { ReviewStatus } from "@lib/types";
 
 const REVIEW_LABELS: Record<ReviewStatus, string> = {
@@ -6,6 +6,7 @@ const REVIEW_LABELS: Record<ReviewStatus, string> = {
   approved: "Approved",
   needs_changes: "Changes requested",
   reviewed: "Reviewed",
+  withdrawn: "Withdrawn",
 };
 
 const REVIEW_COLORS: Record<ReviewStatus, { color: string; bg: string }> = {
@@ -13,6 +14,7 @@ const REVIEW_COLORS: Record<ReviewStatus, { color: string; bg: string }> = {
   approved: { color: "#34C759", bg: "rgba(52,199,89,0.12)" },
   needs_changes: { color: "#FF3B30", bg: "rgba(255,59,48,0.1)" },
   reviewed: { color: "#2982cc", bg: "rgba(41,130,204,0.1)" },
+  withdrawn: { color: COLORS.muted, bg: COLORS.subtle },
 };
 
 export function ReviewStatusChip({ status }: { status: ReviewStatus }) {

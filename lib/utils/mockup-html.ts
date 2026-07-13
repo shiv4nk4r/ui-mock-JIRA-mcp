@@ -1,4 +1,5 @@
 import { HTML_END, HTML_START } from "@lib/utils/parse-chat";
+import type { Message } from "@lib/types";
 
 /** Strip fences, marker wrappers, and stray "html" lines from mockup HTML. */
 export function normalizeMockupHtml(raw: string): string {
@@ -31,4 +32,23 @@ export function normalizeMockupHtml(raw: string): string {
 export function isValidMockupHtml(html: string): boolean {
   const n = normalizeMockupHtml(html);
   return /^<!DOCTYPE/i.test(n) || /^<html[\s>]/i.test(n);
+}
+
+/** Prefer saved active HTML, then the latest assistant message with a mock component. */
+export function getLatestMockHtml(messages: Message[], activeHtml?: string): string {
+  const fromActive = normalizeMockupHtml(activeHtml ?? "");
+  if (fromActive) return fromActive;
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== "assistant" || !msg.htmlComponent) continue;
+    const normalized = normalizeMockupHtml(msg.htmlComponent);
+    if (normalized) return normalized;
+  }
+
+  return "";
+}
+
+export function sessionHasAssistantReply(messages: Message[]): boolean {
+  return messages.some((m) => m.role === "assistant" && !m.isStreaming);
 }

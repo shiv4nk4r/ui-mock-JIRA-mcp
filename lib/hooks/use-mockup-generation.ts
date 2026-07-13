@@ -101,10 +101,16 @@ export function useMockupGeneration() {
               }
               if (ev.done) {
                 const parsed = parseAssistantSections(accumulated);
+                const parsedHtml = parsed.html ? normalizeMockupHtml(parsed.html) : undefined;
+                const finalHtml = streamingHtml ?? parsedHtml;
+                if (finalHtml && !streamingHtml) {
+                  streamingHtml = finalHtml;
+                  options.onHtml?.(finalHtml);
+                }
                 const isInternal = options.userRole === "internal";
                 updateLastMessage({
                   text: parsed.text,
-                  htmlComponent: streamingHtml,
+                  htmlComponent: finalHtml,
                   effortEstimation: isInternal ? parsed.effortEstimation : undefined,
                   changeLog: isInternal ? parsed.changeLog : undefined,
                   agentPrompt: isInternal ? parsed.agentPrompt : undefined,

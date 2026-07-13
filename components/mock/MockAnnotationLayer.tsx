@@ -42,6 +42,7 @@ export function MockAnnotationLayer({
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [annotationsVisible, setAnnotationsVisible] = useState(false);
 
   const areaComments = useMemo(() => comments.filter((c) => c.anchor), [comments]);
 
@@ -127,7 +128,18 @@ export function MockAnnotationLayer({
         }
       : null;
 
-  const activeComment = areaComments.find((c) => c.id === activeCommentId);
+  const activeComment = annotationsVisible
+    ? areaComments.find((c) => c.id === activeCommentId)
+    : undefined;
+
+  function toggleAnnotationsVisible() {
+    setAnnotationsVisible((visible) => {
+      if (visible) {
+        setActiveCommentId(null);
+      }
+      return !visible;
+    });
+  }
 
   return (
     <div className={`relative w-full h-full flex flex-col min-h-0 ${className}`}>
@@ -139,7 +151,21 @@ export function MockAnnotationLayer({
           Mock comments
         </span>
         <ModeButton active={mode === "off"} onClick={() => setMode("off")} label="View" />
-        <ModeButton active={mode === "area"} onClick={() => setMode("area")} label="Draw area" />
+        <ModeButton
+          active={mode === "area"}
+          onClick={() => {
+            setAnnotationsVisible(true);
+            setMode("area");
+          }}
+          label="Draw area"
+        />
+        {areaComments.length > 0 && (
+          <ToggleButton
+            active={annotationsVisible}
+            onClick={toggleAnnotationsVisible}
+            label={annotationsVisible ? "Hide annotations" : "Show annotations"}
+          />
+        )}
         <span
           className="ml-auto text-right min-w-0"
           style={{ ...F.body, fontSize: 11, color: COLORS.muted, lineHeight: 1.35 }}
@@ -147,7 +173,9 @@ export function MockAnnotationLayer({
           {mode === "area" ? (
             "Drag on the mockup to highlight an area, then add your comment."
           ) : areaComments.length > 0 ? (
-            `${areaComments.length} area comment${areaComments.length !== 1 ? "s" : ""}`
+            annotationsVisible
+              ? `${areaComments.length} area comment${areaComments.length !== 1 ? "s" : ""}`
+              : "Annotations hidden"
           ) : null}
         </span>
       </div>
@@ -155,7 +183,7 @@ export function MockAnnotationLayer({
       <div ref={containerRef} className="relative flex-1 min-h-0 bg-white">
         <MockupIframe html={html} className="w-full h-full" title={title} />
 
-        {areaComments.map((comment, index) => (
+        {annotationsVisible && areaComments.map((comment, index) => (
           <button
             key={comment.id}
             type="button"
@@ -294,6 +322,34 @@ export function MockAnnotationLayer({
         )}
       </div>
     </div>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-2.5 py-1 text-xs font-medium"
+      style={{
+        ...F.body,
+        borderRadius: RADIUS.pill,
+        background: active ? COLORS.subtle : "transparent",
+        color: active ? COLORS.text : COLORS.muted,
+        border: `1px solid ${COLORS.border}`,
+      }}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
   );
 }
 

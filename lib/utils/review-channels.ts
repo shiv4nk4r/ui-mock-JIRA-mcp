@@ -18,6 +18,7 @@ function previewForComment(comment: Comment | undefined, review: ReviewItem): st
     if (review.status === "needs_changes") return "Engineering requested changes";
     if (review.status === "approved") return "Approved for implementation";
     if (review.status === "pending_review") return "Awaiting engineering review";
+    if (review.status === "withdrawn") return "Withdrawn from review";
     return "Review channel opened";
   }
 
@@ -29,6 +30,8 @@ function previewForComment(comment: Comment | undefined, review: ReviewItem): st
     case "approval":
       return comment.text;
     case "changes_requested":
+      return comment.text;
+    case "retraction":
       return comment.text;
     default:
       return comment.text;

@@ -1,4 +1,4 @@
-import type { Message, MockupSession, UserRole } from "@lib/types";
+import type { Message, MockupSession, UsageRecord, UserRole } from "@lib/types";
 
 export interface MockRevision {
   id: string;
@@ -7,6 +7,7 @@ export interface MockRevision {
   prompt?: string;
   html?: string;
   timestamp?: number;
+  usage?: UsageRecord;
 }
 
 export interface TicketHistoryGroup {
@@ -56,6 +57,7 @@ export function buildRevisions(session: MockupSession, userRole: UserRole): Mock
       prompt: userPrompt(prevUser, index),
       html,
       timestamp: usage[usageIdx]?.timestamp,
+      usage: usage[usageIdx],
     });
     usageIdx += 1;
   }

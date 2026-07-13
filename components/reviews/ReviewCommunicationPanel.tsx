@@ -66,6 +66,8 @@ function systemLabel(kind: TimelineEntry["kind"]): string {
       return "Approved for build";
     case "changes_requested":
       return "Changes requested";
+    case "retraction":
+      return "Retracted from review";
     default:
       return "";
   }
@@ -214,14 +216,17 @@ function SystemEvent({ entry, side }: { entry: TimelineEntry; side: "left" | "ri
   const label = systemLabel(entry.kind);
   const isPositive = entry.kind === "approval" || entry.kind === "submission" || entry.kind === "resubmission";
   const isNegative = entry.kind === "changes_requested";
+  const isNeutral = entry.kind === "retraction";
   const isRight = side === "right";
 
-  const accentColor = isNegative ? "#FF3B30" : isPositive ? "#34C759" : COLORS.muted;
+  const accentColor = isNegative ? "#FF3B30" : isNeutral ? COLORS.muted : isPositive ? "#34C759" : COLORS.muted;
   const bubbleBg = isNegative
     ? "rgba(255,59,48,0.1)"
-    : isPositive
-      ? "rgba(52,199,89,0.1)"
-      : COLORS.subtle;
+    : isNeutral
+      ? COLORS.subtle
+      : isPositive
+        ? "rgba(52,199,89,0.1)"
+        : COLORS.subtle;
 
   return (
     <div className={`w-full flex ${isRight ? "justify-end" : "justify-start"}`}>

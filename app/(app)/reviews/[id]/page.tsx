@@ -9,6 +9,9 @@ import type { MockupSession, ReviewItem } from "@lib/types";
 import { buildExecutionDetails } from "@lib/utils/execution-details";
 import { finalizeReview } from "@lib/utils/review-workflow";
 import { relativeTime } from "@lib/utils/review-ui";
+import { buildRevisions } from "@lib/utils/session-history";
+import { sumUsageRecords } from "@lib/utils/usage-cost";
+import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
 import { downloadHtmlFile } from "@lib/utils/files";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
@@ -19,6 +22,7 @@ import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
+import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { IconButton } from "@/components/shared/Toast";
 
 function latestEffortMarkdown(session: MockupSession | null): string | undefined {
@@ -41,6 +45,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const [mockFullscreen, setMockFullscreen] = useState(false);
   const [channelOpen, setChannelOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  const [costOpen, setCostOpen] = useState(false);
 
   async function load() {
     const r = await repository.getReview(params.id);
@@ -71,6 +76,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   );
 
   const previewHtml = session?.activeHtml || review?.activeHtml || "";
+
+  const revisions = useMemo(
+    () => (session && user ? buildRevisions(session, user.role) : []),
+    [session, user],
+  );
+  const usageRecords = session?.usageRecords ?? [];
+  const usageTotals = useMemo(() => sumUsageRecords(usageRecords), [usageRecords]);
+  const showCost = usageRecords.length > 0 || revisions.some((r) => r.usage);
 
   async function finalize(status: "approved" | "needs_changes", message?: string) {
     if (!review || !user) return;
@@ -130,12 +143,15 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {showCost && (
+              <MockCostBadge costUsd={usageTotals.costUsd} onClick={() => setCostOpen(true)} />
+            )}
             <IconButton
               label="Download mockup as HTML"
               onClick={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
               disabled={!previewHtml}
             >
-              ↓
+              <DownloadIcon />
             </IconButton>
             <IconButton
               label="Full screen"
@@ -223,6 +239,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         title={review.ticketSummary}
         subtitle={review.ticketId}
         downloadFilename={`${review.ticketId}.html`}
+      />
+
+      <MockCostBreakdownModal
+        open={costOpen}
+        onClose={() => setCostOpen(false)}
+        records={usageRecords}
+        revisions={revisions}
+        ticketLabel={review.ticketId}
       />
     </div>
   );
