@@ -135,6 +135,16 @@ export interface MockupSession {
 
 export type ReviewStatus = "pending_review" | "approved" | "needs_changes" | "reviewed" | "withdrawn";
 
+/** Effort + file-level change log captured at review submission (internal team). */
+export interface ReviewHandoffSnapshot {
+  tshirtSize?: string;
+  storyPoints?: string;
+  riskFactor?: string;
+  effortEstimation?: string;
+  changeLog?: string;
+  fileChangeCount?: number;
+}
+
 export interface ReviewItem {
   id: string;
   sessionId: string;
@@ -148,6 +158,8 @@ export interface ReviewItem {
   submittedAt: number;
   reviewedAt?: number;
   internalNotes?: string;
+  /** Frozen at submit/resubmit so internal reviewers see sizing without reloading session. */
+  handoff?: ReviewHandoffSnapshot;
 }
 
 export interface SharedMock {

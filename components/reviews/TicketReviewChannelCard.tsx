@@ -53,6 +53,19 @@ export function TicketReviewChannelCard({
           <ReviewStatusChip status={review.status} />
         </div>
         <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted }}>{channel.ticketId}</p>
+        {review.handoff && (review.handoff.tshirtSize || review.handoff.storyPoints) && (
+          <div className="flex flex-wrap gap-1.5">
+            {review.handoff.tshirtSize && (
+              <HandoffChip label="Bucket" value={review.handoff.tshirtSize.replace(/^\[|\]$/g, "").trim()} accent />
+            )}
+            {review.handoff.storyPoints && (
+              <HandoffChip label="Pts" value={review.handoff.storyPoints.replace(/^\[|\]$/g, "").trim()} />
+            )}
+            {(review.handoff.fileChangeCount ?? 0) > 0 && (
+              <HandoffChip label="Files" value={String(review.handoff.fileChangeCount)} />
+            )}
+          </div>
+        )}
         <p
           className="text-sm line-clamp-2"
           style={{
@@ -90,5 +103,22 @@ export function TicketReviewChannelCard({
       </div>
       <span className="shrink-0 text-lg pt-1" style={{ color: COLORS.muted }}>›</span>
     </Link>
+  );
+}
+
+function HandoffChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold"
+      style={{
+        background: accent ? COLORS.accentSoft : COLORS.subtle,
+        color: accent ? COLORS.accent : COLORS.muted,
+        borderRadius: RADIUS.pill,
+        border: `1px solid ${accent ? "rgba(255,149,0,0.2)" : COLORS.border}`,
+      }}
+    >
+      <span>{label}</span>
+      <span style={{ color: accent ? COLORS.accent : COLORS.text }}>{value}</span>
+    </span>
   );
 }

@@ -358,6 +358,18 @@ export function WorkspaceClient({ ticketId }: Props) {
         ticketId: ticketData.id,
         ticketSummary: ticketData.summary,
         activeHtml: previewHtml,
+        session: {
+          id: sessionId,
+          userId: user.id,
+          ticketId: ticketData.id,
+          ticketData,
+          messages: messages.map((m) => ({ ...m, isStreaming: false })),
+          activeHtml: previewHtml,
+          usageRecords,
+          selectedModel,
+          status: "pending_review",
+          savedAt: Date.now(),
+        },
       });
       setReviewId(id);
       setReviewStatus("pending_review");

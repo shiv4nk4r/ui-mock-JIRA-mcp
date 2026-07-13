@@ -1,4 +1,4 @@
-import type { Message, MockupSession, ReviewItem, TicketData } from "@lib/types";
+import type { Message, MockupSession, ReviewHandoffSnapshot, ReviewItem, TicketData } from "@lib/types";
 import { EFFORT_MARKER, parseAssistantSections } from "@lib/utils/parse-chat";
 
 export interface ExecutionChange {
@@ -197,6 +197,38 @@ function ticketScopeChanges(ticket: TicketData): ExecutionChange[] {
   return changes;
 }
 
+export function buildReviewHandoffSnapshot(session: MockupSession | null): ReviewHandoffSnapshot | undefined {
+  if (!session) return undefined;
+  const messages = session.messages ?? [];
+  const handoff = latestAssistantHandoff(messages);
+
+  let effortText = handoff.effortText;
+  if (!effortText) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      if (m.text?.includes(EFFORT_MARKER)) {
+        effortText = m.text.slice(m.text.indexOf(EFFORT_MARKER));
+        break;
+      }
+    }
+  }
+
+  const parsed = effortText ? parseEffortEstimation(effortText) : {};
+  const changeLogChanges = handoff.changeLog ? parseChangeLogTable(handoff.changeLog) : [];
+
+  if (!effortText && !handoff.changeLog && !parsed.tshirtSize) return undefined;
+
+  return {
+    tshirtSize: parsed.tshirtSize,
+    storyPoints: parsed.storyPoints,
+    riskFactor: parsed.riskFactor,
+    effortEstimation: effortText,
+    changeLog: handoff.changeLog,
+    fileChangeCount: changeLogChanges.length,
+  };
+}
+
 export function buildExecutionDetails(
   review: ReviewItem,
   session: MockupSession | null,
@@ -204,8 +236,9 @@ export function buildExecutionDetails(
   const ticket = session?.ticketData;
   const messages = session?.messages ?? [];
   const handoff = latestAssistantHandoff(messages);
+  const snapshot = review.handoff;
 
-  let effortText = handoff.effortText;
+  let effortText = handoff.effortText ?? snapshot?.effortEstimation;
   if (!effortText) {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
@@ -221,8 +254,15 @@ export function buildExecutionDetails(
   if (effortText) {
     parsed = parseEffortEstimation(effortText);
   }
+  if (!parsed.tshirtSize && snapshot) {
+    parsed.tshirtSize = snapshot.tshirtSize;
+    parsed.storyPoints = snapshot.storyPoints;
+    parsed.riskFactor = snapshot.riskFactor;
+    parsed.hasEffortData = !!(snapshot.tshirtSize || snapshot.storyPoints || snapshot.effortEstimation);
+  }
 
-  const changeLogChanges = handoff.changeLog ? parseChangeLogTable(handoff.changeLog) : [];
+  const changeLogMarkdown = handoff.changeLog ?? snapshot?.changeLog;
+  const changeLogChanges = changeLogMarkdown ? parseChangeLogTable(changeLogMarkdown) : [];
   const revisionChanges = extractRevisionPrompts(messages);
   const ticketChanges = ticket ? ticketScopeChanges(ticket) : [];
 
@@ -247,8 +287,8 @@ export function buildExecutionDetails(
     storyPoints: parsed.storyPoints,
     riskFactor: parsed.riskFactor,
     changes: merged,
-    hasEffortData: !!parsed.hasEffortData,
-    changeLogMarkdown: handoff.changeLog,
+    hasEffortData: !!parsed.hasEffortData || !!snapshot?.effortEstimation,
+    changeLogMarkdown,
     generatedAgentPrompt: handoff.agentPrompt,
   };
 }

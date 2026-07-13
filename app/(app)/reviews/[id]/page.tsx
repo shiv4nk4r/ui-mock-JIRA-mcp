@@ -17,6 +17,7 @@ import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewDecisionFab } from "@/components/reviews/ReviewDecisionFab";
+import { ReviewHandoffPanel } from "@/components/reviews/ReviewHandoffPanel";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
@@ -195,12 +196,32 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </div>
       </header>
 
-      <ReviewMockPreview
-        html={previewHtml}
-        title="Review mockup"
-        annotationTargetId={review.id}
-        onAnnotationsChange={load}
-      />
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="lg:hidden">
+            <ReviewHandoffPanel
+              variant="strip"
+              details={executionDetails}
+              effortMarkdown={latestEffortMarkdown(session)}
+              onOpenFullPlan={() => setPlanOpen(true)}
+            />
+          </div>
+          <ReviewMockPreview
+            html={previewHtml}
+            title="Review mockup"
+            annotationTargetId={review.id}
+            onAnnotationsChange={load}
+            className="flex-1 min-h-0"
+          />
+        </div>
+        <div className="hidden lg:flex">
+          <ReviewHandoffPanel
+            details={executionDetails}
+            effortMarkdown={latestEffortMarkdown(session)}
+            onOpenFullPlan={() => setPlanOpen(true)}
+          />
+        </div>
+      </div>
 
       {review.status === "pending_review" && !mockFullscreen && (
         <ReviewDecisionFab

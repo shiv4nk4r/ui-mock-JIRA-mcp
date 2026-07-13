@@ -75,6 +75,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
         ticketId: review.ticketId,
         ticketSummary: review.ticketSummary,
         activeHtml: session.activeHtml,
+        session,
       });
       setToast("Mockup resubmitted — engineering will review the update");
       setChannelOpen(true);

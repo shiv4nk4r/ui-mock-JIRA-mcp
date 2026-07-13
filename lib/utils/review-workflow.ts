@@ -1,5 +1,6 @@
 import { repository, generateId } from "@lib/storage";
-import type { Comment, ReviewEventKind, ReviewItem, User } from "@lib/types";
+import type { Comment, MockupSession, ReviewEventKind, ReviewHandoffSnapshot, ReviewItem, User } from "@lib/types";
+import { buildReviewHandoffSnapshot } from "@lib/utils/execution-details";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 export async function addReviewEvent(
@@ -28,9 +29,12 @@ export async function submitOrResubmitReview(params: {
   ticketId: string;
   ticketSummary: string;
   activeHtml: string;
+  session?: MockupSession | null;
+  handoff?: ReviewHandoffSnapshot;
 }): Promise<{ reviewId: string; resubmitted: boolean }> {
-  const { user, sessionId, ticketId, ticketSummary, activeHtml } = params;
+  const { user, sessionId, ticketId, ticketSummary, activeHtml, session } = params;
   const cleanHtml = normalizeMockupHtml(activeHtml);
+  const handoff = params.handoff ?? buildReviewHandoffSnapshot(session ?? null);
   const existing = await repository.getReviewByTicket(ticketId, user.id);
 
   if (existing?.status === "pending_review") {
@@ -45,6 +49,7 @@ export async function submitOrResubmitReview(params: {
       ticketSummary,
       reviewedAt: undefined,
       internalNotes: undefined,
+      handoff,
     });
     await addReviewEvent(
       existing.id,
@@ -68,6 +73,7 @@ export async function submitOrResubmitReview(params: {
     activeHtml: cleanHtml,
     status: "pending_review",
     submittedAt: now,
+    handoff,
   });
   await addReviewEvent(
     reviewId,
