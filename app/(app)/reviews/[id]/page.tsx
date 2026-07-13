@@ -9,10 +9,11 @@ import type { MockupSession, ReviewItem } from "@lib/types";
 import { buildExecutionDetails } from "@lib/utils/execution-details";
 import { finalizeReview } from "@lib/utils/review-workflow";
 import { relativeTime } from "@lib/utils/review-ui";
+import { downloadHtmlFile } from "@lib/utils/files";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import { ExecutionDetailsPanel } from "@/components/reviews/ExecutionDetailsPanel";
+import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
-import { ReviewActionBar } from "@/components/reviews/ReviewActionBar";
+import { ReviewDecisionFab } from "@/components/reviews/ReviewDecisionFab";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
@@ -130,11 +131,25 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <IconButton
+              label="Download mockup as HTML"
+              onClick={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
+              disabled={!previewHtml}
+            >
+              ↓
+            </IconButton>
+            <IconButton
               label="Full screen"
               onClick={() => setMockFullscreen(true)}
               disabled={!previewHtml}
             >
               ⛶
+            </IconButton>
+            <IconButton
+              label={planOpen ? "Close implementation plan" : "Open implementation plan"}
+              onClick={() => setPlanOpen((v) => !v)}
+              primary={planOpen}
+            >
+              {planOpen ? "×" : <ImplementationPlanIcon />}
             </IconButton>
             <div className="relative">
               <IconButton
@@ -164,17 +179,6 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </div>
       </header>
 
-      {review.status === "pending_review" && (
-        <div className="flex-none px-4 py-2 border-b" style={{ borderColor: COLORS.border, background: COLORS.surface }}>
-          <ReviewActionBar
-            review={review}
-            busy={busy}
-            onApprove={(note) => finalize("approved", note)}
-            onRequestChanges={(msg) => finalize("needs_changes", msg)}
-          />
-        </div>
-      )}
-
       <ReviewMockPreview
         html={previewHtml}
         title="Review mockup"
@@ -182,31 +186,23 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         onAnnotationsChange={load}
       />
 
-      <div className="flex-none border-t max-h-[38vh] overflow-y-auto" style={{ borderColor: COLORS.border, background: COLORS.surface }}>
-        <button
-          type="button"
-          onClick={() => setPlanOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-3 text-left sticky top-0"
-          style={{ background: COLORS.surface, borderBottom: planOpen ? `1px solid ${COLORS.border}` : "none" }}
-        >
-          <div>
-            <span style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>Implementation plan</span>
-            <p style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>
-              Execution breakdown and standalone agent prompt
-            </p>
-          </div>
-          <span style={{ ...F.body, fontSize: 18, color: COLORS.muted }}>{planOpen ? "−" : "+"}</span>
-        </button>
-        {planOpen && (
-          <ExecutionDetailsPanel
-            review={review}
-            session={session}
-            details={executionDetails}
-            effortMarkdown={latestEffortMarkdown(session)}
-            embedded
-          />
-        )}
-      </div>
+      {review.status === "pending_review" && !mockFullscreen && (
+        <ReviewDecisionFab
+          busy={busy}
+          channelOpen={channelOpen}
+          onApprove={(note) => finalize("approved", note)}
+          onRequestChanges={(msg) => finalize("needs_changes", msg)}
+        />
+      )}
+
+      <ImplementationPlanModal
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        review={review}
+        session={session}
+        details={executionDetails}
+        effortMarkdown={latestEffortMarkdown(session)}
+      />
 
       {!mockFullscreen && (
         <ReviewChannelDrawer open={channelOpen} onOpenChange={setChannelOpen} messageCount={commentCount} showFab={false}>
@@ -215,6 +211,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             session={session}
             onCommentAdded={load}
             refreshKey={threadKey}
+            onClose={() => setChannelOpen(false)}
           />
         </ReviewChannelDrawer>
       )}
@@ -225,6 +222,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         html={previewHtml}
         title={review.ticketSummary}
         subtitle={review.ticketId}
+        downloadFilename={`${review.ticketId}.html`}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@lib/auth/auth-context";
 import { submitOrResubmitReview } from "@lib/utils/review-workflow";
 import type { MockupSession, ReviewItem } from "@lib/types";
+import { downloadHtmlFile } from "@lib/utils/files";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { relativeTime } from "@lib/utils/review-ui";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
@@ -74,6 +75,13 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
             <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <IconButton
+              label="Download mockup as HTML"
+              onClick={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
+              disabled={!previewHtml}
+            >
+              ↓
+            </IconButton>
             <IconButton
               label="Full screen"
               onClick={() => setMockFullscreen(true)}
@@ -146,6 +154,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
             session={session}
             onCommentAdded={onRefresh}
             refreshKey={threadKey}
+            onClose={() => setChannelOpen(false)}
           />
         </ReviewChannelDrawer>
       )}
@@ -156,6 +165,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
         html={previewHtml}
         title={review.ticketSummary}
         subtitle={review.ticketId}
+        downloadFilename={`${review.ticketId}.html`}
       />
     </div>
   );

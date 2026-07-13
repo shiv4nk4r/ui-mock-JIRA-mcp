@@ -13,6 +13,7 @@ interface Props {
   session: MockupSession | null;
   onCommentAdded: () => void;
   refreshKey?: number;
+  onClose?: () => void;
 }
 
 interface TimelineEntry {
@@ -70,7 +71,7 @@ function systemLabel(kind: TimelineEntry["kind"]): string {
   }
 }
 
-export function ReviewCommunicationPanel({ review, session: _session, onCommentAdded, refreshKey = 0 }: Props) {
+export function ReviewCommunicationPanel({ review, session: _session, onCommentAdded, refreshKey = 0, onClose }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
@@ -113,28 +114,49 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-none px-5 py-4 border-b" style={{ borderColor: COLORS.border }}>
-        <h2 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Review channel</h2>
-        <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 2 }}>
-          {isInternal ? `Thread with ${review.userName}` : `Back-and-forth with ${counterpart}`}
-        </p>
+      <div
+        className="flex-none flex items-start justify-between gap-3 px-5 py-4 border-b"
+        style={{ borderColor: COLORS.border }}
+      >
+        <div className="min-w-0 flex-1">
+          <h2 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Review channel</h2>
+          <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 2 }}>
+            {isInternal ? `Thread with ${review.userName}` : `Back-and-forth with ${counterpart}`}
+          </p>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+            aria-label="Close review channel"
+            title="Close"
+            style={{ ...F.body, fontSize: 20, color: COLORS.muted, lineHeight: 1 }}
+          >
+            ×
+          </button>
+        )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-4 min-h-0">
         {timeline.map((entry) => {
-          if (entry.isSystem) {
-            return <SystemEvent key={entry.id} entry={entry} />;
-          }
           const isOwn = entry.authorId === user?.id;
+          const side: "left" | "right" = isOwn ? "right" : "left";
+
+          if (entry.isSystem) {
+            return <SystemEvent key={entry.id} entry={entry} side={side} />;
+          }
+
           const isEngineer = entry.authorRole
             ? entry.authorRole === "internal"
             : entry.authorId
               ? getMockUser(entry.authorId)?.role === "internal"
               : false;
+
           return (
             <ChatBubble
               key={entry.id}
-              side={isOwn ? "right" : "left"}
+              side={side}
               author={entry.authorName}
               role={isEngineer ? "engineer" : "pm"}
               time={entry.createdAt}
@@ -145,7 +167,7 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
         })}
 
         {timeline.length <= 1 && review.status === "pending_review" && isInternal && (
-          <p className="text-center py-4" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
+          <p className="py-2 px-1" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
             Review the mockup and approve or request changes below
           </p>
         )}
@@ -188,45 +210,50 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
   );
 }
 
-function SystemEvent({ entry }: { entry: TimelineEntry }) {
+function SystemEvent({ entry, side }: { entry: TimelineEntry; side: "left" | "right" }) {
   const label = systemLabel(entry.kind);
   const isPositive = entry.kind === "approval" || entry.kind === "submission" || entry.kind === "resubmission";
   const isNegative = entry.kind === "changes_requested";
+  const isRight = side === "right";
+
+  const accentColor = isNegative ? "#FF3B30" : isPositive ? "#34C759" : COLORS.muted;
+  const bubbleBg = isNegative
+    ? "rgba(255,59,48,0.1)"
+    : isPositive
+      ? "rgba(52,199,89,0.1)"
+      : COLORS.subtle;
 
   return (
-    <div className="flex flex-col items-center gap-1 py-1">
-      <span
-        className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
-        style={{
-          ...F.body,
-          color: isNegative ? "#FF3B30" : isPositive ? "#34C759" : COLORS.muted,
-          background: isNegative
-            ? "rgba(255,59,48,0.08)"
-            : isPositive
-              ? "rgba(52,199,89,0.08)"
-              : COLORS.subtle,
-          borderRadius: RADIUS.pill,
-        }}
-      >
-        {label}
-      </span>
-      {entry.text && entry.kind !== "submission" && (
-        <p
-          className="max-w-[90%] text-center text-sm px-4 py-2"
+    <div className={`w-full flex ${isRight ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[88%] flex flex-col gap-1 ${isRight ? "items-end" : "items-start"}`}>
+        <span style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.muted }}>
+          {entry.authorName}
+        </span>
+        <div
+          className="px-3.5 py-2.5 text-sm"
           style={{
             ...F.body,
             color: COLORS.text,
-            background: COLORS.subtle,
-            borderRadius: RADIUS.md,
+            background: bubbleBg,
+            borderRadius: isRight
+              ? `${RADIUS.md}px ${RADIUS.md}px 4px ${RADIUS.md}px`
+              : `${RADIUS.md}px ${RADIUS.md}px ${RADIUS.md}px 4px`,
+            borderLeft: isRight ? "none" : `3px solid ${accentColor}`,
+            borderRight: isRight ? `3px solid ${accentColor}` : "none",
             lineHeight: 1.5,
           }}
         >
-          {entry.text}
-        </p>
-      )}
-      <span style={{ ...F.body, fontSize: 11, color: COLORS.muted }}>
-        {entry.authorName} · {relativeTime(entry.createdAt)}
-      </span>
+          <span
+            className="block text-[11px] font-semibold uppercase tracking-wide mb-1"
+            style={{ color: accentColor }}
+          >
+            {label}
+          </span>
+          {entry.text && entry.kind !== "submission" && entry.text}
+          {entry.kind === "submission" && entry.text}
+        </div>
+        <span style={{ ...F.body, fontSize: 10, color: COLORS.muted }}>{relativeTime(entry.createdAt)}</span>
+      </div>
     </div>
   );
 }
@@ -248,30 +275,73 @@ function ChatBubble({
 }) {
   const isEngineer = role === "engineer";
   const isRight = side === "right";
+  const initial = author.charAt(0).toUpperCase();
 
   return (
-    <div className={`flex ${isRight ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[85%] ${isRight ? "items-end" : "items-start"} flex flex-col gap-1`}>
-        <div className={`flex items-baseline gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
-          <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.text }}>{author}</span>
-          <span style={{ ...F.body, fontSize: 10, color: COLORS.muted }}>
-            {isEngineer ? "Engineering" : "Product"} · {relativeTime(time)}
-            {anchored && " · Area comment"}
+    <div className={`w-full flex gap-2 ${isRight ? "justify-end" : "justify-start"}`}>
+      {!isRight && (
+        <span
+          className="shrink-0 w-8 h-8 flex items-center justify-center text-xs font-semibold self-end mb-5"
+          style={{
+            background: isEngineer ? "rgba(41,130,204,0.15)" : COLORS.accentSoft,
+            color: isEngineer ? "#2982CC" : COLORS.accent,
+            borderRadius: "50%",
+          }}
+          aria-hidden
+        >
+          {initial}
+        </span>
+      )}
+
+      <div className={`max-w-[78%] flex flex-col gap-1 ${isRight ? "items-end" : "items-start"}`}>
+        {!isRight && (
+          <span style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.muted, paddingLeft: 2 }}>
+            {author}
+            <span style={{ fontWeight: 400 }}> · {isEngineer ? "Engineering" : "Product"}</span>
           </span>
-        </div>
+        )}
+
+        {anchored && <AreaCommentLabel align={isRight ? "right" : "left"} />}
+
         <p
-          className="px-3.5 py-2.5 text-sm whitespace-pre-wrap"
+          className="px-3.5 py-2.5 text-sm whitespace-pre-wrap w-full"
           style={{
             ...F.body,
             color: isRight ? "#fff" : COLORS.text,
-            background: isRight ? COLORS.accent : isEngineer ? "rgba(41,130,204,0.1)" : COLORS.subtle,
-            borderRadius: isRight ? `${RADIUS.md}px ${RADIUS.md}px 4px ${RADIUS.md}px` : `${RADIUS.md}px ${RADIUS.md}px ${RADIUS.md}px 4px`,
+            background: isRight ? COLORS.accent : isEngineer ? "rgba(41,130,204,0.12)" : COLORS.subtle,
+            borderRadius: isRight
+              ? `${RADIUS.md}px ${RADIUS.md}px 4px ${RADIUS.md}px`
+              : `${RADIUS.md}px ${RADIUS.md}px ${RADIUS.md}px 4px`,
             lineHeight: 1.55,
+            border: isRight ? "none" : `1px solid ${COLORS.border}`,
           }}
         >
           {text}
         </p>
+
+        <span
+          className={isRight ? "text-right" : "text-left"}
+          style={{ ...F.body, fontSize: 10, color: COLORS.muted, paddingInline: 2, width: "100%" }}
+        >
+          {isRight ? `You · ${relativeTime(time)}` : relativeTime(time)}
+        </span>
       </div>
     </div>
+  );
+}
+
+function AreaCommentLabel({ align }: { align: "left" | "right" }) {
+  return (
+    <span
+      className={`${align === "right" ? "self-end" : "self-start"} px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide`}
+      style={{
+        ...F.body,
+        color: COLORS.accent,
+        background: COLORS.accentSoft,
+        borderRadius: RADIUS.pill,
+      }}
+    >
+      Area comment
+    </span>
   );
 }

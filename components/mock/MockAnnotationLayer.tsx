@@ -132,24 +132,25 @@ export function MockAnnotationLayer({
   return (
     <div className={`relative w-full h-full flex flex-col min-h-0 ${className}`}>
       <div
-        className="flex-none flex items-center gap-2 px-3 py-2 border-b flex-wrap"
+        className="flex-none flex items-center gap-2 px-3 py-2 border-b min-h-[44px]"
         style={{ borderColor: COLORS.border, background: COLORS.surface }}
       >
-        <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.muted }}>Mock comments</span>
+        <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.muted, whiteSpace: "nowrap" }}>
+          Mock comments
+        </span>
         <ModeButton active={mode === "off"} onClick={() => setMode("off")} label="View" />
         <ModeButton active={mode === "area"} onClick={() => setMode("area")} label="Draw area" />
-        {areaComments.length > 0 && (
-          <span style={{ ...F.body, fontSize: 11, color: COLORS.muted, marginLeft: "auto" }}>
-            {areaComments.length} area comment{areaComments.length !== 1 ? "s" : ""}
-          </span>
-        )}
+        <span
+          className="ml-auto text-right min-w-0"
+          style={{ ...F.body, fontSize: 11, color: COLORS.muted, lineHeight: 1.35 }}
+        >
+          {mode === "area" ? (
+            "Drag on the mockup to highlight an area, then add your comment."
+          ) : areaComments.length > 0 ? (
+            `${areaComments.length} area comment${areaComments.length !== 1 ? "s" : ""}`
+          ) : null}
+        </span>
       </div>
-
-      {mode === "area" && (
-        <p className="flex-none px-3 py-1.5 text-xs" style={{ ...F.body, color: COLORS.muted, background: COLORS.subtle }}>
-          Drag on the mockup to highlight an area, then add your comment.
-        </p>
-      )}
 
       <div ref={containerRef} className="relative flex-1 min-h-0 bg-white">
         <MockupIframe html={html} className="w-full h-full" title={title} />

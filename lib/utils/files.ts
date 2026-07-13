@@ -60,3 +60,22 @@ export function openHtmlInNewTab(html: string) {
   window.open(url, "_blank", "noopener,noreferrer");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+function safeHtmlFilename(name: string): string {
+  const base = name.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "mockup";
+  return base.endsWith(".html") ? base : `${base}.html`;
+}
+
+export function downloadHtmlFile(html: string, filename = "mockup.html") {
+  const clean = normalizeMockupHtml(html);
+  if (!clean) return;
+  const blob = new Blob([clean], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeHtmlFilename(filename);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
