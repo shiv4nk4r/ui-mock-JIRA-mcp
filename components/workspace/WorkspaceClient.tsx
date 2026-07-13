@@ -101,7 +101,7 @@ export function WorkspaceClient({ ticketId }: Props) {
   const previewHtml =
     isStreaming || isGenerating
       ? latestMockHtml
-      : (selectedRevision?.html ?? latestMockHtml);
+      : (selectedRevision?.html || latestMockHtml);
   const usageTotals = useMemo(() => sumUsageRecords(usageRecords), [usageRecords]);
   const hasAssistantReply = sessionHasAssistantReply(messages);
   const showGenerateMock = !previewHtml && !isGenerating && !isStreaming && !hasAssistantReply;
@@ -111,6 +111,25 @@ export function WorkspaceClient({ ticketId }: Props) {
     if (!latestMockHtml || latestMockHtml === activeHtml) return;
     setActiveHtml(latestMockHtml);
   }, [isStreaming, isGenerating, latestMockHtml, activeHtml]);
+
+  useEffect(() => {
+    if (isStreaming || isGenerating || previewHtml || !hasAssistantReply || !ticketId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/mockups/${encodeURIComponent(`${ticketId}.html`)}`);
+        if (!res.ok || cancelled) return;
+        const html = await res.text();
+        const normalized = normalizeMockupHtml(html);
+        if (normalized && !cancelled) setActiveHtml(normalized);
+      } catch { /* disk fallback is best-effort */ }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isStreaming, isGenerating, previewHtml, hasAssistantReply, ticketId]);
 
   useEffect(() => {
     if (revisions.length === 0) {

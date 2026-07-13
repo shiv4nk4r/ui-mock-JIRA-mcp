@@ -21,19 +21,90 @@ function stripMarkdownHtmlFence(text: string): string {
     .trim();
 }
 
-export function stripHtmlFromText(text: string): { text: string; html?: string } {
-  const si = text.indexOf(HTML_START);
-  const ei = text.indexOf(HTML_END);
-  if (si === -1 || ei === -1 || ei <= si) {
-    return { text: stripMarkdownHtmlFence(text) };
+function stripFenceWrapper(html: string): string {
+  return html
+    .replace(/^```(?:html|HTML)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .replace(/^html\s*(\r?\n)/i, "")
+    .trim();
+}
+
+function looksLikeHtmlDocument(text: string): boolean {
+  return (
+    /^<!DOCTYPE\s+html/i.test(text) ||
+    /^<html[\s>]/i.test(text) ||
+    /<head[\s>]/i.test(text)
+  );
+}
+
+function extractHtmlDocumentSlice(text: string): string | undefined {
+  const docIdx = text.search(/<!DOCTYPE\s+html/i);
+  const htmlIdx = text.search(/<html[\s>]/i);
+  const starts = [docIdx, htmlIdx].filter((i) => i >= 0).sort((a, b) => a - b);
+  const start = starts[0];
+  if (start === undefined) return undefined;
+
+  const closeIdx = text.lastIndexOf("</html>");
+  if (closeIdx > start) return text.slice(start, closeIdx + 7).trim();
+  return text.slice(start).trim();
+}
+
+function extractLargestHtmlFence(text: string): string | undefined {
+  const fenceRegex = /```(?:html|HTML)?\s*([\s\S]*?)```/g;
+  let best = "";
+  let match: RegExpExecArray | null;
+  while ((match = fenceRegex.exec(text)) !== null) {
+    const candidate = stripFenceWrapper(match[1]);
+    if (candidate.length > best.length && looksLikeHtmlDocument(candidate)) {
+      best = candidate;
+    }
   }
-  let html = text.slice(si + HTML_START.length, ei).trim();
-  html = html.replace(/^```(?:html|HTML)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-  html = html.replace(/^html\s*(\r?\n)/i, "").trim();
+  return best || undefined;
+}
+
+function extractFromMarkers(text: string): { text: string; html?: string } | null {
+  const startMatch = /RAW_HTML_COMPONENT_START/i.exec(text);
+  if (!startMatch) return null;
+  const endMatch = /RAW_HTML_COMPONENT_END/i.exec(text);
+  if (!endMatch || endMatch.index <= startMatch.index + startMatch[0].length) return null;
+
+  const si = startMatch.index + startMatch[0].length;
+  const ei = endMatch.index;
+  const html = stripFenceWrapper(text.slice(si, ei));
   const displayText = stripMarkdownHtmlFence(
-    (text.slice(0, si) + text.slice(ei + HTML_END.length)).trim(),
+    (text.slice(0, startMatch.index) + text.slice(endMatch.index + endMatch[0].length)).trim(),
   );
   return { text: displayText, html: html || undefined };
+}
+
+/** Extract mock HTML from markers, fenced blocks, or inline documents. */
+export function extractMockupHtmlFromText(text: string): { text: string; html?: string } {
+  if (!text?.trim()) return { text: "" };
+
+  const fromMarkers = extractFromMarkers(text);
+  if (fromMarkers?.html) return fromMarkers;
+
+  const fromFence = extractLargestHtmlFence(text);
+  if (fromFence) {
+    const displayText = stripMarkdownHtmlFence(
+      text.replace(/```(?:html|HTML)?\s*[\s\S]*?```/gi, "").trim(),
+    );
+    return { text: displayText, html: fromFence };
+  }
+
+  const fromDoc = extractHtmlDocumentSlice(text);
+  if (fromDoc) {
+    const displayText = stripMarkdownHtmlFence(text.replace(fromDoc, "").trim());
+    return { text: displayText, html: fromDoc };
+  }
+
+  if (fromMarkers) return fromMarkers;
+
+  return { text: stripMarkdownHtmlFence(text) };
+}
+
+export function stripHtmlFromText(text: string): { text: string; html?: string } {
+  return extractMockupHtmlFromText(text);
 }
 
 function extractMarkedSection(text: string, marker: string, endMarkers: string[]): string | undefined {

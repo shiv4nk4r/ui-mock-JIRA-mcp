@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
-import { writeFileSync, unlinkSync, mkdirSync } from "fs";
+import { writeFileSync, unlinkSync, mkdirSync, readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { tmpdir, homedir } from "os";
 import { join } from "path";
 import { request as httpRequest } from "node:http";
@@ -21,8 +21,10 @@ import {
   CHANGE_LOG_MARKER,
   EFFORT_MARKER,
   AGENT_PROMPT_MARKER,
+  extractMockupHtmlFromText,
   stripInternalTechnicalSections,
 } from "@lib/utils/parse-chat";
+import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 export const dynamic = "force-dynamic";
 
@@ -362,21 +364,59 @@ interface ChatRequest {
 
 
 
-// ── HTML marker extraction ────────────────────────────────────────────────────
+// ── HTML extraction fallbacks (Write tool / on-disk mockups) ─────────────────
 
-const HTML_MARKER_START = "RAW_HTML_COMPONENT_START";
-const HTML_MARKER_END   = "RAW_HTML_COMPONENT_END";
+function readNormalizedHtmlFile(filepath: string): string | undefined {
+  try {
+    if (!existsSync(filepath)) return undefined;
+    const normalized = normalizeMockupHtml(readFileSync(filepath, "utf8"));
+    return normalized || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
-function extractHtmlFromMarkers(text: string): { displayText: string; html: string | undefined } {
-  const si = text.indexOf(HTML_MARKER_START);
-  const ei = text.indexOf(HTML_MARKER_END);
-  if (si === -1 || ei === -1 || ei <= si) return { displayText: text, html: undefined };
-  let html          = text.slice(si + HTML_MARKER_START.length, ei).trim();
-  // Strip markdown code fences Claude sometimes wraps around the HTML (```html … ```)
-  html = html.replace(/^```(?:html|HTML)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-  html = html.replace(/^html\s*(\r?\n)/i, "").trim();
-  const displayText = (text.slice(0, si) + text.slice(ei + HTML_MARKER_END.length)).trim();
-  return { displayText, html };
+function findTicketHtmlOnDisk(ticketId: string, designOutputDir: string): string[] {
+  const candidates: Array<{ path: string; mtimeMs: number }> = [];
+  const dirs = [
+    designOutputDir,
+    join(process.cwd(), "src/mcp-context/mockups"),
+  ];
+
+  for (const dir of dirs) {
+    if (!existsSync(dir)) continue;
+    try {
+      for (const name of readdirSync(dir)) {
+        if (!name.endsWith(".html")) continue;
+        if (!name.startsWith(ticketId)) continue;
+        const path = join(dir, name);
+        candidates.push({ path, mtimeMs: statSync(path).mtimeMs });
+      }
+    } catch { /* skip unreadable dirs */ }
+  }
+
+  return candidates.sort((a, b) => b.mtimeMs - a.mtimeMs).map((c) => c.path);
+}
+
+function resolveHtmlFromDisk(
+  ticketId: string,
+  designOutputDir: string,
+  savedFiles: string[],
+): string | undefined {
+  const paths = [
+    ...savedFiles.filter((fp) => /\.html?$/i.test(fp)),
+    join(designOutputDir, `${ticketId}.html`),
+    ...findTicketHtmlOnDisk(ticketId, designOutputDir),
+  ];
+
+  const seen = new Set<string>();
+  for (const filepath of paths) {
+    if (seen.has(filepath)) continue;
+    seen.add(filepath);
+    const html = readNormalizedHtmlFile(filepath);
+    if (html) return html;
+  }
+  return undefined;
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -1216,42 +1256,57 @@ function streamClaudeCode(
           // ── Step 3: emit accumulated text and extract inline HTML ─────
           let htmlSizeBytes = 0;
           let htmlExtracted = false;
+          let finalHtml: string | undefined;
+          let displayText = "";
+
           if (allText) {
-            const textForDisplay = userRole === "external" ? stripInternalTechnicalSections(allText) : allText;
-            const { displayText, html } = extractHtmlFromMarkers(textForDisplay);
+            const extracted = extractMockupHtmlFromText(allText);
+            finalHtml = extracted.html ? normalizeMockupHtml(extracted.html) : undefined;
+            displayText =
+              userRole === "external"
+                ? stripInternalTechnicalSections(extracted.text)
+                : extracted.text;
             if (displayText) send({ delta: displayText });
-            if (html) {
-              htmlExtracted = true;
-              let finalHtml = html;
-              // Vue/Quasar mode loads quasar.min.css from CDN — injecting the captured
-              // bundle on top would cause specificity conflicts. Skip in vue-quasar mode.
-              if (mockupMode !== "vue-quasar" && mockupGrounding?.available && mockupGrounding.cssText) {
-                finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
-                send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
-                logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
-              }
-              htmlSizeBytes = Buffer.byteLength(finalHtml, "utf8");
-              logger.record("HTML mockup extracted from response", { detail: `${(htmlSizeBytes / 1024).toFixed(1)} KB` });
+          }
 
-              // Save final HTML — overwrite on every generation/refinement.
-              const htmlOutputFile = join(designOutputDir, `${ticketId}.html`);
-              try { writeFileSync(htmlOutputFile, finalHtml, "utf8"); } catch { /* non-fatal */ }
+          if (!finalHtml) {
+            finalHtml = resolveHtmlFromDisk(ticketId, designOutputDir, savedFiles);
+          }
 
-              // Save analysis (effort estimation + display text) for the gallery page.
-              if (displayText && !isRefinement) {
-                const analysisFile = join(designOutputDir, `${ticketId}.analysis.json`);
-                try {
-                  writeFileSync(analysisFile, JSON.stringify({
-                    ticketId,
-                    displayText,
-                    model,
-                    generatedAt: new Date().toISOString(),
-                  }, null, 2), "utf8");
-                } catch { /* non-fatal */ }
-              }
-
-              send({ html: finalHtml, savedHtmlPath: htmlOutputFile });
+          if (finalHtml) {
+            htmlExtracted = true;
+            // Vue/Quasar mode loads quasar.min.css from CDN — injecting the captured
+            // bundle on top would cause specificity conflicts. Skip in vue-quasar mode.
+            if (mockupMode !== "vue-quasar" && mockupGrounding?.available && mockupGrounding.cssText) {
+              finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
+              send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
+              logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
             }
+            htmlSizeBytes = Buffer.byteLength(finalHtml, "utf8");
+            logger.record("HTML mockup extracted from response", { detail: `${(htmlSizeBytes / 1024).toFixed(1)} KB` });
+
+            // Save final HTML — overwrite on every generation/refinement.
+            const htmlOutputFile = join(designOutputDir, `${ticketId}.html`);
+            try { writeFileSync(htmlOutputFile, finalHtml, "utf8"); } catch { /* non-fatal */ }
+
+            // Save analysis (effort estimation + display text) for the gallery page.
+            if (displayText && !isRefinement) {
+              const analysisFile = join(designOutputDir, `${ticketId}.analysis.json`);
+              try {
+                writeFileSync(analysisFile, JSON.stringify({
+                  ticketId,
+                  displayText,
+                  model,
+                  generatedAt: new Date().toISOString(),
+                }, null, 2), "utf8");
+              } catch { /* non-fatal */ }
+            }
+
+            send({ html: finalHtml, savedHtmlPath: join(designOutputDir, `${ticketId}.html`) });
+          } else if (allText) {
+            logger.record("No HTML mockup found in response or on disk", {
+              detail: savedFiles.length ? `Write files: ${savedFiles.join(", ")}` : "no Write tool HTML files",
+            });
           }
 
           // ── Step 4: write session log ──────────────────────────────────
@@ -1264,6 +1319,7 @@ function streamClaudeCode(
           });
           send({
             done: true, provider: "claude-code", model,
+            html: finalHtml,
             savedFiles: savedFiles.length ? savedFiles : undefined,
             logFile, logData,
             inputTokens:  inferenceInputTokens,

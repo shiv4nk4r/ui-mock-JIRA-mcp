@@ -102,7 +102,9 @@ export function useMockupGeneration() {
               if (ev.done) {
                 const parsed = parseAssistantSections(accumulated);
                 const parsedHtml = parsed.html ? normalizeMockupHtml(parsed.html) : undefined;
-                const finalHtml = streamingHtml ?? parsedHtml;
+                const doneHtml =
+                  typeof ev.html === "string" ? normalizeMockupHtml(ev.html) : undefined;
+                const finalHtml = streamingHtml ?? doneHtml ?? parsedHtml;
                 if (finalHtml && !streamingHtml) {
                   streamingHtml = finalHtml;
                   options.onHtml?.(finalHtml);

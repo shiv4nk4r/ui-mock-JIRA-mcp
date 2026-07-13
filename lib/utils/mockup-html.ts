@@ -1,4 +1,4 @@
-import { HTML_END, HTML_START } from "@lib/utils/parse-chat";
+import { HTML_END, HTML_START, extractMockupHtmlFromText } from "@lib/utils/parse-chat";
 import type { Message } from "@lib/types";
 
 /** Strip fences, marker wrappers, and stray "html" lines from mockup HTML. */
@@ -41,9 +41,18 @@ export function getLatestMockHtml(messages: Message[], activeHtml?: string): str
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.role !== "assistant" || !msg.htmlComponent) continue;
-    const normalized = normalizeMockupHtml(msg.htmlComponent);
-    if (normalized) return normalized;
+    if (msg.role !== "assistant") continue;
+    if (msg.htmlComponent) {
+      const normalized = normalizeMockupHtml(msg.htmlComponent);
+      if (normalized) return normalized;
+    }
+    if (msg.text) {
+      const { html } = extractMockupHtmlFromText(msg.text);
+      if (html) {
+        const normalized = normalizeMockupHtml(html);
+        if (normalized) return normalized;
+      }
+    }
   }
 
   return "";
