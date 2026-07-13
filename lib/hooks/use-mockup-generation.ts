@@ -109,13 +109,19 @@ export function useMockupGeneration() {
                   streamingHtml = finalHtml;
                   options.onHtml?.(finalHtml);
                 }
-                const isInternal = options.userRole === "internal";
+                const effortEstimation =
+                  (typeof ev.effortEstimation === "string" ? ev.effortEstimation : undefined) ??
+                  parsed.effortEstimation;
+                const changeLog =
+                  (typeof ev.changeLog === "string" ? ev.changeLog : undefined) ?? parsed.changeLog;
+                const agentPrompt =
+                  (typeof ev.agentPrompt === "string" ? ev.agentPrompt : undefined) ?? parsed.agentPrompt;
                 updateLastMessage({
                   text: parsed.text,
                   htmlComponent: finalHtml,
-                  effortEstimation: isInternal ? parsed.effortEstimation : undefined,
-                  changeLog: isInternal ? parsed.changeLog : undefined,
-                  agentPrompt: isInternal ? parsed.agentPrompt : undefined,
+                  effortEstimation,
+                  changeLog,
+                  agentPrompt,
                   isStreaming: false,
                 });
                 const inT = (ev.inputTokens as number) ?? 0;

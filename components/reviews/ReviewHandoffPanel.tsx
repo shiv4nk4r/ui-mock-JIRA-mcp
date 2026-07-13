@@ -62,8 +62,8 @@ function FileChangesTable({ details }: { details: ExecutionDetails }) {
   if (rows.length === 0) {
     return (
       <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, lineHeight: 1.5 }}>
-        No structured file breakdown yet. Generate a mockup with the internal workspace to produce effort
-        estimation and an implementation change log.
+        No structured file breakdown yet. Regenerate the mockup (initial generation, not a refinement), then
+        resubmit for review so effort estimation and the implementation change log are captured.
       </p>
     );
   }

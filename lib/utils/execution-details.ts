@@ -38,8 +38,11 @@ function parseChangeLogTable(text: string): ExecutionChange[] {
     const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
     if (cells.length < 4) continue;
     if (cells[0] === "#" || /^-+$/.test(cells[0]) || cells.some((c) => /^-+$/.test(c))) continue;
+    if (/^file\s*\/?\s*route/i.test(cells[0])) continue;
 
     const rowNum = cells[0].replace(/\D/g, "");
+    if (!rowNum && !/^[\d.]+/.test(cells[0])) continue;
+
     changes.push({
       id: `change-log-${rowNum || changes.length}`,
       location: cells[1] || "Unknown",
@@ -53,13 +56,33 @@ function parseChangeLogTable(text: string): ExecutionChange[] {
   return changes;
 }
 
+/** Backfill handoff fields on assistant messages when only display text was persisted. */
+export function enrichMessagesWithHandoff(messages: Message[]): Message[] {
+  return messages.map((m) => {
+    if (m.role !== "assistant" || m.isStreaming) return m;
+    if (m.effortEstimation && m.changeLog) return m;
+
+    const parts = [m.text, m.effortEstimation, m.changeLog, m.agentPrompt].filter(Boolean);
+    if (parts.length === 0) return m;
+
+    const parsed = parseAssistantSections(parts.join("\n\n"));
+    return {
+      ...m,
+      effortEstimation: m.effortEstimation ?? parsed.effortEstimation,
+      changeLog: m.changeLog ?? parsed.changeLog,
+      agentPrompt: m.agentPrompt ?? parsed.agentPrompt,
+    };
+  });
+}
+
 function latestAssistantHandoff(messages: Message[]): {
   effortText?: string;
   changeLog?: string;
   agentPrompt?: string;
 } {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
+  const enriched = enrichMessagesWithHandoff(messages);
+  for (let i = enriched.length - 1; i >= 0; i--) {
+    const m = enriched[i];
     if (m.role !== "assistant") continue;
     if (m.effortEstimation || m.changeLog || m.agentPrompt) {
       return {
@@ -199,7 +222,7 @@ function ticketScopeChanges(ticket: TicketData): ExecutionChange[] {
 
 export function buildReviewHandoffSnapshot(session: MockupSession | null): ReviewHandoffSnapshot | undefined {
   if (!session) return undefined;
-  const messages = session.messages ?? [];
+  const messages = enrichMessagesWithHandoff(session.messages ?? []);
   const handoff = latestAssistantHandoff(messages);
 
   let effortText = handoff.effortText;
@@ -234,7 +257,7 @@ export function buildExecutionDetails(
   session: MockupSession | null,
 ): ExecutionDetails {
   const ticket = session?.ticketData;
-  const messages = session?.messages ?? [];
+  const messages = enrichMessagesWithHandoff(session?.messages ?? []);
   const handoff = latestAssistantHandoff(messages);
   const snapshot = review.handoff;
 
@@ -275,6 +298,10 @@ export function buildExecutionDetails(
             (r) => !(parsed.changes ?? []).some((c) => c.description === r.description),
           ),
         ];
+
+  if (merged.length === 0 && revisionChanges.length > 0) {
+    merged = revisionChanges;
+  }
 
   if (merged.length === 0 && ticketChanges.length > 0) {
     merged = ticketChanges;

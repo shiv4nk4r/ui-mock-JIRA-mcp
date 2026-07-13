@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
 import type { MockupSession, ReviewItem } from "@lib/types";
-import { buildExecutionDetails } from "@lib/utils/execution-details";
+import { buildExecutionDetails, buildReviewHandoffSnapshot, enrichMessagesWithHandoff } from "@lib/utils/execution-details";
 import { finalizeReview } from "@lib/utils/review-workflow";
 import { relativeTime } from "@lib/utils/review-ui";
 import { buildRevisions } from "@lib/utils/session-history";
@@ -58,8 +58,23 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       router.replace("/reviews");
       return;
     }
-    setReview(r);
-    const s = await repository.getSession(r.userId, r.ticketId);
+    let reviewItem = r;
+    setReview(reviewItem);
+    let s = await repository.getSession(reviewItem.userId, reviewItem.ticketId);
+    if (s) {
+      const enrichedMessages = enrichMessagesWithHandoff(s.messages ?? []);
+      const enrichedSession = { ...s, messages: enrichedMessages };
+      const handoff = buildReviewHandoffSnapshot(enrichedSession);
+      if (handoff) {
+        await repository.updateReview(reviewItem.id, { handoff });
+        reviewItem = { ...reviewItem, handoff };
+        setReview(reviewItem);
+      }
+      if (enrichedMessages !== s.messages) {
+        await repository.saveSession({ ...enrichedSession, savedAt: Date.now() });
+      }
+      s = enrichedSession;
+    }
     setSession(s);
     const comments = await repository.getComments(r.id);
     setCommentCount(comments.length);

@@ -108,16 +108,42 @@ export function stripHtmlFromText(text: string): { text: string; html?: string }
 }
 
 function extractMarkedSection(text: string, marker: string, endMarkers: string[]): string | undefined {
-  const start = text.indexOf(marker);
+  const start = findSectionStart(text, marker);
   if (start < 0) return undefined;
-  const contentStart = start + marker.length;
+  const contentStart = start + findSectionHeadingLength(text, start, marker);
   let end = text.length;
   for (const endMarker of endMarkers) {
-    const idx = text.indexOf(endMarker, contentStart);
-    if (idx >= 0 && idx < end) end = idx;
+    const idx = findSectionStart(text.slice(contentStart), endMarker);
+    if (idx >= 0) {
+      const absolute = contentStart + idx;
+      if (absolute < end) end = absolute;
+    }
   }
   const section = text.slice(contentStart, end).trim();
   return section || undefined;
+}
+
+/** Match headings with optional emoji and trailing ticket id, e.g. "### 📊 Engineering Effort Estimation Summary [GM-123]" */
+function findSectionStart(text: string, marker: string): number {
+  const exact = text.indexOf(marker);
+  if (exact >= 0) return exact;
+
+  const patterns: Record<string, RegExp> = {
+    [EFFORT_MARKER]: /###\s*(?:📊\s*)?Engineering Effort Estimation Summary\b/i,
+    [CHANGE_LOG_MARKER]: /###\s*(?:📋\s*)?Implementation Change Log\b/i,
+    [AGENT_PROMPT_MARKER]: /###\s*(?:🤖\s*)?Standalone Agent Prompt\b/i,
+  };
+  const pattern = patterns[marker];
+  if (!pattern) return -1;
+  const match = pattern.exec(text);
+  return match?.index ?? -1;
+}
+
+function findSectionHeadingLength(text: string, start: number, marker: string): number {
+  const slice = text.slice(start);
+  const lineEnd = slice.indexOf("\n");
+  if (lineEnd >= 0) return lineEnd + 1;
+  return marker.length;
 }
 
 export function parseAssistantSections(text: string): ParsedAssistantSections {

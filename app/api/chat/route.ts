@@ -22,6 +22,7 @@ import {
   EFFORT_MARKER,
   AGENT_PROMPT_MARKER,
   extractMockupHtmlFromText,
+  parseAssistantSections,
   stripInternalTechnicalSections,
 } from "@lib/utils/parse-chat";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
@@ -716,10 +717,35 @@ IMPORTANT — WEB API MODE:
       "",
       "Make effort estimation and change log SPECIFIC to this ticket — not generic."
     );
+  } else if (enableVisualSkill) {
+    sections.push(
+      "OUTPUT FORMAT — REQUIRED:",
+      "1) Product analysis (PM-visible): clear, concise product requirements and UX notes.",
+      "2) HTML mockup wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.",
+      "",
+      "3) Engineering handoff (required after HTML — hidden from PM chat UI, used by internal review):",
+      "Append these EXACT sections in order using the exact headings below.",
+      "",
+      "Effort estimation — EXACT heading (do not change):",
+      "### 📊 Engineering Effort Estimation Summary [TICKET_ID]",
+      "- **T-Shirt Size:** [S / M / L / XL]",
+      "- **Estimated Story Points:** [2 / 3 / 5 / 8 / 13] Points",
+      "- **Breakdown Analysis:** with * bullet lines per affected layer",
+      "- **Architecture Risk Factor:** [Low / Medium / High] — reason",
+      "",
+      "Implementation change log — EXACT heading:",
+      CHANGE_LOG_MARKER + " [TICKET_ID]",
+      "Markdown table with columns: | # | File / route | Change type | What to add or change | Acceptance criteria |",
+      "Minimum 5 file-level rows for non-trivial tickets.",
+      "",
+      "Standalone agent prompt — EXACT heading (last section):",
+      AGENT_PROMPT_MARKER,
+      "Complete self-contained coding-agent prompt (800–2000 words).",
+    );
   } else {
     sections.push(
       "OUTPUT FORMAT — REQUIRED:",
-      "Provide a clear product analysis followed by the HTML mockup markers.",
+      "Provide a clear product analysis.",
       "Do NOT include any engineering effort estimation section."
     );
   }
@@ -1258,14 +1284,15 @@ function streamClaudeCode(
           let htmlExtracted = false;
           let finalHtml: string | undefined;
           let displayText = "";
+          const handoff = allText ? parseAssistantSections(allText) : null;
 
           if (allText) {
             const extracted = extractMockupHtmlFromText(allText);
             finalHtml = extracted.html ? normalizeMockupHtml(extracted.html) : undefined;
             displayText =
               userRole === "external"
-                ? stripInternalTechnicalSections(extracted.text)
-                : extracted.text;
+                ? stripInternalTechnicalSections(handoff?.text ?? extracted.text)
+                : (handoff?.text ?? extracted.text);
             if (displayText) send({ delta: displayText });
           }
 
@@ -1320,6 +1347,9 @@ function streamClaudeCode(
           send({
             done: true, provider: "claude-code", model,
             html: finalHtml,
+            effortEstimation: handoff?.effortEstimation,
+            changeLog: handoff?.changeLog,
+            agentPrompt: handoff?.agentPrompt,
             savedFiles: savedFiles.length ? savedFiles : undefined,
             logFile, logData,
             inputTokens:  inferenceInputTokens,
