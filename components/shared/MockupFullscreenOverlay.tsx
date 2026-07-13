@@ -3,6 +3,7 @@
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { openHtmlInNewTab } from "@lib/utils/files";
 import { MockupIframe } from "@/components/shared/MockupIframe";
+import { MockupAspectFrame } from "@/components/shared/MockupAspectFrame";
 
 interface Props {
   open: boolean;
@@ -50,9 +51,9 @@ export function MockupFullscreenOverlay({ open, onClose, html, title, subtitle }
           </button>
         </div>
       </div>
-      <div className="flex-1 min-h-0 bg-white">
+      <MockupAspectFrame className="flex-1">
         <MockupIframe html={html} className="w-full h-full" title={`${title} full screen`} />
-      </div>
+      </MockupAspectFrame>
     </div>
   );
 }
