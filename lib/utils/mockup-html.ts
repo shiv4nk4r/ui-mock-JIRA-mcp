@@ -1,4 +1,5 @@
 import { HTML_END, HTML_START, extractMockupHtmlFromText } from "@lib/utils/parse-chat";
+import { applyMockBranding } from "@lib/utils/mock-branding";
 import type { Message } from "@lib/types";
 
 /** Strip fences, marker wrappers, and stray "html" lines from mockup HTML. */
@@ -26,7 +27,7 @@ export function normalizeMockupHtml(raw: string): string {
     }
   }
 
-  return html;
+  return applyMockBranding(html);
 }
 
 export function isValidMockupHtml(html: string): boolean {

@@ -26,6 +26,7 @@ import {
   stripInternalTechnicalSections,
 } from "@lib/utils/parse-chat";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
+import { injectLogoIntoComponentLibraryContext } from "@lib/utils/mock-branding";
 
 export const dynamic = "force-dynamic";
 
@@ -649,7 +650,8 @@ IMPORTANT — WEB API MODE:
         "MOCKUP RULES:",
         "- ALL visual values (colors, fonts, heights, borders, radius, chip backgrounds, table/header/body text) come from the COMPONENT LIBRARY BASE CSS BLOCK above. Copy it verbatim and use its classes. Do NOT copy CSS numbers or hex values from design.md or invent your own.",
         "- Font: Source Sans Pro — self-hosted (use Google Fonts CDN fallback in standalone HTML). Body 14px.",
-        "- Page structure top-to-bottom: white 56px top bar (logo + 'Manager Dashboard') → navy #101a5c 44px primary nav → optional white 38px sub-tabs → navy #101a5c 40px section banner → white filter bar → data table → pagination row.",
+        "- Page structure top-to-bottom: white 56px top bar (official GreyOrange logo img + 'Manager Dashboard') → navy #101a5c 44px primary nav → optional white 38px sub-tabs → navy #101a5c 40px section banner → white filter bar → data table → pagination row.",
+        "- Top bar logo: use ONLY the official GreyOrange logo `<img class=\"topbar-logo-img\">` from the component library topbar SNIPPET — never a generic G icon, circle SVG, or text-only wordmark.",
         "- Sort indicators = CSS triangles from the library, NEVER Unicode arrows or Material Icons.",
         "- Status chips: use the chip-* class whose bucket matches the status string. Never set chip background inline.",
         "- No Vue, no Quasar, no JS frameworks — pure HTML + CSS + minimal vanilla JS only.",
@@ -1400,18 +1402,16 @@ export async function POST(request: Request) {
     const ctx = await getCachedContext();
     if (isRefinement) {
       if (isVueMode) {
-        // Vue refinements need the full Vue library (not just BASE CSS).
-        vueComponentLibraryContext = ctx.componentLibraryVue;
+        vueComponentLibraryContext = injectLogoIntoComponentLibraryContext(ctx.componentLibraryVue);
       } else {
-        // HTML refinements: skip design.md, only BASE CSS BLOCK (~15 KB).
-        componentLibraryContext = extractBaseCssBlock(ctx.componentLibrary);
+        componentLibraryContext = injectLogoIntoComponentLibraryContext(extractBaseCssBlock(ctx.componentLibrary));
       }
     } else {
       archContext                = ctx.architecture;
       designContext              = ctx.design;
       sitemapContext             = ctx.sitemap;
-      componentLibraryContext    = ctx.componentLibrary;
-      vueComponentLibraryContext = ctx.componentLibraryVue;
+      componentLibraryContext    = injectLogoIntoComponentLibraryContext(ctx.componentLibrary);
+      vueComponentLibraryContext = injectLogoIntoComponentLibraryContext(ctx.componentLibraryVue);
     }
   } catch { /* proceed without context if files are missing */ }
 

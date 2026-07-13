@@ -289,11 +289,8 @@ Full listing page layout. Paste into `template: \`...\``.
   <q-header bordered class="bg-white text-dark" style="height:56px;">
     <q-toolbar>
       <q-toolbar-title class="row items-center no-wrap" style="gap:8px;">
-        <!-- GreyOrange logo mark -->
-        <svg width="28" height="28" viewBox="0 0 28 28">
-          <rect width="28" height="28" rx="4" fill="#FE8400"/>
-          <text x="14" y="20" text-anchor="middle" font-size="16" font-weight="700" fill="white" font-family="sans-serif">G</text>
-        </svg>
+        <!-- Official GreyOrange logo — copy exactly from component library -->
+        <img src="GREYORANGE_LOGO_DATA_URI" alt="GreyOrange" class="topbar-logo-img" height="28" style="height:28px;width:auto;" />
         <span style="font-weight:700;color:#FE8400;font-size:15px;">Manager Dashboard</span>
       </q-toolbar-title>
       <q-btn flat round icon="notifications" color="dark" />

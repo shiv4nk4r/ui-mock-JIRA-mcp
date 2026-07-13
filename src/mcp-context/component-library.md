@@ -5,6 +5,11 @@ This file contains two sections:
 1. **BASE CSS BLOCK** — copy this verbatim into every mockup's `<style>` tag. Do not modify or re-derive.
 2. **SNIPPETS** — named HTML fragments. Find the matching slug and use it as-is; only add ticket-specific column widths or data values.
 
+**LOGO — MANDATORY:**
+- ALWAYS use the official GreyOrange logo `<img class="topbar-logo-img">` from the topbar SNIPPET below.
+- NEVER use a styled "G" div, generic circle SVG, placeholder icon, or text-only "GreyOrange" wordmark without the official logo image.
+- The logo image is embedded as a data URI in the SNIPPET — copy it exactly; do not substitute.
+
 **MANDATORY RULES:**
 - COPY the BASE CSS BLOCK verbatim. No edits, no removals.
 - For each page section, use the matching SNIPPET. Never re-derive structural HTML.
@@ -88,9 +93,10 @@ body {
   z-index: 100;
   gap: 12px;
 }
-.topbar-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.topbar-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.topbar-logo-img { height: 28px; width: auto; display: block; flex-shrink: 0; }
 .topbar-wordmark { font-size: 13px; font-weight: 700; color: var(--primary); letter-spacing: 0.02em; }
-.topbar-product { font-size: 11px; color: var(--dark); letter-spacing: 0.04em; }
+.topbar-product { font-size: 11px; color: var(--dark); letter-spacing: 0.04em; white-space: nowrap; }
 .topbar-spacer { flex: 1; }
 .topbar-action {
   width: 32px; height: 32px; border: none; background: none;
@@ -487,13 +493,9 @@ body {
 ```html
 <!-- SNIPPET: topbar — sticky 56px top bar -->
 <header class="topbar">
-  <a class="topbar-logo" href="#">
-    <!-- GreyOrange G-mark (orange) -->
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#FE8400"/>
-      <path d="M12 6v6l4 2-1 1.8L11 14V6h1z" fill="#FE8400"/>
-    </svg>
-    <span class="topbar-wordmark">GreyOrange</span>
+  <a class="topbar-logo" href="#" aria-label="GreyOrange Manager Dashboard">
+    <!-- OFFICIAL GreyOrange logo — copy this img tag exactly; never replace with SVG G-mark or text -->
+    <img src="GREYORANGE_LOGO_DATA_URI" alt="GreyOrange" class="topbar-logo-img" height="28" />
     <span class="topbar-product">Manager Dashboard</span>
   </a>
   <div class="topbar-spacer"></div>
