@@ -14,7 +14,7 @@ import { ExecutionDetailsPanel } from "@/components/reviews/ExecutionDetailsPane
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewActionBar } from "@/components/reviews/ReviewActionBar";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
-import { ReviewChannelDrawer } from "@/components/reviews/ReviewChannelDrawer";
+import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
@@ -136,14 +136,23 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             >
               ⛶
             </IconButton>
-            <button
-              type="button"
-              onClick={() => setChannelOpen(true)}
-              className="px-3.5 py-2 text-sm font-medium"
-              style={{ background: COLORS.subtle, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}`, ...F.body }}
-            >
-              Review channel
-            </button>
+            <div className="relative">
+              <IconButton
+                label={channelOpen ? "Close review channel" : "Open review channel"}
+                onClick={() => setChannelOpen((v) => !v)}
+                primary={channelOpen}
+              >
+                {channelOpen ? "×" : <ReviewChannelChatIcon />}
+              </IconButton>
+              {!channelOpen && commentCount > 0 && (
+                <span
+                  className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
+                  style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill, border: `2px solid ${COLORS.surface}` }}
+                >
+                  {commentCount > 9 ? "9+" : commentCount}
+                </span>
+              )}
+            </div>
             <span
               className="w-7 h-7 flex items-center justify-center text-xs font-semibold"
               style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
@@ -156,7 +165,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       </header>
 
       {review.status === "pending_review" && (
-        <div className="flex-none px-4 py-3 border-b" style={{ borderColor: COLORS.border, background: COLORS.surface }}>
+        <div className="flex-none px-4 py-2 border-b" style={{ borderColor: COLORS.border, background: COLORS.surface }}>
           <ReviewActionBar
             review={review}
             busy={busy}
@@ -166,7 +175,12 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         </div>
       )}
 
-      <ReviewMockPreview html={previewHtml} title="Review mockup" />
+      <ReviewMockPreview
+        html={previewHtml}
+        title="Review mockup"
+        annotationTargetId={review.id}
+        onAnnotationsChange={load}
+      />
 
       <div className="flex-none border-t max-h-[38vh] overflow-y-auto" style={{ borderColor: COLORS.border, background: COLORS.surface }}>
         <button
@@ -195,7 +209,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
       </div>
 
       {!mockFullscreen && (
-        <ReviewChannelDrawer open={channelOpen} onOpenChange={setChannelOpen} messageCount={commentCount}>
+        <ReviewChannelDrawer open={channelOpen} onOpenChange={setChannelOpen} messageCount={commentCount} showFab={false}>
           <ReviewCommunicationPanel
             review={review}
             session={session}

@@ -162,6 +162,14 @@ export interface SharedMock {
   createdAt: number;
 }
 
+export interface MockAnchor {
+  /** Region as percentages of the mock viewport (0–100). */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface Comment {
   id: string;
   targetId: string;
@@ -171,6 +179,7 @@ export interface Comment {
   text: string;
   createdAt: number;
   kind?: ReviewEventKind;
+  anchor?: MockAnchor;
 }
 
 export type ReviewEventKind =

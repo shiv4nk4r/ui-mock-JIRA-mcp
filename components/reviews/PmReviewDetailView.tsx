@@ -8,8 +8,9 @@ import type { MockupSession, ReviewItem } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { relativeTime } from "@lib/utils/review-ui";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
+import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
+import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
-import { MockupIframe } from "@/components/shared/MockupIframe";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
 import { IconButton, Toast } from "@/components/shared/Toast";
 
@@ -18,13 +19,15 @@ interface Props {
   session: MockupSession | null;
   onRefresh: () => void;
   threadKey: number;
+  commentCount?: number;
 }
 
-export function PmReviewDetailView({ review, session, onRefresh, threadKey }: Props) {
+export function PmReviewDetailView({ review, session, onRefresh, threadKey, commentCount = 0 }: Props) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [mockFullscreen, setMockFullscreen] = useState(false);
+  const [channelOpen, setChannelOpen] = useState(false);
 
   const needsChanges = review.status === "needs_changes";
   const canResubmit = needsChanges && !!session?.activeHtml;
@@ -42,6 +45,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey }: Pr
         activeHtml: session.activeHtml,
       });
       setToast("Mockup resubmitted — engineering will review the update");
+      setChannelOpen(true);
       onRefresh();
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not resubmit");
@@ -51,18 +55,18 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey }: Pr
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: COLORS.bg }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
       <Toast message={toast} onDone={() => setToast(null)} />
 
       <header
-        className="flex-none px-6 py-4 border-b"
-        style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
+        className="relative z-50 flex-none px-4 py-3 border-b"
+        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
       >
-        <div className="max-w-7xl mx-auto flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Channels</Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="truncate" style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
+              <p className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
                 {review.ticketSummary}
               </p>
               <ReviewStatusChip status={review.status} />
@@ -77,62 +81,74 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey }: Pr
             >
               ⛶
             </IconButton>
+            <div className="relative">
+              <IconButton
+                label={channelOpen ? "Close review channel" : "Open review channel"}
+                onClick={() => setChannelOpen((v) => !v)}
+                primary={channelOpen}
+              >
+                {channelOpen ? "×" : <ReviewChannelChatIcon />}
+              </IconButton>
+              {!channelOpen && commentCount > 0 && (
+                <span
+                  className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
+                  style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill, border: `2px solid ${COLORS.surface}` }}
+                >
+                  {commentCount > 9 ? "9+" : commentCount}
+                </span>
+              )}
+            </div>
             <p style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>{relativeTime(review.submittedAt)}</p>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-4">
-        {needsChanges && (
-          <div
-            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4"
-            style={{ background: "rgba(255,149,0,0.08)", borderRadius: RADIUS.lg, border: `1px solid rgba(255,149,0,0.2)` }}
-          >
-            <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.text }}>
-              Engineering requested changes. Refine in the workspace, then resubmit to continue the thread.
-            </p>
-            <div className="flex gap-2 shrink-0">
-              <Link
-                href={`/workspace/${encodeURIComponent(review.ticketId)}`}
-                className="px-4 py-2 text-sm font-semibold text-center"
-                style={{ background: COLORS.surface, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
-              >
-                Open workspace
-              </Link>
-              <button
-                type="button"
-                disabled={!canResubmit || busy}
-                onClick={handleResubmit}
-                className="px-4 py-2 text-sm font-semibold disabled:opacity-50"
-                style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
-              >
-                {busy ? "Sending…" : "Resubmit mockup"}
-              </button>
-            </div>
-          </div>
-        )}
-
+      {needsChanges && (
         <div
-          className="grid grid-cols-1 lg:grid-cols-5 overflow-hidden min-h-[520px]"
-          style={{ borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}`, background: COLORS.surface }}
+          className="flex-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 py-3 border-b"
+          style={{ background: "rgba(255,149,0,0.08)", borderColor: "rgba(255,149,0,0.2)" }}
         >
-          <div className="lg:col-span-3 min-h-[360px] lg:min-h-[560px] bg-white border-b lg:border-b-0 lg:border-r" style={{ borderColor: COLORS.border }}>
-            <MockupIframe
-              html={previewHtml}
-              className="w-full h-full min-h-[360px] lg:min-h-[560px]"
-              title="Mockup"
-            />
-          </div>
-          <div className="lg:col-span-2 flex flex-col min-h-[420px] lg:min-h-[560px]">
-            <ReviewCommunicationPanel
-              review={review}
-              session={session}
-              onCommentAdded={onRefresh}
-              refreshKey={threadKey}
-            />
+          <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.text }}>
+            Engineering requested changes. Refine in the workspace, then resubmit to continue the thread.
+          </p>
+          <div className="flex gap-2 shrink-0">
+            <Link
+              href={`/workspace/${encodeURIComponent(review.ticketId)}`}
+              className="px-4 py-2 text-sm font-semibold text-center"
+              style={{ background: COLORS.surface, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
+            >
+              Open workspace
+            </Link>
+            <button
+              type="button"
+              disabled={!canResubmit || busy}
+              onClick={handleResubmit}
+              className="px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+            >
+              {busy ? "Sending…" : "Resubmit mockup"}
+            </button>
           </div>
         </div>
-      </div>
+      )}
+
+      <ReviewMockPreview
+        html={previewHtml}
+        title="Mockup"
+        annotationTargetId={review.id}
+        onAnnotationsChange={onRefresh}
+      />
+
+      {!mockFullscreen && (
+        <ReviewChannelDrawer open={channelOpen} onOpenChange={setChannelOpen} messageCount={commentCount} showFab={false}>
+          <ReviewCommunicationPanel
+            review={review}
+            session={session}
+            onCommentAdded={onRefresh}
+            refreshKey={threadKey}
+          />
+        </ReviewChannelDrawer>
+      )}
 
       <MockupFullscreenOverlay
         open={mockFullscreen}

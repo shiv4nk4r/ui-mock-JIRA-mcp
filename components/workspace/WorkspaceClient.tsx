@@ -9,8 +9,9 @@ import type { AttachedFile, MockupSession, ProviderConfig, ReviewStatus, TicketD
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { openHtmlInNewTab } from "@lib/utils/files";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
-import { MockupIframe } from "@/components/shared/MockupIframe";
+import { MockAnnotationLayer } from "@/components/mock/MockAnnotationLayer";
 import { MockupAspectFrame } from "@/components/shared/MockupAspectFrame";
+import { MockupIframe } from "@/components/shared/MockupIframe";
 import { submitOrResubmitReview } from "@lib/utils/review-workflow";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { Toast, IconButton } from "@/components/shared/Toast";
@@ -471,7 +472,16 @@ export function WorkspaceClient({ ticketId }: Props) {
               </div>
             )}
             {previewHtml ? (
-              <MockupIframe html={previewHtml} className="w-full h-full" title="Mockup" />
+              sessionId ? (
+                <MockAnnotationLayer
+                  html={previewHtml}
+                  targetId={reviewId ?? `mock-${sessionId}`}
+                  title="Mockup"
+                  className="absolute inset-0 z-0"
+                />
+              ) : (
+                <MockupIframe html={previewHtml} className="w-full h-full" title="Mockup" />
+              )
             ) : null}
           </MockupAspectFrame>
         ) : (

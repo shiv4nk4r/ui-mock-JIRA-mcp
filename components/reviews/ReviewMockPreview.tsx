@@ -2,14 +2,23 @@
 
 import { MockupAspectFrame } from "@/components/shared/MockupAspectFrame";
 import { MockupIframe } from "@/components/shared/MockupIframe";
+import { MockAnnotationLayer } from "@/components/mock/MockAnnotationLayer";
 
 interface Props {
   html: string;
   title?: string;
   className?: string;
+  annotationTargetId?: string;
+  onAnnotationsChange?: () => void;
 }
 
-export function ReviewMockPreview({ html, title = "Review mockup", className = "" }: Props) {
+export function ReviewMockPreview({
+  html,
+  title = "Review mockup",
+  className = "",
+  annotationTargetId,
+  onAnnotationsChange,
+}: Props) {
   if (!html) {
     return (
       <div
@@ -25,7 +34,17 @@ export function ReviewMockPreview({ html, title = "Review mockup", className = "
 
   return (
     <MockupAspectFrame className={`flex-1 min-h-0 ${className}`}>
-      <MockupIframe html={html} className="w-full h-full" title={title} />
+      {annotationTargetId ? (
+        <MockAnnotationLayer
+          html={html}
+          targetId={annotationTargetId}
+          title={title}
+          className="absolute inset-0"
+          onCommentsChange={onAnnotationsChange}
+        />
+      ) : (
+        <MockupIframe html={html} className="absolute inset-0 w-full h-full" title={title} />
+      )}
     </MockupAspectFrame>
   );
 }

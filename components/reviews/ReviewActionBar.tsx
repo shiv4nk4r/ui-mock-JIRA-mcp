@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { ReviewItem } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 
@@ -12,7 +11,7 @@ interface Props {
   busy: boolean;
 }
 
-export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: Props) {
+export function ReviewActionBar({ review: _review, onApprove, onRequestChanges, busy }: Props) {
   const [mode, setMode] = useState<"idle" | "approve" | "changes">("idle");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -21,6 +20,8 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
     setError("");
     try {
       await onApprove(note.trim() || undefined);
+      setMode("idle");
+      setNote("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save approval");
     }
@@ -34,6 +35,8 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
     setError("");
     try {
       await onRequestChanges(note.trim());
+      setMode("idle");
+      setNote("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send change request");
     }
@@ -41,106 +44,85 @@ export function ReviewActionBar({ review, onApprove, onRequestChanges, busy }: P
 
   const changesNoteMissing = mode === "changes" && !note.trim();
 
+  if (mode === "idle") {
+    return (
+      <div className="flex items-center gap-3 flex-wrap">
+        <span style={{ ...F.body, fontSize: 13, fontWeight: 600, color: COLORS.text, whiteSpace: "nowrap" }}>
+          Your decision
+        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { setMode("approve"); setNote(""); setError(""); }}
+            className="px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+            style={{ background: "#34C759", color: "#fff", borderRadius: RADIUS.pill }}
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { setMode("changes"); setNote(""); setError(""); }}
+            className="px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+            style={{ background: COLORS.subtle, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
+          >
+            Request changes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="p-5 space-y-4"
-      style={{
-        background: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-      }}
-    >
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h3 style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>Your decision</h3>
-          <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, marginTop: 2 }}>
-            Approve or request changes — your reply goes into the review channel
-          </p>
-        </div>
-        <Link
-          href={`/reviews/${review.id}`}
-          className="text-sm font-medium hover:underline shrink-0"
-          style={{ ...F.body, color: COLORS.accent }}
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span style={{ ...F.body, fontSize: 13, fontWeight: 600, color: COLORS.text }}>
+          {mode === "approve" ? "Approve for build" : "Request changes"}
+        </span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => { setMode("idle"); setNote(""); setError(""); }}
+          className="px-2 py-1 text-xs"
+          style={{ color: COLORS.muted, ...F.body }}
         >
-          Open channel ↗
-        </Link>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={busy || (mode === "changes" && changesNoteMissing)}
+          onClick={mode === "approve" ? submitApprove : submitChanges}
+          className="px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            background: mode === "approve" ? "#34C759" : COLORS.accent,
+            color: "#fff",
+            borderRadius: RADIUS.pill,
+          }}
+        >
+          {busy ? "Saving…" : mode === "approve" ? "Confirm" : "Send"}
+        </button>
       </div>
-
-      {mode !== "idle" && (
-        <div className="space-y-2">
-          <textarea
-            rows={3}
-            value={note}
-            onChange={(e) => { setNote(e.target.value); setError(""); }}
-            required={mode === "changes"}
-            placeholder={
-              mode === "changes"
-                ? "Required — describe what needs to change so the PM can refine the mockup…"
-                : "Optional note for the PM (e.g. approved scope, caveats)…"
-            }
-            className="w-full px-4 py-3 text-sm outline-none resize-none focus:ring-2 focus:ring-amber-500/20"
-            style={{
-              ...F.body,
-              background: COLORS.subtle,
-              borderRadius: RADIUS.md,
-              border: `1px solid ${error ? "#FF3B30" : COLORS.border}`,
-              color: COLORS.text,
-            }}
-          />
-          {error && <p style={{ ...F.body, fontSize: 13, color: "#FF3B30" }}>{error}</p>}
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row gap-2">
-        {mode === "idle" ? (
-          <>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => { setMode("approve"); setNote(""); setError(""); }}
-              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50"
-              style={{ background: "#34C759", color: "#fff", borderRadius: RADIUS.pill }}
-            >
-              ✓ Approve for build
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => { setMode("changes"); setNote(""); setError(""); }}
-              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50"
-              style={{ background: COLORS.surface, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
-            >
-              ↩ Request changes
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => { setMode("idle"); setNote(""); setError(""); }}
-              className="px-5 py-3 text-sm font-medium"
-              style={{ color: COLORS.muted, ...F.body }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={busy || (mode === "changes" && changesNoteMissing)}
-              onClick={mode === "approve" ? submitApprove : submitChanges}
-              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                background: mode === "approve" ? "#34C759" : COLORS.accent,
-                color: "#fff",
-                borderRadius: RADIUS.pill,
-              }}
-            >
-              {busy ? "Saving…" : mode === "approve" ? "Confirm approval" : "Send change request"}
-            </button>
-          </>
-        )}
-      </div>
+      <textarea
+        rows={2}
+        value={note}
+        onChange={(e) => { setNote(e.target.value); setError(""); }}
+        required={mode === "changes"}
+        placeholder={
+          mode === "changes"
+            ? "Required — what needs to change…"
+            : "Optional note for the PM…"
+        }
+        className="w-full px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-amber-500/20"
+        style={{
+          ...F.body,
+          background: COLORS.subtle,
+          borderRadius: RADIUS.sm,
+          border: `1px solid ${error ? "#FF3B30" : COLORS.border}`,
+          color: COLORS.text,
+        }}
+      />
+      {error && <p style={{ ...F.body, fontSize: 12, color: "#FF3B30" }}>{error}</p>}
     </div>
   );
 }

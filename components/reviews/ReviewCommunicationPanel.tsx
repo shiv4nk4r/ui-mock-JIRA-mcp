@@ -24,6 +24,7 @@ interface TimelineEntry {
   text: string;
   createdAt: number;
   isSystem: boolean;
+  anchor?: import("@lib/types").MockAnchor;
 }
 
 function buildTimeline(review: ReviewItem, comments: Comment[]): TimelineEntry[] {
@@ -36,6 +37,7 @@ function buildTimeline(review: ReviewItem, comments: Comment[]): TimelineEntry[]
     text: c.text,
     createdAt: c.createdAt,
     isSystem: c.kind !== undefined && c.kind !== "message",
+    anchor: c.anchor,
   }));
 
   if (!entries.some((e) => e.kind === "submission")) {
@@ -137,6 +139,7 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
               role={isEngineer ? "engineer" : "pm"}
               time={entry.createdAt}
               text={entry.text}
+              anchored={!!entry.anchor}
             />
           );
         })}
@@ -234,12 +237,14 @@ function ChatBubble({
   role,
   time,
   text,
+  anchored,
 }: {
   side: "left" | "right";
   author: string;
   role: "pm" | "engineer";
   time: number;
   text: string;
+  anchored?: boolean;
 }) {
   const isEngineer = role === "engineer";
   const isRight = side === "right";
@@ -251,6 +256,7 @@ function ChatBubble({
           <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.text }}>{author}</span>
           <span style={{ ...F.body, fontSize: 10, color: COLORS.muted }}>
             {isEngineer ? "Engineering" : "Product"} · {relativeTime(time)}
+            {anchored && " · Area comment"}
           </span>
         </div>
         <p

@@ -1,5 +1,6 @@
 "use client";
 
+import { forwardRef } from "react";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 interface Props {
@@ -8,9 +9,13 @@ interface Props {
   className?: string;
   style?: React.CSSProperties;
   minHeight?: number | string;
+  sandbox?: string;
 }
 
-export function MockupIframe({ html, title = "Mockup", className, style, minHeight }: Props) {
+export const MockupIframe = forwardRef<HTMLIFrameElement, Props>(function MockupIframe(
+  { html, title = "Mockup", className, style, minHeight, sandbox = "allow-scripts" },
+  ref,
+) {
   const srcDoc = normalizeMockupHtml(html);
 
   if (!srcDoc) {
@@ -34,11 +39,12 @@ export function MockupIframe({ html, title = "Mockup", className, style, minHeig
 
   return (
     <iframe
+      ref={ref}
       srcDoc={srcDoc}
-      sandbox="allow-scripts"
+      sandbox={sandbox}
       className={className}
       style={{ border: "none", ...style, minHeight }}
       title={title}
     />
   );
-}
+});
