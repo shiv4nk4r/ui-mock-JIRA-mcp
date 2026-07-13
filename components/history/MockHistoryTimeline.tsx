@@ -1,180 +1,244 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { useAuth } from "@lib/auth/auth-context";
+import { repository } from "@lib/storage";
 import type { HistorySort, TicketHistoryGroup } from "@lib/utils/session-history";
 import { filterHistoryGroups, sortHistoryGroups } from "@lib/utils/session-history";
+import { formatCostUsd, shortModelName } from "@lib/utils/usage-cost";
+import { formatVersionTime, relativeTime } from "@lib/utils/review-ui";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
+import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 import { jiraTicketUrl } from "@lib/utils/jira";
 
 const SORT_OPTIONS: { value: HistorySort; label: string }[] = [
-  { value: "time_desc", label: "Newest first" },
-  { value: "time_asc", label: "Oldest first" },
-  { value: "ticket_asc", label: "Ticket A → Z" },
-  { value: "ticket_desc", label: "Ticket Z → A" },
+  { value: "time_desc", label: "Newest" },
+  { value: "time_asc", label: "Oldest" },
+  { value: "ticket_asc", label: "Ticket A→Z" },
+  { value: "ticket_desc", label: "Ticket Z→A" },
 ];
 
-function formatWhen(ts?: number) {
-  if (!ts) return "";
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+const TH: CSSProperties = {
+  ...F.body,
+  fontSize: 11,
+  fontWeight: 600,
+  color: COLORS.muted,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  padding: "10px 12px",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+};
+
+function truncate(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
 }
 
-function MockPreview({ html, label }: { html: string; label: string }) {
-  return (
-    <div
-      className="relative overflow-hidden border"
-      style={{ borderColor: COLORS.border, borderRadius: RADIUS.sm, height: 140, background: "#fff" }}
-    >
-      <iframe
-        srcDoc={html}
-        sandbox="allow-scripts"
-        title={label}
-        className="w-[200%] h-[200%] origin-top-left pointer-events-none"
-        style={{ transform: "scale(0.5)", border: "none" }}
-      />
-    </div>
-  );
-}
-
-function TicketGroup({ group, jiraBaseUrl }: { group: TicketHistoryGroup; jiraBaseUrl: string }) {
-  const [open, setOpen] = useState(false);
+function HistoryRow({
+  group,
+  jiraBaseUrl,
+  expanded,
+  onToggle,
+  onDelete,
+}: {
+  group: TicketHistoryGroup;
+  jiraBaseUrl: string;
+  expanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const lastActivity = relativeTime(group.savedAt);
 
   return (
-    <article
-      style={{
-        background: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-gray-50/80 transition-colors"
-        style={{ borderRadius: open ? `${RADIUS.lg}px ${RADIUS.lg}px 0 0` : RADIUS.lg }}
+    <>
+      <tr
+        className="group cursor-pointer hover:bg-gray-50/90 transition-colors"
+        onClick={onToggle}
+        style={{ borderBottom: expanded ? "none" : `1px solid ${COLORS.border}` }}
       >
-        {group.latestHtml && (
-          <div className="hidden sm:block w-28 shrink-0">
-            <MockPreview html={group.latestHtml} label={group.summary} />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span style={{ ...F.mono, fontSize: 13, color: COLORS.accent }}>{group.ticketId}</span>
-            <SessionStatusChip status={group.status} />
-            <span style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
-              {group.revisionCount} {group.revisionCount === 1 ? "version" : "versions"}
+        <td style={{ padding: "10px 12px", ...F.mono, fontSize: 13, fontWeight: 600, color: COLORS.accent }}>
+          {group.ticketId}
+        </td>
+        <td
+          className="max-w-[280px]"
+          style={{ padding: "10px 12px", ...F.body, fontSize: 14, color: COLORS.text }}
+          title={group.summary}
+        >
+          <span className="line-clamp-1">{group.summary}</span>
+          {group.latestPrompt && (
+            <span className="block line-clamp-1 mt-0.5" style={{ fontSize: 12, color: COLORS.muted }}>
+              {truncate(group.latestPrompt, 72)}
             </span>
-          </div>
-          <h2 className="truncate" style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }}>
-            {group.summary}
-          </h2>
-          <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 4 }}>
-            Updated {formatWhen(group.savedAt)}
-          </p>
-        </div>
-        <span className="shrink-0 pt-1" style={{ ...F.body, fontSize: 18, color: COLORS.muted }}>
-          {open ? "−" : "+"}
-        </span>
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 border-t" style={{ borderColor: COLORS.border }}>
-          <div className="flex items-center justify-between gap-3 py-4">
+          )}
+        </td>
+        <td style={{ padding: "10px 12px" }}>
+          <SessionStatusChip status={group.status} />
+        </td>
+        <td style={{ padding: "10px 12px", ...F.body, fontSize: 13, color: COLORS.text, textAlign: "center" }}>
+          {group.revisionCount}
+        </td>
+        <td style={{ padding: "10px 12px", ...F.body, fontSize: 13, color: COLORS.muted, textAlign: "center" }}>
+          {group.messageCount}
+        </td>
+        <td
+          style={{
+            padding: "10px 12px",
+            ...F.mono,
+            fontSize: 12,
+            color: group.totalCostUsd > 0 ? COLORS.text : COLORS.muted,
+            textAlign: "right",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {group.totalCostUsd > 0 ? formatCostUsd(group.totalCostUsd) : "—"}
+        </td>
+        <td
+          style={{ padding: "10px 12px", ...F.body, fontSize: 12, color: COLORS.muted, whiteSpace: "nowrap" }}
+          title={formatVersionTime(group.savedAt)}
+        >
+          {lastActivity}
+        </td>
+        <td style={{ padding: "10px 8px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-0.5 opacity-80 group-hover:opacity-100">
+            <Link
+              href={`/workspace/${encodeURIComponent(group.ticketId)}`}
+              className="px-2 py-1 text-xs font-semibold hover:underline"
+              style={{ color: COLORS.accent }}
+              title="Open workspace"
+            >
+              Open
+            </Link>
             <a
               href={jiraTicketUrl(group.ticketId, jiraBaseUrl)}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm hover:underline"
-              style={{ ...F.mono, color: COLORS.accent }}
+              className="px-2 py-1 text-xs"
+              style={{ color: COLORS.muted }}
+              title="Open in JIRA"
             >
-              Open in JIRA ↗
+              JIRA
             </a>
-            <Link
-              href={`/workspace/${encodeURIComponent(group.ticketId)}`}
-              className="px-4 py-2 text-sm font-semibold"
-              style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-2 py-1 text-xs"
+              style={{ color: "#D70015" }}
+              title="Delete all history"
             >
-              Open workspace
-            </Link>
+              Delete
+            </button>
+            <span style={{ ...F.body, fontSize: 14, color: COLORS.muted, padding: "0 4px" }}>
+              {expanded ? "▾" : "▸"}
+            </span>
           </div>
+        </td>
+      </tr>
 
-          <ol className="relative pl-6 space-y-6">
+      {expanded && (
+        <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: COLORS.subtle }}>
+          <td colSpan={8} style={{ padding: "0 12px 12px" }}>
             <div
-              className="absolute left-[7px] top-2 bottom-2 w-px"
-              style={{ background: COLORS.border }}
-              aria-hidden
-            />
-            {group.revisions.map((rev, idx) => (
-              <li key={rev.id} className="relative">
-                <span
-                  className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full border-2"
-                  style={{
-                    background: idx === group.revisions.length - 1 ? COLORS.accent : COLORS.surface,
-                    borderColor: idx === group.revisions.length - 1 ? COLORS.accent : COLORS.border,
-                  }}
-                />
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
-                      {rev.label}
-                    </p>
-                    {rev.timestamp && (
-                      <span style={{ ...F.body, fontSize: 12, color: COLORS.muted, flexShrink: 0 }}>
-                        {formatWhen(rev.timestamp)}
-                      </span>
-                    )}
-                  </div>
-                  {rev.prompt && (
-                    <p
-                      className="text-sm px-3 py-2"
-                      style={{
-                        ...F.body,
-                        color: COLORS.text,
-                        background: COLORS.subtle,
-                        borderRadius: RADIUS.sm,
-                        borderLeft: `3px solid ${COLORS.accent}`,
-                      }}
-                    >
-                      “{rev.prompt}”
-                    </p>
-                  )}
-                  {rev.html && (
-                    <div className="max-w-md">
-                      <MockPreview html={rev.html} label={rev.label} />
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+              className="overflow-x-auto mt-2"
+              style={{
+                background: COLORS.surface,
+                borderRadius: RADIUS.md,
+                border: `1px solid ${COLORS.border}`,
+              }}
+            >
+              <table className="w-full min-w-[640px]">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <th style={TH}>#</th>
+                    <th style={TH}>Version</th>
+                    <th style={{ ...TH, minWidth: 200 }}>Prompt / note</th>
+                    <th style={TH}>When</th>
+                    <th style={{ ...TH, textAlign: "right" }}>Cost</th>
+                    <th style={TH}>Model</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.revisions.map((rev, idx) => (
+                    <tr key={rev.id} style={{ borderBottom: idx < group.revisions.length - 1 ? `1px solid ${COLORS.border}` : undefined }}>
+                      <td style={{ padding: "8px 12px", ...F.body, fontSize: 12, color: COLORS.muted }}>
+                        {idx + 1}
+                      </td>
+                      <td style={{ padding: "8px 12px", ...F.body, fontSize: 13, fontWeight: 500, color: COLORS.text, whiteSpace: "nowrap" }}>
+                        {rev.label}
+                      </td>
+                      <td style={{ padding: "8px 12px", ...F.body, fontSize: 12, color: COLORS.muted, maxWidth: 360 }}>
+                        {rev.prompt ? (
+                          <span title={rev.prompt}>“{truncate(rev.prompt, 100)}”</span>
+                        ) : (
+                          <span style={{ color: COLORS.border }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "8px 12px", ...F.body, fontSize: 12, color: COLORS.muted, whiteSpace: "nowrap" }}>
+                        {rev.timestamp ? formatVersionTime(rev.timestamp) : "—"}
+                      </td>
+                      <td style={{ padding: "8px 12px", ...F.mono, fontSize: 12, color: COLORS.text, textAlign: "right", whiteSpace: "nowrap" }}>
+                        {rev.usage?.costUsd ? formatCostUsd(rev.usage.costUsd) : "—"}
+                      </td>
+                      <td style={{ padding: "8px 12px", ...F.mono, fontSize: 11, color: COLORS.muted, whiteSpace: "nowrap" }}>
+                        {rev.usage?.model ? shortModelName(rev.usage.model) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
       )}
-    </article>
+    </>
   );
 }
 
 export function MockHistoryTimeline({
   groups,
   jiraBaseUrl,
+  onRefresh,
 }: {
   groups: TicketHistoryGroup[];
   jiraBaseUrl: string;
+  onRefresh?: () => void;
 }) {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<HistorySort>("time_desc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TicketHistoryGroup | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const visible = useMemo(
     () => sortHistoryGroups(filterHistoryGroups(groups, search), sort),
     [groups, search, sort],
   );
+
+  const stats = useMemo(() => {
+    const revisions = groups.reduce((n, g) => n + g.revisionCount, 0);
+    const cost = groups.reduce((n, g) => n + g.totalCostUsd, 0);
+    return { tickets: groups.length, revisions, cost };
+  }, [groups]);
+
+  async function handleDelete() {
+    if (!user || !deleteTarget) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await repository.resetTicketHistory(user.id, deleteTarget.ticketId);
+      setDeleteTarget(null);
+      if (expandedId === deleteTarget.ticketId) setExpandedId(null);
+      onRefresh?.();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Could not delete ticket history");
+      setDeleting(false);
+    }
+  }
 
   if (groups.length === 0) {
     return (
@@ -186,80 +250,67 @@ export function MockHistoryTimeline({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
+      <DeleteTicketHistoryModal
+        open={!!deleteTarget}
+        ticketId={deleteTarget?.ticketId ?? ""}
+        ticketSummary={deleteTarget?.summary}
+        busy={deleting}
+        error={deleteError}
+        onCancel={() => {
+          setDeleteTarget(null);
+          setDeleteError("");
+          setDeleting(false);
+        }}
+        onConfirm={handleDelete}
+      />
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
+        <span><strong style={{ color: COLORS.text }}>{stats.tickets}</strong> tickets</span>
+        <span><strong style={{ color: COLORS.text }}>{stats.revisions}</strong> versions</span>
+        {stats.cost > 0 && (
+          <span><strong style={{ color: COLORS.text }}>{formatCostUsd(stats.cost)}</strong> total AI cost</span>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={COLORS.muted}
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3-3" />
-          </svg>
           <input
             type="search"
-            placeholder="Search ticket ID…"
+            placeholder="Filter by ticket ID…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/25"
+            className="w-full px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500/25"
             style={{
               ...F.body,
               background: COLORS.surface,
               color: COLORS.text,
-              borderRadius: RADIUS.lg,
+              borderRadius: RADIUS.md,
               border: `1px solid ${COLORS.border}`,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}
           />
         </div>
-        <div className="relative sm:min-w-[180px]">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as HistorySort)}
-            className="w-full appearance-none pl-4 pr-10 py-3 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-amber-500/25"
-            style={{
-              ...F.body,
-              background: COLORS.surface,
-              color: COLORS.text,
-              borderRadius: RADIUS.lg,
-              border: `1px solid ${COLORS.border}`,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
-              backgroundImage: "none",
-            }}
-            aria-label="Sort history"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <svg
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={COLORS.muted}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as HistorySort)}
+          className="px-3 py-2 text-sm outline-none cursor-pointer sm:min-w-[140px]"
+          style={{
+            ...F.body,
+            background: COLORS.surface,
+            color: COLORS.text,
+            borderRadius: RADIUS.md,
+            border: `1px solid ${COLORS.border}`,
+          }}
+          aria-label="Sort history"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {search.trim() && (
-        <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, paddingLeft: 4 }}>
-          {visible.length} {visible.length === 1 ? "ticket" : "tickets"} matching “{search.trim()}”
+        <p style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
+          {visible.length} of {groups.length} tickets
         </p>
       )}
 
@@ -268,9 +319,48 @@ export function MockHistoryTimeline({
           No tickets match your search
         </p>
       ) : (
-        visible.map((group) => (
-          <TicketGroup key={group.ticketId} group={group} jiraBaseUrl={jiraBaseUrl} />
-        ))
+        <div
+          className="overflow-x-auto"
+          style={{
+            background: COLORS.surface,
+            borderRadius: RADIUS.lg,
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+          }}
+        >
+          <table className="w-full min-w-[900px] border-collapse">
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: COLORS.subtle }}>
+                <th style={TH}>Ticket</th>
+                <th style={{ ...TH, minWidth: 180 }}>Summary</th>
+                <th style={TH}>Status</th>
+                <th style={{ ...TH, textAlign: "center" }}>Ver.</th>
+                <th style={{ ...TH, textAlign: "center" }}>Msgs</th>
+                <th style={{ ...TH, textAlign: "right" }}>Cost</th>
+                <th style={TH}>Updated</th>
+                <th style={{ ...TH, width: 140 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((group) => (
+                <HistoryRow
+                  key={group.ticketId}
+                  group={group}
+                  jiraBaseUrl={jiraBaseUrl}
+                  expanded={expandedId === group.ticketId}
+                  onToggle={() =>
+                    setExpandedId((id) => (id === group.ticketId ? null : group.ticketId))
+                  }
+                  onDelete={() => {
+                    setDeleteError("");
+                    setDeleting(false);
+                    setDeleteTarget(group);
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

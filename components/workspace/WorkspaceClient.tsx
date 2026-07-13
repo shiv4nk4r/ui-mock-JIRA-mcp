@@ -19,6 +19,7 @@ import { Toast, IconButton } from "@/components/shared/Toast";
 import { JiraTicketLink } from "@/components/workspace/JiraTicketLink";
 import { SendForReviewModal } from "@/components/workspace/SendForReviewModal";
 import { RetractReviewModal } from "@/components/workspace/RetractReviewModal";
+import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 import { MockVersionPicker } from "@/components/workspace/MockVersionPicker";
 import { FloatingChatWidget } from "@/components/workspace/FloatingChatWidget";
 import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
@@ -54,6 +55,8 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [reviewModalResubmit, setReviewModalResubmit] = useState(false);
   const [retractModalOpen, setRetractModalOpen] = useState(false);
   const [retractingReview, setRetractingReview] = useState(false);
+  const [deleteHistoryOpen, setDeleteHistoryOpen] = useState(false);
+  const [deletingHistory, setDeletingHistory] = useState(false);
   const [sendingReview, setSendingReview] = useState(false);
   const [costOpen, setCostOpen] = useState(false);
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
@@ -427,6 +430,19 @@ export function WorkspaceClient({ ticketId }: Props) {
     }
   }
 
+  async function handleDeleteTicketHistory() {
+    if (!user) return;
+    setDeletingHistory(true);
+    try {
+      await repository.resetTicketHistory(user.id, ticketData?.id ?? ticketId);
+      setDeleteHistoryOpen(false);
+      window.location.assign(`/workspace/${encodeURIComponent(ticketData?.id ?? ticketId)}`);
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Could not delete ticket history");
+      setDeletingHistory(false);
+    }
+  }
+
   function openReviewModal(resubmit: boolean) {
     setReviewModalResubmit(resubmit);
     setReviewModalOpen(true);
@@ -470,6 +486,14 @@ export function WorkspaceClient({ ticketId }: Props) {
         busy={retractingReview}
         onCancel={() => setRetractModalOpen(false)}
         onConfirm={handleRetractReview}
+      />
+      <DeleteTicketHistoryModal
+        open={deleteHistoryOpen}
+        ticketId={ticketData?.id ?? ticketId}
+        ticketSummary={ticketData?.summary}
+        busy={deletingHistory}
+        onCancel={() => setDeleteHistoryOpen(false)}
+        onConfirm={handleDeleteTicketHistory}
       />
 
       {/* Minimal top bar */}
@@ -527,6 +551,13 @@ export function WorkspaceClient({ ticketId }: Props) {
           </IconButton>
           <IconButton label="Share" onClick={handleShare} disabled={!previewHtml}>
             ↗
+          </IconButton>
+          <IconButton
+            label="Delete ticket history and start fresh"
+            onClick={() => setDeleteHistoryOpen(true)}
+            disabled={isStreaming || isGenerating || deletingHistory}
+          >
+            🗑
           </IconButton>
           {reviewId && (
             <IconButton label="Review channel" onClick={() => router.push(`/reviews/${reviewId}`)}>

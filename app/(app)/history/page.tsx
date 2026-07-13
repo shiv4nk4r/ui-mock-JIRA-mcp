@@ -12,6 +12,7 @@ export default function HistoryPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [groups, setGroups] = useState<TicketHistoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const jiraBaseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? "";
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function HistoryPage() {
       return;
     }
     (async () => {
+      setLoading(true);
       try {
         await repository.migrateLegacySessions(user.id);
         const sessions = await repository.getSessions(user.id);
@@ -31,17 +33,19 @@ export default function HistoryPage() {
         setLoading(false);
       }
     })();
-  }, [user, authLoading]);
+  }, [user, authLoading, refreshKey]);
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 sm:py-14 space-y-8">
-      <div className="space-y-1">
-        <h1 style={{ ...F.body, fontSize: 32, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
-          Mock history
-        </h1>
-        <p style={{ ...F.body, fontSize: 16, color: COLORS.muted }}>
-          Mockups and chat revisions grouped by ticket
-        </p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div className="space-y-1">
+          <h1 style={{ ...F.body, fontSize: 28, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
+            Mock history
+          </h1>
+          <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
+            All tickets — versions, chat activity, and cost at a glance
+          </p>
+        </div>
       </div>
 
       {loading ? (
@@ -49,7 +53,11 @@ export default function HistoryPage() {
           <div className="signal-bars"><span /><span /><span /><span /><span /></div>
         </div>
       ) : (
-        <MockHistoryTimeline groups={groups} jiraBaseUrl={jiraBaseUrl} />
+        <MockHistoryTimeline
+          groups={groups}
+          jiraBaseUrl={jiraBaseUrl}
+          onRefresh={() => setRefreshKey((k) => k + 1)}
+        />
       )}
     </div>
   );

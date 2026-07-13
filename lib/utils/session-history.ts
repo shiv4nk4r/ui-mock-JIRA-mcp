@@ -1,4 +1,5 @@
 import type { Message, MockupSession, UsageRecord, UserRole } from "@lib/types";
+import { sumUsageRecords } from "@lib/utils/usage-cost";
 
 export interface MockRevision {
   id: string;
@@ -16,6 +17,9 @@ export interface TicketHistoryGroup {
   status: MockupSession["status"];
   savedAt: number;
   revisionCount: number;
+  messageCount: number;
+  totalCostUsd: number;
+  latestPrompt?: string;
   latestHtml?: string;
   revisions: MockRevision[];
 }
@@ -95,13 +99,17 @@ export function groupSessionsByTicket(sessions: MockupSession[], userRole: UserR
   return Array.from(byTicket.values())
     .map((session) => {
       const revisions = buildRevisions(session, userRole);
+      const lastRev = revisions[revisions.length - 1];
       return {
         ticketId: session.ticketId,
         summary: session.ticketData.summary,
         status: session.status,
         savedAt: session.savedAt,
         revisionCount: revisions.length,
-        latestHtml: session.activeHtml || revisions[revisions.length - 1]?.html,
+        messageCount: session.messages.filter((m) => !m.isStreaming).length,
+        totalCostUsd: sumUsageRecords(session.usageRecords ?? []).costUsd,
+        latestPrompt: lastRev?.prompt ?? lastRev?.label,
+        latestHtml: session.activeHtml || lastRev?.html,
         revisions,
       };
     })

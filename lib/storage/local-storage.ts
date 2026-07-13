@@ -67,6 +67,41 @@ export class LocalStorageRepository implements IRepository {
     localStorage.removeItem(KEYS.session(userId, ticketId));
   }
 
+  async resetTicketHistory(userId: string, ticketId: string): Promise<void> {
+    const session = await this.getSession(userId, ticketId);
+    const reviews = (await this.getReviews({ userId })).filter((r) => r.ticketId === ticketId);
+
+    const commentTargets = new Set<string>();
+    for (const review of reviews) commentTargets.add(review.id);
+    if (session) commentTargets.add(`mock-${session.id}`);
+
+    if (typeof window !== "undefined") {
+      for (const targetId of commentTargets) {
+        localStorage.removeItem(KEYS.comments(targetId));
+      }
+    }
+
+    if (reviews.length > 0) {
+      const remaining = (await this.getReviews()).filter(
+        (r) => !(r.userId === userId && r.ticketId === ticketId),
+      );
+      writeJson(KEYS.reviews, remaining);
+    }
+
+    const engagement = readJson<UserEngagement[]>(KEYS.engagement, []).filter(
+      (e) => !(e.userId === userId && e.ticketId === ticketId),
+    );
+    writeJson(KEYS.engagement, engagement);
+
+    const shares = readJson<Record<string, SharedMock>>(KEYS.shares, {});
+    const nextShares = Object.fromEntries(
+      Object.entries(shares).filter(([, share]) => !(share.createdBy === userId && share.ticketId === ticketId)),
+    );
+    writeJson(KEYS.shares, nextShares);
+
+    await this.deleteSession(userId, ticketId);
+  }
+
   async getReviews(filter?: ReviewFilter): Promise<ReviewItem[]> {
     let items = readJson<ReviewItem[]>(KEYS.reviews, []);
     if (filter?.status) items = items.filter((r) => r.status === filter.status);

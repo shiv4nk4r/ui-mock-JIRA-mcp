@@ -13,6 +13,8 @@ export interface IRepository {
   getSession(userId: string, ticketId: string): Promise<MockupSession | null>;
   saveSession(session: MockupSession): Promise<void>;
   deleteSession(userId: string, ticketId: string): Promise<void>;
+  /** Permanently wipe session, reviews, comments, shares, and engagement for one ticket. */
+  resetTicketHistory(userId: string, ticketId: string): Promise<void>;
 
   getReviews(filter?: ReviewFilter): Promise<ReviewItem[]>;
   getReview(id: string): Promise<ReviewItem | null>;

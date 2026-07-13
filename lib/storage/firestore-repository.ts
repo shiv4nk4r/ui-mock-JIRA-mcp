@@ -139,6 +139,53 @@ export class FirestoreRepository implements IRepository {
     await deleteDoc(doc(requireDb(), "sessions", session.id));
   }
 
+  async resetTicketHistory(userId: string, ticketId: string): Promise<void> {
+    const db = requireDb();
+    const session = await this.getSession(userId, ticketId);
+    const reviewSnap = await getDocs(
+      query(
+        collection(db, "reviews"),
+        where("userId", "==", userId),
+        where("ticketId", "==", ticketId),
+      ),
+    );
+
+    const commentTargets = new Set<string>();
+    for (const reviewDoc of reviewSnap.docs) commentTargets.add(reviewDoc.id);
+    if (session) commentTargets.add(`mock-${session.id}`);
+
+    for (const targetId of commentTargets) {
+      const commentSnap = await getDocs(
+        query(collection(db, "comments"), where("targetId", "==", targetId)),
+      );
+      await Promise.all(commentSnap.docs.map((d) => deleteDoc(d.ref)));
+    }
+
+    await Promise.all(reviewSnap.docs.map((d) => deleteDoc(d.ref)));
+
+    const engagementSnap = await getDocs(
+      query(
+        collection(db, "engagement"),
+        where("userId", "==", userId),
+        where("ticketId", "==", ticketId),
+      ),
+    );
+    await Promise.all(engagementSnap.docs.map((d) => deleteDoc(d.ref)));
+
+    const shareSnap = await getDocs(
+      query(
+        collection(db, "shares"),
+        where("createdBy", "==", userId),
+        where("ticketId", "==", ticketId),
+      ),
+    );
+    await Promise.all(shareSnap.docs.map((d) => deleteDoc(d.ref)));
+
+    if (session) {
+      await deleteDoc(doc(db, "sessions", session.id));
+    }
+  }
+
   async getReviews(filter?: ReviewFilter): Promise<ReviewItem[]> {
     const db = requireDb();
     let q = query(collection(db, "reviews"), orderBy("submittedAt", "desc"));
