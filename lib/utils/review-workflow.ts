@@ -4,7 +4,7 @@ import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 
 export async function addReviewEvent(
   reviewId: string,
-  user: Pick<User, "id" | "name">,
+  user: Pick<User, "id" | "name" | "role">,
   text: string,
   kind: ReviewEventKind,
 ): Promise<Comment> {
@@ -13,6 +13,7 @@ export async function addReviewEvent(
     targetId: reviewId,
     authorName: user.name,
     authorId: user.id,
+    authorRole: user.role,
     text,
     createdAt: Date.now(),
     kind,
@@ -79,7 +80,7 @@ export async function submitOrResubmitReview(params: {
 
 export async function finalizeReview(params: {
   review: ReviewItem;
-  user: Pick<User, "id" | "name">;
+  user: Pick<User, "id" | "name" | "role">;
   status: Extract<ReviewItem["status"], "approved" | "needs_changes">;
   message?: string;
 }): Promise<void> {

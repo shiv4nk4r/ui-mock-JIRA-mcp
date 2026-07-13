@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setMenuOpen(false); signOut(); router.push("/login"); }}
+                    onClick={async () => { setMenuOpen(false); await signOut(); router.push("/login"); }}
                     className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50"
                     style={{ ...F.body, color: COLORS.text }}
                   >

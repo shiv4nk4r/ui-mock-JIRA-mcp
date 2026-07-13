@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { Comment, MockupSession, ReviewItem, ReviewEventKind } from "@lib/types";
+import type { Comment, MockupSession, ReviewItem, ReviewEventKind, UserRole } from "@lib/types";
 import { repository, generateId } from "@lib/storage";
 import { useAuth } from "@lib/auth/auth-context";
 import { getMockUser } from "@lib/auth/mock-users";
@@ -20,6 +20,7 @@ interface TimelineEntry {
   kind: ReviewEventKind | "submission";
   authorName: string;
   authorId?: string;
+  authorRole?: UserRole;
   text: string;
   createdAt: number;
   isSystem: boolean;
@@ -31,6 +32,7 @@ function buildTimeline(review: ReviewItem, comments: Comment[]): TimelineEntry[]
     kind: c.kind ?? "message",
     authorName: c.authorName,
     authorId: c.authorId,
+    authorRole: c.authorRole,
     text: c.text,
     createdAt: c.createdAt,
     isSystem: c.kind !== undefined && c.kind !== "message",
@@ -92,6 +94,7 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
       targetId: review.id,
       authorName: user.name,
       authorId: user.id,
+      authorRole: user.role,
       text: draft.trim(),
       createdAt: Date.now(),
       kind: "message",
@@ -121,7 +124,11 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
             return <SystemEvent key={entry.id} entry={entry} />;
           }
           const isOwn = entry.authorId === user?.id;
-          const isEngineer = entry.authorId ? getMockUser(entry.authorId)?.role === "internal" : false;
+          const isEngineer = entry.authorRole
+            ? entry.authorRole === "internal"
+            : entry.authorId
+              ? getMockUser(entry.authorId)?.role === "internal"
+              : false;
           return (
             <ChatBubble
               key={entry.id}

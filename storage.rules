@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isGreyOrange() {
+      return request.auth != null
+        && request.auth.token.email.matches('.*@greyorange[.]com$');
+    }
+
+    match /mockups/{userId}/{sessionId}/{fileName} {
+      allow read: if isGreyOrange() && request.auth.uid == userId;
+      allow write: if isGreyOrange() && request.auth.uid == userId;
+    }
+
+    match /reviews/{reviewId}/{fileName} {
+      allow read: if isGreyOrange();
+      allow write: if isGreyOrange();
+    }
+
+    match /shares/{shareId}/{fileName} {
+      allow read: if true;
+      allow write: if isGreyOrange();
+    }
+  }
+}

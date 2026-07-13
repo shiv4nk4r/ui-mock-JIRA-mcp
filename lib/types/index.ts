@@ -165,6 +165,7 @@ export interface Comment {
   targetId: string;
   authorName: string;
   authorId?: string;
+  authorRole?: UserRole;
   text: string;
   createdAt: number;
   kind?: ReviewEventKind;
