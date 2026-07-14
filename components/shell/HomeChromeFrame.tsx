@@ -46,6 +46,25 @@ function ticketIdFromPath(pathname: string): string | null {
   }
 }
 
+const SIDEBAR_COLLAPSED_KEY = "gcc-studio-sidebar-collapsed";
+
+function readSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 /** Shared Gemini-style left chrome for every authenticated app route. */
 export function HomeChromeFrame({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -57,6 +76,16 @@ export function HomeChromeFrame({ children }: { children: ReactNode }) {
   const [newMockNonce, setNewMockNonce] = useState(0);
   const { groups, loading, refresh } = useTicketHistory();
   const activeTicketId = ticketIdFromPath(pathname);
+
+  // Restore last sidebar choice after mount (avoids SSR mismatch).
+  useEffect(() => {
+    setSidebarCollapsed(readSidebarCollapsed());
+  }, []);
+
+  const handleCollapsedChange = useCallback((collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    writeSidebarCollapsed(collapsed);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -90,8 +119,8 @@ export function HomeChromeFrame({ children }: { children: ReactNode }) {
       onNewMock={handleNewMock}
       onDeleted={refresh}
       homeChrome
-      collapsed={sidebarCollapsed}
-      onCollapsedChange={setSidebarCollapsed}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={handleCollapsedChange}
       reviewCount={reviewCount}
     />
   );
