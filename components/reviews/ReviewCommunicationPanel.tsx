@@ -79,7 +79,7 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const isInternal = user?.role === "internal";
-  const counterpart = isInternal ? review.userName : "Engineering";
+  const counterpart = isInternal ? review.userName : "GCC";
 
   useEffect(() => {
     repository.getComments(review.id).then(setComments);
@@ -112,7 +112,7 @@ export function ReviewCommunicationPanel({ review, session: _session, onCommentA
 
   const placeholder = isInternal
     ? `Reply to ${review.userName} — questions, clarifications, or change requests…`
-    : `Message engineering — ask questions or share context…`;
+    : `Message GCC — ask questions or share context…`;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -302,7 +302,7 @@ function ChatBubble({
         {!isRight && (
           <span style={{ ...F.body, fontSize: 11, fontWeight: 600, color: COLORS.muted, paddingLeft: 2 }}>
             {author}
-            <span style={{ fontWeight: 400 }}> · {isEngineer ? "Engineering" : "Product"}</span>
+            <span style={{ fontWeight: 400 }}> · {isEngineer ? "GCC" : "Product"}</span>
           </span>
         )}
 

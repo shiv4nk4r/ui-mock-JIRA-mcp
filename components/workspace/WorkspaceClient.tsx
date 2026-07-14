@@ -478,7 +478,7 @@ export function WorkspaceClient({ ticketId }: Props) {
       setReviewStatus("pending_review");
       setSessionStatus("pending_review");
       setReviewModalOpen(false);
-      setToast(resubmitted ? "Updated mockup sent back for review" : "Sent to the engineering team for review");
+      setToast(resubmitted ? "Updated mockup sent back for review" : "Sent to GCC for review");
       await repository.saveSession({
         id: sessionId,
         userId: user.id,

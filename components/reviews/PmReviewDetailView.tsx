@@ -8,8 +8,7 @@ import type { MockupSession, ReviewItem } from "@lib/types";
 import { buildRevisions } from "@lib/utils/session-history";
 import { sumUsageRecords } from "@lib/utils/usage-cost";
 import { downloadHtmlFile } from "@lib/utils/files";
-import { DownloadIcon } from "@/components/shared/DownloadIcon";
-import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
+import { MockCostBreakdownModal } from "@/components/workspace/MockCostBreakdownModal";
 import { RetractReviewModal } from "@/components/workspace/RetractReviewModal";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { relativeTime } from "@lib/utils/review-ui";
@@ -17,6 +16,7 @@ import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicati
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
+import { ReviewHeaderMoreMenu } from "@/components/reviews/ReviewHeaderMoreMenu";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
 import { IconButton, Toast } from "@/components/shared/Toast";
 
@@ -77,7 +77,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
         activeHtml: session.activeHtml,
         session,
       });
-      setToast("Mockup resubmitted — engineering will review the update");
+      setToast("Mockup resubmitted — GCC will review the update");
       setChannelOpen(true);
       onRefresh();
     } catch (err) {
@@ -88,119 +88,121 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: COLORS.subtle }}>
       <Toast message={toast} onDone={() => setToast(null)} />
 
       <header
-        className="relative z-50 flex-none px-4 py-3 border-b"
-        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
+        className="relative z-50 flex-none flex items-center gap-3 px-4 py-2 shrink-0"
+        style={{ background: COLORS.subtle, borderBottom: `1px solid ${COLORS.border}` }}
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Channels</Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
-                {review.ticketSummary}
-              </p>
-              <ReviewStatusChip status={review.status} />
-            </div>
-            <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
+        <div className="flex-1 min-w-0">
+          <div className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
+            {review.ticketSummary}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {showCost && (
-              <MockCostBadge costUsd={usageTotals.costUsd} onClick={() => setCostOpen(true)} />
-            )}
-            <IconButton
-              label="Download mockup as HTML"
-              onClick={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
-              disabled={!previewHtml}
-            >
-              <DownloadIcon />
+          <div className="flex items-center gap-2 mt-0.5 min-w-0 flex-wrap">
+            <span style={{ ...F.mono, fontSize: 12, color: COLORS.muted }}>{review.ticketId}</span>
+            <ReviewStatusChip status={review.status} compact />
+            <span style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
+              {relativeTime(review.submittedAt)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {pendingReview && (
+            <IconButton label="Retract from review" onClick={() => setRetractModalOpen(true)}>
+              Retract
             </IconButton>
+          )}
+          {needsChanges && (
             <IconButton
-              label="Full screen"
-              onClick={() => setMockFullscreen(true)}
-              disabled={!previewHtml}
+              label="Resubmit for review"
+              onClick={handleResubmit}
+              disabled={!canResubmit || busy}
+              primary
             >
-              ⛶
+              {busy ? "Sending…" : "Resubmit"}
             </IconButton>
-            <div className="relative">
-              <IconButton
-                label={channelOpen ? "Close review channel" : "Open review channel"}
-                onClick={() => setChannelOpen((v) => !v)}
-                primary={channelOpen}
+          )}
+          <div className="relative">
+            <IconButton
+              label={channelOpen ? "Close review channel" : "Open review channel"}
+              onClick={() => setChannelOpen((v) => !v)}
+              primary={channelOpen}
+            >
+              {channelOpen ? "×" : <ReviewChannelChatIcon />}
+            </IconButton>
+            {!channelOpen && commentCount > 0 && (
+              <span
+                className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
+                style={{
+                  background: COLORS.accent,
+                  color: "#fff",
+                  borderRadius: RADIUS.pill,
+                  border: `2px solid ${COLORS.subtle}`,
+                }}
               >
-                {channelOpen ? "×" : <ReviewChannelChatIcon />}
-              </IconButton>
-              {!channelOpen && commentCount > 0 && (
-                <span
-                  className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill, border: `2px solid ${COLORS.surface}` }}
-                >
-                  {commentCount > 9 ? "9+" : commentCount}
-                </span>
-              )}
-            </div>
-            <p style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>{relativeTime(review.submittedAt)}</p>
+                {commentCount > 9 ? "9+" : commentCount}
+              </span>
+            )}
           </div>
+          <ReviewHeaderMoreMenu
+            onFullscreen={() => setMockFullscreen(true)}
+            onDownload={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
+            onCost={() => setCostOpen(true)}
+            showCost={showCost}
+            costUsd={usageTotals.costUsd}
+            fullscreenDisabled={!previewHtml}
+            downloadDisabled={!previewHtml}
+          />
         </div>
       </header>
 
       {pendingReview && (
         <div
-          className="flex-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 py-3 border-b"
-          style={{ background: "rgba(249,177,21,0.08)", borderColor: "rgba(249,177,21,0.2)" }}
+          className="flex-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 py-2.5 border-b"
+          style={{ background: "rgba(217,119,6,0.06)", borderColor: COLORS.border }}
         >
-          <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.text }}>
-            This mockup is awaiting engineering review. Retract it if you want more time to refine before they review.
+          <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.muted }}>
+            Awaiting GCC review. Open the workspace to refine, or retract if you need more time.
           </p>
-          <div className="flex gap-2 shrink-0">
-            <Link
-              href={`/workspace/${encodeURIComponent(review.ticketId)}`}
-              className="px-4 py-2 text-sm font-semibold text-center"
-              style={{ background: COLORS.surface, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
-            >
-              Open workspace
-            </Link>
-            <button
-              type="button"
-              disabled={retractingReview}
-              onClick={() => setRetractModalOpen(true)}
-              className="px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ background: COLORS.text, color: "#fff", borderRadius: RADIUS.pill }}
-            >
-              Retract from review
-            </button>
-          </div>
+          <Link
+            href={`/workspace/${encodeURIComponent(review.ticketId)}`}
+            className="px-3.5 py-1.5 text-sm font-medium text-center shrink-0"
+            style={{
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.pill,
+              border: `1px solid ${COLORS.border}`,
+              ...F.body,
+            }}
+          >
+            Open workspace
+          </Link>
         </div>
       )}
 
       {needsChanges && (
         <div
-          className="flex-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 py-3 border-b"
-          style={{ background: "rgba(255,149,0,0.08)", borderColor: "rgba(255,149,0,0.2)" }}
+          className="flex-none flex flex-col sm:flex-row items-stretch sm:items-center gap-3 px-4 py-2.5 border-b"
+          style={{ background: "rgba(217,119,6,0.06)", borderColor: COLORS.border }}
         >
-          <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.text }}>
-            Engineering requested changes. Refine in the workspace, then resubmit to continue the thread.
+          <p className="flex-1 text-sm" style={{ ...F.body, color: COLORS.muted }}>
+            GCC requested changes. Refine in the workspace, then resubmit.
           </p>
-          <div className="flex gap-2 shrink-0">
-            <Link
-              href={`/workspace/${encodeURIComponent(review.ticketId)}`}
-              className="px-4 py-2 text-sm font-semibold text-center"
-              style={{ background: COLORS.surface, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
-            >
-              Open workspace
-            </Link>
-            <button
-              type="button"
-              disabled={!canResubmit || busy}
-              onClick={handleResubmit}
-              className="px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
-            >
-              {busy ? "Sending…" : "Resubmit mockup"}
-            </button>
-          </div>
+          <Link
+            href={`/workspace/${encodeURIComponent(review.ticketId)}`}
+            className="px-3.5 py-1.5 text-sm font-medium text-center shrink-0"
+            style={{
+              background: COLORS.surface,
+              color: COLORS.text,
+              borderRadius: RADIUS.pill,
+              border: `1px solid ${COLORS.border}`,
+              ...F.body,
+            }}
+          >
+            Open workspace
+          </Link>
         </div>
       )}
 
@@ -209,6 +211,7 @@ export function PmReviewDetailView({ review, session, onRefresh, threadKey, comm
         title="Mockup"
         annotationTargetId={review.id}
         onAnnotationsChange={onRefresh}
+        className="flex-1 min-h-0"
       />
 
       {!mockFullscreen && (

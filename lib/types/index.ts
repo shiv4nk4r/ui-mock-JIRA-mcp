@@ -1,5 +1,10 @@
 export type UserRole = "external" | "internal";
 
+/** Display names for roles in the UI. */
+export function roleTeamLabel(role: UserRole): string {
+  return role === "internal" ? "GCC" : "Product";
+}
+
 export interface User {
   id: string;
   email: string;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
@@ -11,10 +10,10 @@ import { finalizeReview } from "@lib/utils/review-workflow";
 import { relativeTime } from "@lib/utils/review-ui";
 import { buildRevisions } from "@lib/utils/session-history";
 import { sumUsageRecords } from "@lib/utils/usage-cost";
-import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
+import { MockCostBreakdownModal } from "@/components/workspace/MockCostBreakdownModal";
 import { downloadHtmlFile } from "@lib/utils/files";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
-import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
+import { ImplementationPlanModal } from "@/components/reviews/ImplementationPlanModal";
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewDecisionFab } from "@/components/reviews/ReviewDecisionFab";
 import { BuildPrFab, BuildPrIcon } from "@/components/reviews/BuildPrFab";
@@ -25,8 +24,8 @@ import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicati
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
 import { ReviewMockPreview } from "@/components/reviews/ReviewMockPreview";
 import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
+import { ReviewHeaderMoreMenu } from "@/components/reviews/ReviewHeaderMoreMenu";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
-import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { IconButton } from "@/components/shared/Toast";
 import { useFeatureFlags } from "@lib/hooks/use-feature-flags";
 import { useBuildPr } from "@lib/hooks/use-build-pr";
@@ -178,165 +177,116 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: COLORS.subtle }}>
       <header
-        className="relative z-50 flex-none px-4 py-3 border-b"
-        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
+        className="relative z-50 flex-none flex items-center gap-3 px-4 py-2 shrink-0"
+        style={{ background: COLORS.subtle, borderBottom: `1px solid ${COLORS.border}` }}
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link href="/reviews" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>← Channels</Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
-                {review.ticketSummary}
-              </p>
-              <ReviewStatusChip status={review.status} />
-              {review.build?.prUrl && (
-                <a
-                  href={review.build.prUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold"
-                  style={{
-                    background: "rgba(52,199,89,0.12)",
-                    color: "#248A3D",
-                    borderRadius: RADIUS.pill,
-                    border: "1px solid rgba(52,199,89,0.25)",
-                    ...F.body,
-                  }}
-                >
-                  PR{review.build.prNumber ? ` #${review.build.prNumber}` : ""} ↗
-                </a>
-              )}
-              {review.build?.status === "running" && (
-                <span
-                  className="inline-flex items-center px-2 py-0.5 text-xs font-semibold"
-                  style={{
-                    background: COLORS.accentSoft,
-                    color: COLORS.accent,
-                    borderRadius: RADIUS.pill,
-                    ...F.body,
-                  }}
-                >
-                  Building…
-                </span>
-              )}
-              {review.build?.status === "failed" && !review.build.prUrl && (
-                <span
-                  className="inline-flex items-center px-2 py-0.5 text-xs font-semibold"
-                  style={{
-                    background: "rgba(255,59,48,0.1)",
-                    color: "#FF3B30",
-                    borderRadius: RADIUS.pill,
-                    ...F.body,
-                  }}
-                  title={review.build.error}
-                >
-                  Build failed
-                </span>
-              )}
-            </div>
-            <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
+        <div className="flex-1 min-w-0">
+          <div className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
+            {review.ticketSummary}
           </div>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            {buildPrEnabled && isBuildableReviewStatus(review.status) && (
-              <button
-                type="button"
-                disabled={buildBusy || review.build?.status === "running"}
-                onClick={() => runBuild()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+          <div className="flex items-center gap-2 mt-0.5 min-w-0 flex-wrap">
+            <span style={{ ...F.mono, fontSize: 12, color: COLORS.muted }}>{review.ticketId}</span>
+            <ReviewStatusChip status={review.status} compact />
+            {review.build?.prUrl && (
+              <a
+                href={review.build.prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+                style={{ ...F.body, fontSize: 12, fontWeight: 520, color: "#248A3D" }}
+              >
+                PR{review.build.prNumber ? ` #${review.build.prNumber}` : ""} ↗
+              </a>
+            )}
+            {review.build?.status === "running" && (
+              <span style={{ ...F.body, fontSize: 12, color: COLORS.accent }}>Building…</span>
+            )}
+            {review.build?.status === "failed" && !review.build.prUrl && (
+              <span style={{ ...F.body, fontSize: 12, color: "#FF3B30" }} title={review.build.error}>
+                Build failed
+              </span>
+            )}
+            <span style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
+              {review.userName} · {relativeTime(review.submittedAt)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {buildPrEnabled && isBuildableReviewStatus(review.status) && (
+            <button
+              type="button"
+              disabled={buildBusy || review.build?.status === "running"}
+              onClick={() => runBuild()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+              style={{
+                ...F.body,
+                background: COLORS.accent,
+                color: "#fff",
+                borderRadius: RADIUS.pill,
+              }}
+              title="Run Claude Code build and open a GitHub PR"
+            >
+              <BuildPrIcon size={16} />
+              {buildBusy || review.build?.status === "running"
+                ? "Building…"
+                : review.build?.prUrl
+                  ? "Rebuild"
+                  : "Build"}
+            </button>
+          )}
+          <div className="relative">
+            <IconButton
+              label={channelOpen ? "Close review channel" : "Open review channel"}
+              onClick={() => setChannelOpen((v) => !v)}
+              primary={channelOpen}
+            >
+              {channelOpen ? "×" : <ReviewChannelChatIcon />}
+            </IconButton>
+            {!channelOpen && commentCount > 0 && (
+              <span
+                className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
                 style={{
-                  ...F.body,
                   background: COLORS.accent,
                   color: "#fff",
                   borderRadius: RADIUS.pill,
-                  border: "none",
+                  border: `2px solid ${COLORS.subtle}`,
                 }}
-                title="Run Claude Code build and open a GitHub PR"
               >
-                <BuildPrIcon size={16} />
-                {buildBusy || review.build?.status === "running"
-                  ? "Building…"
-                  : review.build?.prUrl
-                    ? "Rebuild PR"
-                    : "Build PR"}
-              </button>
+                {commentCount > 9 ? "9+" : commentCount}
+              </span>
             )}
-            {showCost && (
-              <MockCostBadge costUsd={usageTotals.costUsd} onClick={() => setCostOpen(true)} />
-            )}
-            <IconButton
-              label="Download mockup as HTML"
-              onClick={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
-              disabled={!previewHtml}
-            >
-              <DownloadIcon />
-            </IconButton>
-            <IconButton
-              label="Full screen"
-              onClick={() => setMockFullscreen(true)}
-              disabled={!previewHtml}
-            >
-              ⛶
-            </IconButton>
-            <IconButton
-              label={planOpen ? "Close implementation plan" : "Open implementation plan"}
-              onClick={() => setPlanOpen((v) => !v)}
-              primary={planOpen}
-            >
-              {planOpen ? "×" : <ImplementationPlanIcon />}
-            </IconButton>
-            <div className="relative">
-              <IconButton
-                label={channelOpen ? "Close review channel" : "Open review channel"}
-                onClick={() => setChannelOpen((v) => !v)}
-                primary={channelOpen}
-              >
-                {channelOpen ? "×" : <ReviewChannelChatIcon />}
-              </IconButton>
-              {!channelOpen && commentCount > 0 && (
-                <span
-                  className="pointer-events-none absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill, border: `2px solid ${COLORS.surface}` }}
-                >
-                  {commentCount > 9 ? "9+" : commentCount}
-                </span>
-              )}
-            </div>
-            <span
-              className="w-7 h-7 flex items-center justify-center text-xs font-semibold"
-              style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
-            >
-              {review.userName.charAt(0)}
-            </span>
-            <span style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>{relativeTime(review.submittedAt)}</span>
           </div>
+          <ReviewHeaderMoreMenu
+            onFullscreen={() => setMockFullscreen(true)}
+            onDownload={() => downloadHtmlFile(previewHtml, `${review.ticketId}.html`)}
+            onCost={() => setCostOpen(true)}
+            onPlan={() => setPlanOpen(true)}
+            showCost={showCost}
+            costUsd={usageTotals.costUsd}
+            showPlan
+            fullscreenDisabled={!previewHtml}
+            downloadDisabled={!previewHtml}
+          />
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <div className="lg:hidden">
-            <ReviewHandoffPanel
-              variant="strip"
-              details={executionDetails}
-              effortMarkdown={latestEffortMarkdown(session)}
-              onOpenFullPlan={() => setPlanOpen(true)}
-            />
-          </div>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <div className="relative z-20 flex-none">
+          <ReviewHandoffPanel
+            details={executionDetails}
+            onOpenFullPlan={() => setPlanOpen(true)}
+          />
+        </div>
+        <div className="relative z-0 flex-1 min-h-0 overflow-hidden">
           <ReviewMockPreview
             html={previewHtml}
             title="Review mockup"
             annotationTargetId={review.id}
             onAnnotationsChange={load}
-            className="flex-1 min-h-0"
-          />
-        </div>
-        <div className="hidden lg:flex">
-          <ReviewHandoffPanel
-            details={executionDetails}
-            effortMarkdown={latestEffortMarkdown(session)}
-            onOpenFullPlan={() => setPlanOpen(true)}
+            className="h-full min-h-0"
           />
         </div>
       </div>

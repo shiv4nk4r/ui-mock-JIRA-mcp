@@ -44,7 +44,7 @@ export function PmReviewFeedbackBanner({
       }}
     >
       <p style={{ ...F.body, fontSize: 14, fontWeight: 600, color: approved ? "#248A3D" : "#FF3B30" }}>
-        {approved ? "✓ Engineering approved this mockup" : "Engineering requested changes"}
+        {approved ? "✓ GCC approved this mockup" : "GCC requested changes"}
       </p>
       {latestComment && (
         <p style={{ ...F.body, fontSize: 14, color: COLORS.text, lineHeight: 1.5 }}>

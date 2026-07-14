@@ -358,22 +358,6 @@ export function TicketHistorySidebar({
           >
             ⌕
           </Link>
-          {user?.role === "internal" && (
-            <Link
-              href="/mockups"
-              aria-label="Gallery"
-              title="Gallery"
-              className="w-10 h-10 flex items-center justify-center hover:bg-black/5 transition-colors"
-              style={{
-                borderRadius: RADIUS.pill,
-                background: pathname.startsWith("/mockups") ? "rgba(0,0,0,0.06)" : "transparent",
-                color: COLORS.text,
-                fontSize: 16,
-              }}
-            >
-              ▦
-            </Link>
-          )}
           <Link
             href="/reviews"
             aria-label="Reviews"
@@ -512,21 +496,6 @@ export function TicketHistorySidebar({
                 <span aria-hidden style={{ fontSize: 14, opacity: 0.7 }}>⌕</span>
                 Search mocks
               </Link>
-              {user?.role === "internal" && (
-                <Link
-                  href="/mockups"
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-black/[0.05]"
-                  style={{
-                    ...F.body,
-                    color: COLORS.text,
-                    borderRadius: RADIUS.pill,
-                    fontWeight: pathname.startsWith("/mockups") ? 600 : 400,
-                  }}
-                >
-                  <span aria-hidden style={{ fontSize: 14, opacity: 0.7 }}>▦</span>
-                  Gallery
-                </Link>
-              )}
               <Link
                 href="/reviews"
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-black/[0.05]"
@@ -629,7 +598,7 @@ export function TicketHistorySidebar({
                   {user.name}
                 </span>
                 <span className="block truncate" style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
-                  {user.role === "internal" ? "Internal" : "External"}
+                  {user.role === "internal" ? "GCC" : "Product"}
                 </span>
               </span>
               <span style={{ ...F.body, fontSize: 16, color: COLORS.muted }}>⚙</span>

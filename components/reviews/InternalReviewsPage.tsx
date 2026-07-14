@@ -6,10 +6,8 @@ import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
 import type { TicketReviewChannel } from "@lib/utils/review-channels";
 import { loadReviewChannels } from "@lib/utils/review-channels";
-import { F, COLORS } from "@lib/design/tokens";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
-import { TabBar } from "@/components/reviews/PmReviewsPage";
-import { InternalReviewsTable } from "@/components/reviews/InternalReviewsTable";
+import { ReviewsListShell, ReviewsTabBar } from "@/components/reviews/ReviewsListShell";
 import { useFeatureFlags } from "@lib/hooks/use-feature-flags";
 
 type QueueTab = "pending" | "changes" | "done";
@@ -41,46 +39,41 @@ export function InternalReviewsPage() {
   const visible = tab === "pending" ? pending : tab === "changes" ? changes : done;
 
   const tabs: { id: QueueTab; label: string; count: number }[] = [
-    { id: "pending", label: "Needs your review", count: pending.length },
-    { id: "changes", label: "Waiting on PM", count: changes.length },
+    { id: "pending", label: "Needs review", count: pending.length },
+    { id: "changes", label: "Waiting on Product", count: changes.length },
     { id: "done", label: "Completed", count: done.length },
   ];
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
-      <div className="space-y-1">
-        <h1 style={{ ...F.body, fontSize: 28, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
-          Review channels
-        </h1>
-        <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
-          Queue and completed reviews — open a ticket to approve or run Build
-        </p>
-      </div>
-
-      <FeatureRequestsPanel compact manageable />
-
-      <TabBar tabs={tabs} active={tab} onChange={setTab} highlightTab="pending" />
-
-      <InternalReviewsTable
-        channels={visible}
-        showBuildColumn={buildPrEnabled && tab === "done"}
-        emptyTitle={
-          tab === "pending"
-            ? "All caught up"
-            : tab === "changes"
-              ? "No tickets waiting on PM"
-              : "No completed reviews yet"
-        }
-        emptyBody={
-          tab === "pending"
-            ? "New mockups appear here when PMs submit or resubmit"
-            : tab === "changes"
-              ? "Tickets needing PM updates show here"
-              : "Approved reviews appear here with Build / PR status"
-        }
-      />
-      </div>
-    </div>
+    <ReviewsListShell
+      title="Reviews"
+      subtitle="Queue and completed mockups — open a ticket to approve or build"
+      enableSearch
+      showPm
+      showBuild={buildPrEnabled && tab === "done"}
+      channels={visible}
+      emptyTitle={
+        tab === "pending"
+          ? "All caught up"
+          : tab === "changes"
+            ? "Nothing waiting on Product"
+            : "No completed reviews yet"
+      }
+      emptyBody={
+        tab === "pending"
+          ? "New mockups appear here when Product submits or resubmits"
+          : tab === "changes"
+            ? "Tickets needing Product updates show here"
+            : "Approved reviews appear here with Build / PR status"
+      }
+      headerExtra={
+        <div className="opacity-80">
+          <FeatureRequestsPanel compact manageable />
+        </div>
+      }
+      tabs={
+        <ReviewsTabBar tabs={tabs} active={tab} onChange={setTab} highlightTab="pending" />
+      }
+    />
   );
 }

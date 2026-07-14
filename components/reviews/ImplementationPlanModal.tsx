@@ -16,7 +16,7 @@ interface Props {
 
 export function ImplementationPlanIcon({ size = 18 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
@@ -36,10 +36,11 @@ export function ImplementationPlanModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0"
+        style={{ background: "rgba(29, 29, 31, 0.28)", backdropFilter: "blur(6px)" }}
         onClick={onClose}
         aria-label="Close implementation plan"
       />
@@ -47,32 +48,84 @@ export function ImplementationPlanModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="implementation-plan-title"
-        className="relative w-full max-w-3xl max-h-[min(90dvh,820px)] flex flex-col shadow-xl overflow-hidden"
-        style={{ background: COLORS.surface, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}` }}
+        className="relative w-full max-w-4xl max-h-[min(90dvh,860px)] flex flex-col overflow-hidden"
+        style={{
+          background: COLORS.surface,
+          borderRadius: RADIUS.lg,
+          border: `1px solid ${COLORS.border}`,
+          boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.04)",
+        }}
       >
         <div
-          className="flex-none flex items-start justify-between gap-3 px-5 py-4 border-b"
-          style={{ borderColor: COLORS.border }}
+          className="pointer-events-none absolute inset-x-0 top-0 h-28"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,6,0.1) 0%, transparent 70%)",
+          }}
+        />
+
+        <div
+          className="relative flex-none flex items-start justify-between gap-4 px-6 pt-6 pb-4"
+          style={{ borderBottom: `1px solid ${COLORS.border}` }}
         >
-          <div>
-            <h2 id="implementation-plan-title" style={{ ...F.body, fontSize: 18, fontWeight: 600, color: COLORS.text }}>
+          <div className="min-w-0 space-y-2">
+            <p
+              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold"
+              style={{
+                background: COLORS.accentSoft,
+                color: COLORS.accent,
+                borderRadius: RADIUS.pill,
+                ...F.body,
+              }}
+            >
+              Plan
+            </p>
+            <h2
+              id="implementation-plan-title"
+              style={{
+                ...F.body,
+                fontSize: 22,
+                fontWeight: 560,
+                color: COLORS.text,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.2,
+              }}
+            >
               Implementation plan
             </h2>
-            <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, marginTop: 2 }}>
-              Execution breakdown and standalone agent prompt
+            <p
+              className="break-words"
+              style={{
+                ...F.body,
+                fontSize: 14,
+                color: COLORS.muted,
+                lineHeight: 1.45,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {review.ticketId}
+              <span className="mx-1.5" style={{ opacity: 0.45 }}>·</span>
+              {review.ticketSummary}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 shrink-0"
+            className="w-9 h-9 flex items-center justify-center shrink-0 hover:bg-black/5 transition-colors"
             aria-label="Close"
-            style={{ ...F.body, fontSize: 20, color: COLORS.muted, lineHeight: 1 }}
+            style={{
+              borderRadius: RADIUS.pill,
+              ...F.body,
+              fontSize: 20,
+              color: COLORS.muted,
+              lineHeight: 1,
+            }}
           >
             ×
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto min-h-0">
+
+        <div className="relative flex-1 overflow-y-auto min-h-0">
           <ExecutionDetailsPanel
             review={review}
             session={session}

@@ -384,7 +384,7 @@ function RoleBadge({ role }: { role?: UserRole }) {
   if (!role) return null;
   return (
     <span style={{ ...F.body, fontSize: 10, color: COLORS.muted, marginLeft: 6 }}>
-      · {role === "internal" ? "Engineering" : "Product"}
+      · {role === "internal" ? "GCC" : "Product"}
     </span>
   );
 }

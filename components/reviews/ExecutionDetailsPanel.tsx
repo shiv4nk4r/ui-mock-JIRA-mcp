@@ -6,13 +6,7 @@ import { buildAgentPrompt } from "@lib/utils/execution-details";
 import type { MockupSession, ReviewItem } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { EffortMarkdown } from "@/components/chat/ChatMarkdown";
-
-const SOURCE_LABELS: Record<ExecutionDetails["changes"][0]["source"], string> = {
-  effort: "Engineering estimate",
-  revision: "PM revision",
-  ticket: "Ticket scope",
-  change_log: "Implementation plan",
-};
+import { ChangesByFileTable } from "@/components/reviews/ChangesByFileTable";
 
 interface Props {
   review: ReviewItem;
@@ -61,12 +55,22 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
       await navigator.clipboard.writeText(prompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
+
+  const chips = (
+    <div className="flex flex-wrap gap-1.5">
+      {details.tshirtSize && <Chip label="Size" value={details.tshirtSize} />}
+      {details.storyPoints && <Chip label="Points" value={details.storyPoints} />}
+      {details.riskFactor && <Chip label="Risk" value={details.riskFactor.split("—")[0].trim()} />}
+    </div>
+  );
 
   return (
     <section
-      className="space-y-5 p-5 sm:p-6"
+      className={embedded ? "space-y-6 px-6 py-5" : "space-y-5 p-5 sm:p-6"}
       style={
         embedded
           ? undefined
@@ -77,148 +81,136 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
             }
       }
     >
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 style={{ ...F.body, fontSize: 20, fontWeight: 600, color: COLORS.text }}>
-            Execution details
-          </h2>
-          <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, marginTop: 4 }}>
-            What to change, where it applies, and a ready-to-paste agent prompt
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {details.tshirtSize && (
-            <Chip label="Size" value={details.tshirtSize} />
-          )}
-          {details.storyPoints && (
-            <Chip label="Points" value={details.storyPoints} />
-          )}
-          {details.riskFactor && (
-            <Chip label="Risk" value={details.riskFactor.split("—")[0].trim()} />
-          )}
-        </div>
-      </div>
-
-      {details.changes.length === 0 ? (
-        <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
-          No structured breakdown yet — open the workspace to generate effort estimation, or use the prompt below from ticket scope.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {details.changes.map((change, idx) => (
-            <div
-              key={change.id}
-              className="flex gap-4 p-4"
-              style={{ background: COLORS.subtle, borderRadius: RADIUS.md, borderLeft: `3px solid ${COLORS.accent}` }}
-            >
-              <span
-                className="shrink-0 w-7 h-7 flex items-center justify-center text-xs font-bold"
-                style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
-              >
-                {idx + 1}
-              </span>
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span style={{ ...F.mono, fontSize: 13, fontWeight: 600, color: COLORS.accent }}>
-                    {change.location}
-                  </span>
-                  {change.effort && (
-                    <span style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>{change.effort}</span>
-                  )}
-                  <span
-                    className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                    style={{ background: COLORS.surface, color: COLORS.muted, borderRadius: RADIUS.pill }}
-                  >
-                    {SOURCE_LABELS[change.source]}
-                  </span>
-                </div>
-                <p style={{ ...F.body, fontSize: 14, color: COLORS.text, lineHeight: 1.55 }}>
-                  {change.description}
-                </p>
-                {change.acceptance && (
-                  <p style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginTop: 4 }}>
-                    ✓ {change.acceptance}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+      {!embedded && (
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 style={{ ...F.body, fontSize: 20, fontWeight: 560, color: COLORS.text, letterSpacing: "-0.02em" }}>
+              Execution details
+            </h2>
+            <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, marginTop: 4 }}>
+              What to change, where it applies, and a ready-to-paste agent prompt
+            </p>
+          </div>
+          {chips}
         </div>
       )}
 
+      {embedded && chips}
+
+      <div className="space-y-2">
+        <p style={{ ...F.body, fontSize: 12, fontWeight: 520, color: COLORS.muted }}>
+          Changes by file
+        </p>
+        <ChangesByFileTable details={details} />
+      </div>
+
       {details.changeLogMarkdown && (
-        <details className="group">
+        <details>
           <summary
-            className="cursor-pointer text-sm font-medium"
-            style={{ ...F.body, color: COLORS.muted }}
+            className="cursor-pointer text-sm"
+            style={{ ...F.body, color: COLORS.muted, fontWeight: 450 }}
           >
             Full implementation change log
           </summary>
-          <div className="mt-3 p-4 overflow-x-auto" style={{ background: COLORS.subtle, borderRadius: RADIUS.md }}>
+          <div className="mt-2 p-3.5 overflow-x-auto" style={{ background: COLORS.subtle, borderRadius: RADIUS.md }}>
             <EffortMarkdown text={details.changeLogMarkdown} />
           </div>
         </details>
       )}
 
       {effortMarkdown && (
-        <details className="group">
+        <details>
           <summary
-            className="cursor-pointer text-sm font-medium"
-            style={{ ...F.body, color: COLORS.muted }}
+            className="cursor-pointer text-sm"
+            style={{ ...F.body, color: COLORS.muted, fontWeight: 450 }}
           >
             Full effort estimation
           </summary>
-          <div className="mt-3 p-4" style={{ background: COLORS.subtle, borderRadius: RADIUS.md }}>
+          <div className="mt-2 p-3.5" style={{ background: COLORS.subtle, borderRadius: RADIUS.md }}>
             <EffortMarkdown text={effortMarkdown} />
           </div>
         </details>
       )}
 
-      <div className="space-y-3 pt-2 border-t" style={{ borderColor: COLORS.border }}>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h3 style={{ ...F.body, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
-            Standalone agent prompt
-          </h3>
-          <div className="flex gap-2">
+      <details
+        className="group pt-5"
+        style={{ borderTop: `1px solid ${COLORS.border}` }}
+      >
+        <summary
+          className="cursor-pointer list-none flex items-center justify-between gap-3 flex-wrap py-1 [&::-webkit-details-marker]:hidden"
+          style={{ ...F.body }}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="shrink-0 transition-transform group-open:rotate-90"
+              style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1 }}
+              aria-hidden
+            >
+              ▸
+            </span>
+            <div>
+              <p style={{ ...F.body, fontSize: 15, fontWeight: 560, color: COLORS.text }}>
+                Agent prompt
+              </p>
+              <p style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>
+                Expand to view or edit · paste into Cursor or Claude Code
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              copyPrompt();
+            }}
+            className="px-3.5 py-2 text-sm font-semibold shrink-0"
+            style={{
+              ...F.body,
+              background: COLORS.accent,
+              color: "#fff",
+              borderRadius: RADIUS.pill,
+              boxShadow: "0 4px 14px rgba(217,119,6,0.28)",
+            }}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </summary>
+
+        <div className="space-y-3 mt-4">
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={generatePrompt}
               disabled={generating}
-              className="px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ background: COLORS.subtle, color: COLORS.text, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
+              className="px-3.5 py-2 text-sm font-medium disabled:opacity-50 transition-colors hover:bg-black/[0.04]"
+              style={{
+                ...F.body,
+                background: COLORS.subtle,
+                color: COLORS.text,
+                borderRadius: RADIUS.pill,
+                border: `1px solid ${COLORS.border}`,
+              }}
             >
-              {generating ? "Generating…" : "Regenerate prompt"}
-            </button>
-            <button
-              type="button"
-              onClick={copyPrompt}
-              className="px-4 py-2 text-sm font-semibold"
-              style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
-            >
-              {copied ? "Copied!" : "Copy prompt"}
+              {generating ? "Generating…" : "Regenerate"}
             </button>
           </div>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={14}
+            className="w-full px-4 py-3 text-sm outline-none resize-y font-mono"
+            style={{
+              background: COLORS.subtle,
+              color: COLORS.text,
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.border}`,
+              lineHeight: 1.55,
+            }}
+            spellCheck={false}
+          />
         </div>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={16}
-          className="w-full px-4 py-3 text-sm outline-none resize-y font-mono"
-          style={{
-            background: COLORS.subtle,
-            color: COLORS.text,
-            borderRadius: RADIUS.md,
-            border: `1px solid ${COLORS.border}`,
-            lineHeight: 1.55,
-          }}
-          spellCheck={false}
-        />
-        <p style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
-          {details.generatedAgentPrompt
-            ? "Generated during mockup creation — paste into Cursor or Claude Code in the manager-dashboard repo."
-            : "Paste into Cursor, Claude Code, or your coding agent. Edit before sending if needed."}
-        </p>
-      </div>
+      </details>
     </section>
   );
 }
@@ -226,11 +218,15 @@ export function ExecutionDetailsPanel({ review, session, details, effortMarkdown
 function Chip({ label, value }: { label: string; value: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-      style={{ background: COLORS.subtle, borderRadius: RADIUS.pill, border: `1px solid ${COLORS.border}` }}
+      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs"
+      style={{
+        background: COLORS.subtle,
+        borderRadius: RADIUS.pill,
+        border: `1px solid ${COLORS.border}`,
+      }}
     >
-      <span style={{ ...F.body, color: COLORS.muted }}>{label}</span>
-      <span style={{ ...F.body, fontWeight: 600, color: COLORS.text }}>{value}</span>
+      <span style={{ ...F.body, color: COLORS.muted, fontSize: 11 }}>{label}</span>
+      <span style={{ ...F.body, fontWeight: 560, color: COLORS.text, fontSize: 12 }}>{value}</span>
     </span>
   );
 }

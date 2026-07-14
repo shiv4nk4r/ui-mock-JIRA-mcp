@@ -32,10 +32,11 @@ export function SendForReviewModal({
     revisions.find((r) => r.id === selectedRevisionId) ?? revisions[revisions.length - 1];
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0"
+        style={{ background: "rgba(29, 29, 31, 0.28)", backdropFilter: "blur(6px)" }}
         onClick={busy ? undefined : onCancel}
         aria-label="Close"
       />
@@ -43,37 +44,70 @@ export function SendForReviewModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="send-for-review-title"
-        className="relative w-full max-w-md p-6 space-y-5 shadow-xl"
-        style={{ background: COLORS.surface, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}` }}
+        className="relative w-full max-w-[420px] overflow-hidden"
+        style={{
+          background: COLORS.surface,
+          borderRadius: RADIUS.lg,
+          border: `1px solid ${COLORS.border}`,
+          boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.04)",
+        }}
       >
-        <div className="space-y-2">
-          <h2 id="send-for-review-title" style={{ ...F.body, fontSize: 20, fontWeight: 600, color: COLORS.text }}>
-            {resubmit ? "Resubmit for review?" : "Send for review?"}
-          </h2>
-          <p style={{ ...F.body, fontSize: 15, color: COLORS.text, lineHeight: 1.55 }}>
-            {resubmit
-              ? "You're sending the updated mockup back to the engineering team."
-              : "You're sending this mockup to the engineering team for review."}
-          </p>
-        </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-28"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,6,0.1) 0%, transparent 70%)",
+          }}
+        />
 
-        {revisions.length > 0 && selected && (
+        <div className="relative px-6 pt-7 pb-6 space-y-6">
           <div className="space-y-2">
-            <p style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Version to send
-            </p>
-            <div
-              className="p-3 space-y-3"
-              style={{ background: COLORS.subtle, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}
+            <p
+              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold"
+              style={{
+                background: COLORS.accentSoft,
+                color: COLORS.accent,
+                borderRadius: RADIUS.pill,
+                ...F.body,
+              }}
             >
-              <div>
-                <p style={{ ...F.body, fontSize: 14, fontWeight: 600, color: COLORS.text }}>
-                  v{selected.index + 1} · {selected.label}
-                </p>
-                <p style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>
-                  Created {formatVersionTime(selected.timestamp)}
-                </p>
-              </div>
+              {resubmit ? "Resubmit" : "Review"}
+            </p>
+            <h2
+              id="send-for-review-title"
+              style={{
+                ...F.body,
+                fontSize: 24,
+                fontWeight: 560,
+                color: COLORS.text,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.2,
+              }}
+            >
+              {resubmit ? "Resubmit for review?" : "Send for review?"}
+            </h2>
+            <p style={{ ...F.body, fontSize: 15, color: COLORS.muted, lineHeight: 1.55 }}>
+              {resubmit
+                ? "Send the updated mockup back to GCC."
+                : "Share this mockup with GCC for feedback."}
+            </p>
+          </div>
+
+          {revisions.length > 0 && selected && (
+            <div
+              className="flex items-center gap-2.5 px-3.5 py-2.5"
+              style={{
+                background: COLORS.subtle,
+                borderRadius: RADIUS.md,
+              }}
+            >
+              <p className="flex-1 min-w-0 truncate" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
+                <span style={{ color: COLORS.text }}>v{selected.index + 1}</span>
+                <span className="mx-1.5" style={{ opacity: 0.45 }}>·</span>
+                <span className="truncate">{selected.label}</span>
+                <span className="mx-1.5" style={{ opacity: 0.45 }}>·</span>
+                <span>{formatVersionTime(selected.timestamp)}</span>
+              </p>
               {revisions.length > 1 && (
                 <MockVersionPicker
                   revisions={revisions}
@@ -85,41 +119,59 @@ export function SendForReviewModal({
                 />
               )}
             </div>
+          )}
+
+          <ul className="space-y-3 px-0.5">
+            {[
+              "GCC reviews it in a shared channel",
+              "They can approve or request changes with feedback",
+              "Approved mocks become the draft for implementation",
+            ].map((item) => (
+              <li key={item} className="flex gap-3 items-start">
+                <span
+                  className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full"
+                  style={{ background: COLORS.accent }}
+                  aria-hidden
+                />
+                <span style={{ ...F.body, fontSize: 14, color: COLORS.muted, lineHeight: 1.5 }}>
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={busy}
+              className="flex-1 py-3 text-sm font-medium disabled:opacity-50 transition-colors hover:bg-black/[0.04]"
+              style={{
+                ...F.body,
+                color: COLORS.text,
+                background: COLORS.subtle,
+                borderRadius: RADIUS.pill,
+                border: `1px solid ${COLORS.border}`,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={busy || !selected?.html}
+              className="flex-1 py-3 text-sm font-semibold disabled:opacity-50 transition-opacity"
+              style={{
+                ...F.body,
+                background: COLORS.accent,
+                color: "#fff",
+                borderRadius: RADIUS.pill,
+                boxShadow: "0 4px 14px rgba(217,119,6,0.28)",
+              }}
+            >
+              {busy ? "Sending…" : resubmit ? "Resubmit" : "Send for review"}
+            </button>
           </div>
-        )}
-
-        <ul className="space-y-3">
-          {[
-            "The team will review your mockup in a shared review channel.",
-            "They can approve it or request changes with feedback in the thread.",
-            "If they approve it, this mockup becomes the final draft for implementation.",
-          ].map((item) => (
-            <li key={item} className="flex gap-3">
-              <span className="shrink-0 mt-0.5" style={{ color: COLORS.accent }}>✦</span>
-              <span style={{ ...F.body, fontSize: 14, color: COLORS.muted, lineHeight: 1.55 }}>{item}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-            className="flex-1 py-2.5 text-sm font-medium disabled:opacity-50"
-            style={{ color: COLORS.muted, ...F.body }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy || !selected?.html}
-            className="flex-1 py-2.5 text-sm font-semibold disabled:opacity-60"
-            style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
-          >
-            {busy ? "Sending…" : resubmit ? "Resubmit" : "Send for review"}
-          </button>
         </div>
       </div>
     </div>
