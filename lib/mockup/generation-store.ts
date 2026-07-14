@@ -460,8 +460,11 @@ class MockupGenerationStore {
               const agentPrompt =
                 (typeof ev.agentPrompt === "string" ? ev.agentPrompt : undefined) ??
                 parsed.agentPrompt;
+              const replyText =
+                parsed.text?.trim() ||
+                (finalHtml ? "Updated the mockup based on your request." : "Done.");
               this.updateLastMessage(key, {
-                text: parsed.text,
+                text: replyText,
                 htmlComponent: finalHtml,
                 isStreaming: false,
                 ...(effortEstimation ? { effortEstimation } : {}),

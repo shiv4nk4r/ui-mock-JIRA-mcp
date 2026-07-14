@@ -919,7 +919,8 @@ function buildHandoffOutputFormat(mode: "initial" | "refinement"): string {
   const preface =
     mode === "refinement"
       ? [
-          "OUTPUT FORMAT — REQUIRED AFTER THE HTML:",
+          "OUTPUT FORMAT — REQUIRED:",
+          "0) Brief chat reply (1–3 sentences, BEFORE the HTML): tell the user what you changed. This is shown in the chat UI — do not skip it.",
           "1) Updated HTML mockup wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.",
           "2) Then REVAMP the internal engineering handoff for this UPDATED mock — do not omit these sections.",
           "Rewrite effort, change log, and agent prompt to match the current mock (after this refinement).",
@@ -1134,8 +1135,10 @@ function buildRefinementUserMessage(
 
   parts.push(
     "",
-    "Return: (1) complete updated HTML in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END,",
-    "(2) then the full revamped effort estimation, implementation change log table, and standalone agent prompt.",
+    "Return in this order:",
+    "(1) A short chat reply (1–3 sentences) summarizing what changed,",
+    "(2) complete updated HTML in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END,",
+    "(3) then the full revamped effort estimation, implementation change log table, and standalone agent prompt.",
   );
   return parts.join("\n");
 }
@@ -1464,11 +1467,22 @@ function streamClaudeCode(
               userRole === "external"
                 ? stripInternalTechnicalSections(handoff?.text ?? extracted.text)
                 : (handoff?.text ?? extracted.text);
+            // Refines are often HTML-only — always surface a short chat reply so the UI isn't blank.
+            if (!displayText.trim() && (finalHtml || isRefinement)) {
+              displayText = isRefinement
+                ? "Updated the mockup based on your request."
+                : "Here's the mockup.";
+            }
             if (displayText) send({ delta: displayText });
           }
 
           if (!finalHtml) {
             finalHtml = resolveHtmlFromDisk(ticketId, designOutputDir, savedFiles);
+          }
+
+          if (!displayText.trim() && finalHtml && isRefinement) {
+            displayText = "Updated the mockup based on your request.";
+            send({ delta: displayText });
           }
 
           if (finalHtml) {

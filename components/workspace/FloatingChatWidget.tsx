@@ -178,11 +178,19 @@ export function FloatingChatWidget({
             {messages.map((msg, midx) => {
               const thinkingActive =
                 msg.role === "assistant" && Boolean(msg.thinking) && !msg.thinking!.done;
+              const hasHtmlUpdate = msg.role === "assistant" && Boolean(msg.htmlComponent);
+              const hasHandoff =
+                isInternal &&
+                Boolean(msg.effortEstimation || msg.changeLog || msg.agentPrompt);
+              const displayText =
+                msg.text?.trim() ||
+                (hasHtmlUpdate && !msg.isStreaming ? "Updated the mockup." : "");
               const hasBubbleContent =
                 msg.role === "user" ||
-                Boolean(msg.text) ||
-                Boolean(msg.isStreaming && !thinkingActive) ||
-                Boolean(isInternal && (msg.effortEstimation || msg.changeLog || msg.agentPrompt));
+                Boolean(displayText) ||
+                hasHtmlUpdate ||
+                hasHandoff ||
+                Boolean(msg.isStreaming && !thinkingActive);
 
               return (
               <div
@@ -205,9 +213,9 @@ export function FloatingChatWidget({
                     </span>
                   ) : (
                     <>
-                      {msg.text && (
+                      {displayText && (
                         <div className="text-sm" style={{ ...F.body }}>
-                          <ChatMarkdown text={msg.text} />
+                          <ChatMarkdown text={displayText} />
                         </div>
                       )}
                       {msg.isStreaming && (
