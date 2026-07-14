@@ -32,6 +32,9 @@ interface BuildJobDetail {
   model?: string;
   agentPromptPreview?: string;
   worktreePath?: string;
+  failedPhase?: string;
+  lastCompletedStep?: string;
+  resumeFrom?: string;
   logCount?: number;
   active?: boolean;
   startedAt: number;
@@ -220,8 +223,19 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
                   borderRadius: RADIUS.pill,
                   border: "none",
                 }}
+                title={
+                  job.failedPhase === "pr" || job.lastCompletedStep === "push"
+                    ? "Resume from PR creation only"
+                    : "Retry build"
+                }
               >
-                {retrying ? "Starting…" : "Retry build"}
+                {retrying
+                  ? "Starting…"
+                  : job.failedPhase === "pr" ||
+                      job.lastCompletedStep === "push" ||
+                      /gh |ENOENT|GitHub API|pr create/i.test(job.error || "")
+                    ? "Retry PR step"
+                    : "Retry build"}
               </button>
             )}
             {job.status === "succeeded" && (
@@ -261,7 +275,13 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
           >
             {retryError || job.error}
             {job.status === "failed" && !retryError && (
-              <span style={{ color: COLORS.muted }}> — use Retry build to run again from the saved prompt.</span>
+              <span style={{ color: COLORS.muted }}>
+                {(job.failedPhase === "pr" ||
+                job.lastCompletedStep === "push" ||
+                /gh |ENOENT|GitHub API|pr create/i.test(job.error || ""))
+                  ? " — Retry will resume from PR creation only (code already pushed)."
+                  : " — use Retry to run again; it resumes from the last failed step when possible."}
+              </span>
             )}
           </div>
         )}

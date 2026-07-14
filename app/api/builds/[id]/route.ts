@@ -45,12 +45,16 @@ export async function POST(
   }
 
   try {
-    const job = retryBuildJob(id);
+    const job = await retryBuildJob(id);
     return NextResponse.json({
       ok: true,
       build: jobRecordToBuildState(job),
       jobId: job.jobId,
-      message: "Retry started in the background",
+      resumeFrom: job.resumeFrom ?? "full",
+      message:
+        job.resumeFrom && job.resumeFrom !== "full"
+          ? `Retry started — resuming from ${job.resumeFrom}`
+          : "Retry started in the background",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
