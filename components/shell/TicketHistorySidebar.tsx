@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
@@ -394,37 +395,53 @@ export function TicketHistorySidebar({
               >
                 {user.name.charAt(0)}
               </button>
-              {menuOpen && collapsed && collapsedMenuPos && (
-                <>
-                  <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} aria-hidden />
-                  <div
-                    className="fixed z-[110] py-2 min-w-[180px] shadow-lg"
-                    style={{
-                      background: COLORS.surface,
-                      borderRadius: RADIUS.md,
-                      border: `1px solid ${COLORS.border}`,
-                      bottom: collapsedMenuPos.bottom,
-                      left: collapsedMenuPos.left,
-                    }}
-                  >
-                    <div className="px-4 py-2 text-xs border-b" style={{ borderColor: COLORS.border, color: COLORS.muted }}>
-                      {user.email}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setMenuOpen(false);
-                        await signOut();
-                        router.push("/login");
+              {menuOpen &&
+                collapsed &&
+                collapsedMenuPos &&
+                typeof document !== "undefined" &&
+                createPortal(
+                  <>
+                    <div
+                      className="fixed inset-0"
+                      style={{ zIndex: 200 }}
+                      onClick={() => setMenuOpen(false)}
+                      aria-hidden
+                    />
+                    <div
+                      role="menu"
+                      className="fixed py-2 min-w-[180px] shadow-lg"
+                      style={{
+                        zIndex: 210,
+                        background: COLORS.surface,
+                        borderRadius: RADIUS.md,
+                        border: `1px solid ${COLORS.border}`,
+                        bottom: collapsedMenuPos.bottom,
+                        left: collapsedMenuPos.left,
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50"
-                      style={{ ...F.body, color: COLORS.text }}
                     >
-                      Sign out
-                    </button>
-                  </div>
-                </>
-              )}
+                      <div
+                        className="px-4 py-2 text-xs border-b"
+                        style={{ borderColor: COLORS.border, color: COLORS.muted }}
+                      >
+                        {user.email}
+                      </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          await signOut();
+                          router.push("/login");
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50"
+                        style={{ ...F.body, color: COLORS.text }}
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </>,
+                  document.body,
+                )}
             </div>
           )}
         </div>
