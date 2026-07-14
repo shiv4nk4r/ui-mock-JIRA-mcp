@@ -56,6 +56,8 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [follow, setFollow] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
   const lastTsRef = useRef(0);
 
@@ -126,6 +128,35 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
     return `${Math.floor(sec / 60)}m ${sec % 60}s`;
   }, [job]);
 
+  async function handleRetry() {
+    if (!job || retrying) return;
+    setRetrying(true);
+    setRetryError("");
+    try {
+      const res = await fetch(`/api/builds/${encodeURIComponent(job.jobId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || `Retry failed (${res.status})`);
+      }
+      const nextId = data?.jobId || data?.build?.jobId;
+      if (nextId && nextId !== job.jobId) {
+        router.push(`/builds/${nextId}`);
+        return;
+      }
+      // Same job already running — refresh in place
+      lastTsRef.current = 0;
+      await fetchDetail(false);
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Retry failed");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-16 text-center space-y-3">
@@ -175,13 +206,65 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
             </p>
             <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>{job.message}</p>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0 items-center">
+            {job.status === "failed" && (
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={handleRetry}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold disabled:opacity-50"
+                style={{
+                  ...F.body,
+                  background: COLORS.accent,
+                  color: "#fff",
+                  borderRadius: RADIUS.pill,
+                  border: "none",
+                }}
+              >
+                {retrying ? "Starting…" : "Retry build"}
+              </button>
+            )}
+            {job.status === "succeeded" && (
+              <button
+                type="button"
+                disabled={retrying}
+                onClick={handleRetry}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                style={{
+                  ...F.body,
+                  background: COLORS.subtle,
+                  color: COLORS.text,
+                  borderRadius: RADIUS.pill,
+                  border: `1px solid ${COLORS.border}`,
+                }}
+              >
+                {retrying ? "Starting…" : "Rebuild"}
+              </button>
+            )}
             <MetaChip label="Status" value={job.status} accent={job.status === "running"} />
             <MetaChip label="Phase" value={job.phase} />
             <MetaChip label="Duration" value={duration} />
             {job.model && <MetaChip label="Model" value={job.model} />}
           </div>
         </div>
+
+        {(retryError || (job.status === "failed" && job.error)) && (
+          <div
+            className="px-3 py-2 text-sm"
+            style={{
+              background: "rgba(255,59,48,0.08)",
+              borderRadius: RADIUS.md,
+              border: "1px solid rgba(255,59,48,0.2)",
+              color: "#FF3B30",
+              ...F.body,
+            }}
+          >
+            {retryError || job.error}
+            {job.status === "failed" && !retryError && (
+              <span style={{ color: COLORS.muted }}> — use Retry build to run again from the saved prompt.</span>
+            )}
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="Branch" value={job.branchName} mono />
@@ -210,7 +293,6 @@ export default function BuildDetailPage({ params }: { params: { id: string } }) 
             value={`${relativeTime(job.startedAt)} · ${formatVersionTime(job.startedAt)}`}
           />
           {job.worktreePath && <InfoRow label="Worktree" value={job.worktreePath} mono />}
-          {job.error && <InfoRow label="Error" value={job.error} error />}
         </div>
 
         {job.files && job.files.length > 0 && (
