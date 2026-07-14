@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import { F, COLORS } from "@lib/design/tokens";
 
 export function MoreMenuPanel({
@@ -13,7 +13,7 @@ export function MoreMenuPanel({
   children: ReactNode;
   style?: CSSProperties;
   id?: string;
-  menuRef?: RefObject<HTMLDivElement | null>;
+  menuRef?: Ref<HTMLDivElement>;
   className?: string;
 }) {
   return (
