@@ -10,12 +10,14 @@ import { F, COLORS } from "@lib/design/tokens";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
 import { TabBar } from "@/components/reviews/PmReviewsPage";
 import { InternalReviewsTable } from "@/components/reviews/InternalReviewsTable";
+import { useFeatureFlags } from "@lib/hooks/use-feature-flags";
 
 type QueueTab = "pending" | "changes" | "done";
 
 export function InternalReviewsPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { buildPr: buildPrEnabled } = useFeatureFlags();
   const [tab, setTab] = useState<QueueTab>("pending");
   const [channels, setChannels] = useState<TicketReviewChannel[]>([]);
 
@@ -61,7 +63,7 @@ export function InternalReviewsPage() {
 
       <InternalReviewsTable
         channels={visible}
-        showBuildColumn={tab === "done"}
+        showBuildColumn={buildPrEnabled && tab === "done"}
         emptyTitle={
           tab === "pending"
             ? "All caught up"
