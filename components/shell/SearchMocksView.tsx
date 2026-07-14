@@ -127,27 +127,30 @@ export function SearchMocksView({
                       onClick={() =>
                         router.push(`/workspace/${encodeURIComponent(group.ticketId)}`)
                       }
-                      className="w-full flex items-center gap-4 px-3 py-3 text-left transition-colors hover:bg-black/[0.05]"
+                      className="w-full flex items-start gap-4 px-3 py-3 text-left transition-colors hover:bg-black/[0.05]"
                       style={{ borderRadius: 12 }}
                     >
                       <span
-                        className="flex-1 min-w-0 flex items-baseline gap-2"
+                        className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
                         style={{
                           ...F.body,
                           fontSize: 15,
                           color: COLORS.text,
                           fontWeight: 450,
                           letterSpacing: "-0.01em",
+                          lineHeight: 1.35,
                         }}
-                        title={group.summary || group.ticketId}
                       >
-                        <span className="truncate min-w-0">
+                        <span
+                          className="min-w-0"
+                          style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                        >
                           {group.summary || group.ticketId}
                         </span>
                         {group.building && <BuildingStatusLabel />}
                       </span>
                       <span
-                        className="flex-none tabular-nums"
+                        className="flex-none tabular-nums pt-0.5"
                         style={{ ...F.body, fontSize: 13, color: COLORS.muted }}
                       >
                         {listDateLabel(group.savedAt)}

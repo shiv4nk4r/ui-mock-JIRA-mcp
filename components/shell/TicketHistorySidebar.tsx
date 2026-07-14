@@ -232,7 +232,7 @@ function TicketRow({
           onOpen();
         }
       }}
-      className="group w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors text-left"
+      className="group w-full flex items-start gap-2 px-3 py-2.5 cursor-pointer transition-colors text-left"
       style={{
         background: active ? "rgba(0,0,0,0.05)" : "transparent",
         borderRadius: 20,
@@ -246,17 +246,22 @@ function TicketRow({
     >
       <div className="flex-1 min-w-0">
         <div
-          className="flex items-baseline gap-2 min-w-0"
+          className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0"
           style={{
             ...F.body,
             fontSize: 14,
             color: COLORS.text,
             fontWeight: active ? 560 : 450,
             letterSpacing: "-0.01em",
+            lineHeight: 1.35,
           }}
-          title={group.summary}
         >
-          <span className="truncate min-w-0">{group.summary || group.ticketId}</span>
+          <span
+            className="min-w-0"
+            style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+          >
+            {group.summary || group.ticketId}
+          </span>
           {group.building && <BuildingStatusLabel />}
         </div>
         <div className="truncate mt-0.5" style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
