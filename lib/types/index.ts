@@ -112,7 +112,7 @@ export interface Message {
   rawBlocks?: ContentBlock[];
   isStreaming?: boolean;
   thinking?: { log: string[]; elapsed?: number; done: boolean };
-  attachedFiles?: Array<{ name: string; contentType: string; sizeLabel: string; htmlContent?: string }>;
+  attachedFiles?: Array<{ name: string; contentType: string; sizeLabel?: string; htmlContent?: string }>;
 }
 
 export interface UsageRecord {
