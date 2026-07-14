@@ -1060,8 +1060,17 @@ function streamClaudeCode(
 
   const body = new ReadableStream({
     async start(controller) {
-      const send = (data: Record<string, unknown>) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      // Client disconnect must not abort Claude — keep generating so HTML can
+      // still be written to disk for background / leave-and-return flows.
+      let clientOpen = true;
+      const send = (data: Record<string, unknown>) => {
+        if (!clientOpen) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          clientOpen = false;
+        }
+      };
 
       const logger  = new SessionLogger(ticketId, "claude-code", model);
       const tmpFile = join(tmpdir(), `claude-sysprompt-${Date.now()}.txt`);
@@ -1366,7 +1375,7 @@ function streamClaudeCode(
         logger.finish({ error: errMsg });
         send({ error: `Claude Code error: ${errMsg}` });
       } finally {
-        controller.close();
+        try { controller.close(); } catch { /* already closed / cancelled */ }
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
         try { unlinkSync(mcpConfigFile); } catch { /* best-effort cleanup */ }
       }

@@ -22,6 +22,9 @@ export interface TicketHistoryGroup {
   latestPrompt?: string;
   latestHtml?: string;
   revisions: MockRevision[];
+  /** True while a mockup generate/refine job is in flight. */
+  building?: boolean;
+  buildingLabel?: string;
 }
 
 function revisionLabel(userMsg: Message | undefined, index: number): string {
@@ -116,6 +119,132 @@ export function groupSessionsByTicket(sessions: MockupSession[], userRole: UserR
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 
+/** In-flight generate/refine jobs to overlay onto history. */
+export interface BuildingHistorySource {
+  ticketId: string;
+  summary: string;
+  sessionId: string;
+  messages: Message[];
+  usageRecords: UsageRecord[];
+  activeHtml: string;
+  kind: "generate" | "refine";
+  thinkingHint?: string;
+  selectedModel?: string;
+  status?: MockupSession["status"];
+}
+
+function buildingGroupFromSource(
+  source: BuildingHistorySource,
+  userRole: UserRole,
+): TicketHistoryGroup {
+  const session: MockupSession = {
+    id: source.sessionId,
+    userId: "",
+    ticketId: source.ticketId,
+    ticketData: { id: source.ticketId, summary: source.summary, description: "" },
+    messages: source.messages,
+    activeHtml: source.activeHtml,
+    usageRecords: source.usageRecords,
+    selectedModel: source.selectedModel ?? "",
+    status: source.status ?? "in_progress",
+    savedAt: Date.now(),
+  };
+  const revisions = buildRevisions(session, userRole);
+  const label =
+    source.kind === "refine"
+      ? "Refining mockup…"
+      : "Generating mockup…";
+  return {
+    ticketId: source.ticketId,
+    summary: source.summary,
+    status: "in_progress",
+    savedAt: Date.now(),
+    revisionCount: revisions.length,
+    messageCount: source.messages.filter((m) => !m.isStreaming).length,
+    totalCostUsd: sumUsageRecords(source.usageRecords).costUsd,
+    latestPrompt: source.thinkingHint || label,
+    latestHtml: source.activeHtml || revisions[revisions.length - 1]?.html,
+    revisions,
+    building: true,
+    buildingLabel: label,
+  };
+}
+
+/**
+ * Overlay live/building mocks onto saved history groups.
+ * Building tickets sort to the top; matching saved rows get building flags.
+ */
+export function mergeBuildingIntoHistory(
+  groups: TicketHistoryGroup[],
+  building: BuildingHistorySource[],
+  userRole: UserRole,
+): TicketHistoryGroup[] {
+  if (building.length === 0) return groups;
+
+  const byTicket = new Map(groups.map((g) => [g.ticketId, { ...g }]));
+
+  for (const source of building) {
+    const live = buildingGroupFromSource(source, userRole);
+    const existing = byTicket.get(source.ticketId);
+    if (existing) {
+      byTicket.set(source.ticketId, {
+        ...existing,
+        building: true,
+        buildingLabel: live.buildingLabel,
+        status: "in_progress",
+        savedAt: Date.now(),
+        latestPrompt: live.latestPrompt,
+        messageCount: Math.max(existing.messageCount, live.messageCount),
+        totalCostUsd: Math.max(existing.totalCostUsd, live.totalCostUsd),
+        revisionCount: Math.max(existing.revisionCount, live.revisionCount),
+        latestHtml: live.latestHtml || existing.latestHtml,
+        revisions: live.revisions.length > 0 ? live.revisions : existing.revisions,
+      });
+    } else {
+      byTicket.set(source.ticketId, live);
+    }
+  }
+
+  return Array.from(byTicket.values()).sort((a, b) => {
+    if (a.building && !b.building) return -1;
+    if (!a.building && b.building) return 1;
+    return b.savedAt - a.savedAt;
+  });
+}
+
+/** Persisted sessions that have activity but no mock HTML yet (mid-generation). */
+export function buildingGroupsFromIncompleteSessions(
+  sessions: MockupSession[],
+  userRole: UserRole,
+  excludeTicketIds?: Set<string>,
+): TicketHistoryGroup[] {
+  const out: TicketHistoryGroup[] = [];
+  for (const session of sessions) {
+    if (excludeTicketIds?.has(session.ticketId)) continue;
+    const hasHtml =
+      !!session.activeHtml || !!session.messages?.some((m) => m.htmlComponent);
+    if (hasHtml) continue;
+    if (!session.messages?.length) continue;
+    out.push(
+      buildingGroupFromSource(
+        {
+          ticketId: session.ticketId,
+          summary: session.ticketData.summary,
+          sessionId: session.id,
+          messages: session.messages,
+          usageRecords: session.usageRecords ?? [],
+          activeHtml: "",
+          kind: "generate",
+          status: session.status,
+          selectedModel: session.selectedModel,
+        },
+        userRole,
+      ),
+    );
+  }
+  return out;
+}
+
 export type HistorySort = "time_desc" | "time_asc" | "ticket_asc" | "ticket_desc";
 
 function ticketSortKey(ticketId: string): string {
@@ -140,15 +269,23 @@ export function sortHistoryGroups(
   sort: HistorySort,
 ): TicketHistoryGroup[] {
   const sorted = [...groups];
+  const byTicket = (a: TicketHistoryGroup, b: TicketHistoryGroup) =>
+    ticketSortKey(a.ticketId).localeCompare(ticketSortKey(b.ticketId));
+  const buildingFirst = (a: TicketHistoryGroup, b: TicketHistoryGroup) => {
+    if (a.building && !b.building) return -1;
+    if (!a.building && b.building) return 1;
+    return 0;
+  };
+
   switch (sort) {
     case "time_asc":
-      return sorted.sort((a, b) => a.savedAt - b.savedAt);
+      return sorted.sort((a, b) => buildingFirst(a, b) || a.savedAt - b.savedAt);
     case "ticket_asc":
-      return sorted.sort((a, b) => ticketSortKey(a.ticketId).localeCompare(ticketSortKey(b.ticketId)));
+      return sorted.sort((a, b) => buildingFirst(a, b) || byTicket(a, b));
     case "ticket_desc":
-      return sorted.sort((a, b) => ticketSortKey(b.ticketId).localeCompare(ticketSortKey(a.ticketId)));
+      return sorted.sort((a, b) => buildingFirst(a, b) || byTicket(b, a));
     case "time_desc":
     default:
-      return sorted.sort((a, b) => b.savedAt - a.savedAt);
+      return sorted.sort((a, b) => buildingFirst(a, b) || b.savedAt - a.savedAt);
   }
 }

@@ -1,11 +1,24 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
 import { repository, generateId } from "@lib/storage";
-import { useMockupGeneration } from "@lib/hooks/use-mockup-generation";
-import type { AttachedFile, MockupSession, ProviderConfig, ReviewStatus, TicketData, UserEngagement, UserRole } from "@lib/types";
+import {
+  mockupGenerationStore,
+  type GenerationSnapshot,
+} from "@lib/mockup/generation-store";
+import type {
+  AttachedFile,
+  Message,
+  MockupSession,
+  ProviderConfig,
+  ReviewStatus,
+  TicketData,
+  UsageRecord,
+  UserEngagement,
+  UserRole,
+} from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { openHtmlInNewTab, downloadHtmlFile } from "@lib/utils/files";
 import { normalizeMockupHtml, getLatestMockHtml, sessionHasAssistantReply } from "@lib/utils/mockup-html";
@@ -42,6 +55,10 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [sessionId, setSessionId] = useState("");
   const [sessionStatus, setSessionStatus] = useState<MockupSession["status"]>("draft");
   const [activeHtml, setActiveHtml] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [thinkingLog, setThinkingLog] = useState<string[]>([]);
+  const [usageRecords, setUsageRecords] = useState<UsageRecord[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [refineInput, setRefineInput] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -66,16 +83,26 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   const jiraBaseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? "";
 
-  const {
-    messages,
-    setMessages,
-    thinkingLog,
-    usageRecords,
-    setUsageRecords,
-    isStreaming,
-    generate,
-    refine,
-  } = useMockupGeneration();
+  const applySnapshot = useCallback((snap: GenerationSnapshot) => {
+    setSessionId(snap.sessionId);
+    setTicketData(snap.ticketData);
+    setMessages(snap.messages);
+    setThinkingLog(snap.thinkingLog);
+    setUsageRecords(snap.usageRecords);
+    setActiveHtml(snap.activeHtml);
+    setSessionStatus(snap.sessionStatus);
+    if (snap.selectedModel) setSelectedModel(snap.selectedModel);
+    if (snap.reviewId) setReviewId(snap.reviewId);
+    setIsStreaming(snap.isStreaming);
+    setIsGenerating(snap.kind === "generate");
+    if (snap.error) setFetchError(snap.error);
+  }, []);
+
+  // Stay subscribed while on this ticket — generation continues in the module store if we leave.
+  useEffect(() => {
+    if (!user) return;
+    return mockupGenerationStore.subscribe(user.id, ticketId, applySnapshot);
+  }, [user, ticketId, applySnapshot]);
 
   const revisions = useMemo(() => {
     if (!sessionId || !ticketData || !user) return [];
@@ -165,24 +192,22 @@ export function WorkspaceClient({ ticketId }: Props) {
   }, []);
 
   async function runGeneration(ticket: TicketData, role: UserRole) {
+    if (!user) return;
     const id = sessionId || generateId();
     if (!sessionId) setSessionId(id);
     setFetchError("");
-    setIsGenerating(true);
+    const model = selectedModel || "claude-haiku-4-5-20251001";
     try {
-      await generate(
+      await mockupGenerationStore.generate({
+        userId: user.id,
+        sessionId: id,
         ticket,
-        selectedModel || "claude-haiku-4-5-20251001",
-        role,
-        (html) => {
-          setActiveHtml(normalizeMockupHtml(html));
-          setSessionStatus("in_progress");
-        },
-      );
+        model,
+        userRole: role,
+        reviewId: reviewId ?? undefined,
+      });
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : "Mockup generation failed");
-    } finally {
-      setIsGenerating(false);
     }
   }
 
@@ -195,17 +220,30 @@ export function WorkspaceClient({ ticketId }: Props) {
 
     setPhase("loading");
     setFetchError("");
-    setTicketData(null);
-    setActiveHtml("");
-    setSessionId("");
-    setMessages([]);
-    setIsGenerating(false);
 
     let cancelled = false;
 
     (async () => {
       try {
         await repository.migrateLegacySessions(user.id);
+
+        // Reattach to an in-flight background job (e.g. user left mid-generation).
+        const live = mockupGenerationStore.get(user.id, ticketId);
+        if (live && (live.isStreaming || live.kind !== "idle")) {
+          if (cancelled) return;
+          applySnapshot(live);
+          setPhase("ready");
+          const existingReview = await repository.getReviewByTicket(ticketId, user.id);
+          if (!cancelled && existingReview) {
+            setReviewId(existingReview.id);
+            setReviewStatus(existingReview.status);
+          }
+          if (!cancelled) {
+            setEngagement(await repository.getEngagement({ sessionId: live.sessionId }));
+          }
+          return;
+        }
+
         const saved = await repository.getSession(user.id, ticketId);
 
         let ticket: TicketData;
@@ -233,6 +271,7 @@ export function WorkspaceClient({ ticketId }: Props) {
         setPhase("ready");
 
         if (saved) {
+          mockupGenerationStore.hydrate(saved);
           setSessionId(saved.id);
           setSessionStatus(saved.status);
           setMessages(saved.messages ?? []);
@@ -253,26 +292,16 @@ export function WorkspaceClient({ ticketId }: Props) {
         }
 
         if (cancelled) return;
-        const id = generateId();
+
+        const id = saved?.id ?? generateId();
         setSessionId(id);
-        setIsGenerating(true);
-        try {
-          await generate(
-            ticket,
-            selectedModel || "claude-haiku-4-5-20251001",
-            user.role,
-            (html) => {
-              setActiveHtml(normalizeMockupHtml(html));
-              setSessionStatus("in_progress");
-            },
-          );
-        } catch (err) {
-          if (!cancelled) {
-            setFetchError(err instanceof Error ? err.message : "Mockup generation failed");
-          }
-        } finally {
-          if (!cancelled) setIsGenerating(false);
-        }
+        await mockupGenerationStore.generate({
+          userId: user.id,
+          sessionId: id,
+          ticket,
+          model: selectedModel || "claude-haiku-4-5-20251001",
+          userRole: user.role,
+        });
       } catch (err) {
         if (!cancelled) {
           setFetchError(err instanceof Error ? err.message : "Something went wrong");
@@ -289,6 +318,8 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   useEffect(() => {
     if (!user || !ticketData || phase !== "ready" || !sessionId) return;
+    // Store owns persistence while a job is active.
+    if (mockupGenerationStore.isRunning(user.id, ticketId)) return;
     repository.saveSession({
       id: sessionId,
       userId: user.id,
@@ -302,7 +333,7 @@ export function WorkspaceClient({ ticketId }: Props) {
       savedAt: Date.now(),
       reviewId: reviewId ?? undefined,
     });
-  }, [messages, activeHtml, latestMockHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus, reviewId]);
+  }, [messages, activeHtml, latestMockHtml, usageRecords, selectedModel, phase, ticketData, user, sessionId, sessionStatus, reviewId, ticketId]);
 
   async function handleRefine() {
     const prompt = refineInput.trim();
@@ -314,18 +345,20 @@ export function WorkspaceClient({ ticketId }: Props) {
     setAttachedFiles([]);
     setChatOpen(true);
     try {
-      await refine(
-        ticketData,
+      await mockupGenerationStore.refine({
+        userId: user.id,
+        sessionId,
+        ticket: ticketData,
         prompt,
-        selectedModel || "claude-haiku-4-5-20251001",
-        activeHtml,
-        user.role,
-        (html) => {
-          setActiveHtml(normalizeMockupHtml(html));
-          setSessionStatus("in_progress");
-        },
-        filesToSend,
-      );
+        model: selectedModel || "claude-haiku-4-5-20251001",
+        currentHtml: activeHtml,
+        userRole: user.role,
+        messages,
+        usageRecords,
+        sessionStatus,
+        reviewId: reviewId ?? undefined,
+        attachedFiles: filesToSend,
+      });
     } catch { /* shown in chat */ }
   }
 
@@ -435,9 +468,16 @@ export function WorkspaceClient({ ticketId }: Props) {
     if (!user) return;
     setDeletingHistory(true);
     try {
-      await repository.resetTicketHistory(user.id, ticketData?.id ?? ticketId);
+      const id = ticketData?.id ?? ticketId;
+      mockupGenerationStore.cancel(user.id, id);
+      await repository.resetTicketHistory(user.id, id);
       setDeleteHistoryOpen(false);
-      window.location.assign(`/workspace/${encodeURIComponent(ticketData?.id ?? ticketId)}`);
+      // Leave the cleared workspace so we don't auto-start a fresh generation.
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not delete ticket history");
       setDeletingHistory(false);

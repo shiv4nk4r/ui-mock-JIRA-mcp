@@ -12,6 +12,7 @@ import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 import { jiraTicketUrl } from "@lib/utils/jira";
+import { mockupGenerationStore } from "@lib/mockup/generation-store";
 
 const SORT_OPTIONS: { value: HistorySort; label: string }[] = [
   { value: "time_desc", label: "Newest" },
@@ -70,13 +71,34 @@ function HistoryRow({
         >
           <span className="line-clamp-1">{group.summary}</span>
           {group.latestPrompt && (
-            <span className="block line-clamp-1 mt-0.5" style={{ fontSize: 12, color: COLORS.muted }}>
+            <span className="block line-clamp-1 mt-0.5" style={{ fontSize: 12, color: group.building ? "#2982cc" : COLORS.muted }}>
               {truncate(group.latestPrompt, 72)}
             </span>
           )}
         </td>
         <td style={{ padding: "10px 12px" }}>
-          <SessionStatusChip status={group.status} />
+          {group.building ? (
+            <span
+              className="inline-flex items-center gap-1.5"
+              style={{
+                ...F.body,
+                fontSize: 12,
+                fontWeight: 500,
+                color: "#2982cc",
+                background: "rgba(41,130,204,0.1)",
+                padding: "3px 10px",
+                borderRadius: RADIUS.pill,
+              }}
+            >
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: "#2982cc" }}
+              />
+              Building
+            </span>
+          ) : (
+            <SessionStatusChip status={group.status} />
+          )}
         </td>
         <td style={{ padding: "10px 12px", ...F.body, fontSize: 13, color: COLORS.text, textAlign: "center" }}>
           {group.revisionCount}
@@ -108,9 +130,9 @@ function HistoryRow({
               href={`/workspace/${encodeURIComponent(group.ticketId)}`}
               className="px-2 py-1 text-xs font-semibold hover:underline"
               style={{ color: COLORS.accent }}
-              title="Open workspace"
+              title={group.building ? "Open workspace (building in background)" : "Open workspace"}
             >
-              Open
+              {group.building ? "View" : "Open"}
             </Link>
             <a
               href={jiraTicketUrl(group.ticketId, jiraBaseUrl)}
@@ -222,7 +244,8 @@ export function MockHistoryTimeline({
   const stats = useMemo(() => {
     const revisions = groups.reduce((n, g) => n + g.revisionCount, 0);
     const cost = groups.reduce((n, g) => n + g.totalCostUsd, 0);
-    return { tickets: groups.length, revisions, cost };
+    const building = groups.filter((g) => g.building).length;
+    return { tickets: groups.length, revisions, cost, building };
   }, [groups]);
 
   async function handleDelete() {
@@ -231,6 +254,7 @@ export function MockHistoryTimeline({
     setDeleteError("");
     try {
       await repository.resetTicketHistory(user.id, deleteTarget.ticketId);
+      mockupGenerationStore.cancel(user.id, deleteTarget.ticketId);
       setDeleteTarget(null);
       if (expandedId === deleteTarget.ticketId) setExpandedId(null);
       onRefresh?.();
@@ -267,6 +291,9 @@ export function MockHistoryTimeline({
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1" style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
         <span><strong style={{ color: COLORS.text }}>{stats.tickets}</strong> tickets</span>
         <span><strong style={{ color: COLORS.text }}>{stats.revisions}</strong> versions</span>
+        {stats.building > 0 && (
+          <span><strong style={{ color: "#2982cc" }}>{stats.building}</strong> building</span>
+        )}
         {stats.cost > 0 && (
           <span><strong style={{ color: COLORS.text }}>{formatCostUsd(stats.cost)}</strong> total AI cost</span>
         )}
