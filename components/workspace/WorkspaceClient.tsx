@@ -8,6 +8,12 @@ import {
   mockupGenerationStore,
   type GenerationSnapshot,
 } from "@lib/mockup/generation-store";
+import {
+  applyServerTranscript,
+  fetchServerTranscript,
+  shouldPreferTranscript,
+  waitForTranscriptSettled,
+} from "@lib/mockup/recover-transcript";
 import type {
   AttachedFile,
   Message,
@@ -222,6 +228,7 @@ export function WorkspaceClient({ ticketId }: Props) {
     setFetchError("");
 
     let cancelled = false;
+    const transcriptAbort = new AbortController();
 
     (async () => {
       try {
@@ -270,6 +277,64 @@ export function WorkspaceClient({ ticketId }: Props) {
         setTicketData(ticket);
         setPhase("ready");
 
+        const transcript = await fetchServerTranscript(ticket.id);
+        if (cancelled) return;
+
+        // Server finished (or is still running) after a client disconnect — recover messages.
+        if (shouldPreferTranscript(transcript, saved)) {
+          let next = await applyServerTranscript({
+            userId: user.id,
+            ticket,
+            saved,
+            transcript: transcript!,
+            selectedModel: selectedModel || saved?.selectedModel,
+          });
+
+          if (transcript!.status === "running") {
+            setSessionId(next.id);
+            setSessionStatus("in_progress");
+            setMessages(next.messages);
+            setUsageRecords(next.usageRecords);
+            setActiveHtml(next.activeHtml);
+            setIsGenerating(!transcript!.isRefinement);
+            setIsStreaming(true);
+            setThinkingLog(transcript!.thinkingLog ?? []);
+            setChatOpen(true);
+
+            const settled = await waitForTranscriptSettled(ticket.id, {
+              signal: transcriptAbort.signal,
+            });
+
+            if (cancelled) return;
+            if (settled) {
+              next = await applyServerTranscript({
+                userId: user.id,
+                ticket,
+                saved: next,
+                transcript: settled,
+                selectedModel: selectedModel || next.selectedModel,
+              });
+            }
+          }
+
+          mockupGenerationStore.hydrate(next);
+          setSessionId(next.id);
+          setSessionStatus(next.status);
+          setMessages(next.messages);
+          setUsageRecords(next.usageRecords);
+          if (next.selectedModel) setSelectedModel(next.selectedModel);
+          setActiveHtml(getLatestMockHtml(next.messages, next.activeHtml));
+          setIsGenerating(false);
+          setIsStreaming(false);
+          const existingReview = await repository.getReviewByTicket(ticketId, user.id);
+          if (existingReview) {
+            setReviewId(existingReview.id);
+            setReviewStatus(existingReview.status);
+          }
+          setEngagement(await repository.getEngagement({ sessionId: next.id }));
+          return;
+        }
+
         if (saved) {
           mockupGenerationStore.hydrate(saved);
           setSessionId(saved.id);
@@ -312,6 +377,7 @@ export function WorkspaceClient({ ticketId }: Props) {
 
     return () => {
       cancelled = true;
+      transcriptAbort.abort();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, ticketId, router]);

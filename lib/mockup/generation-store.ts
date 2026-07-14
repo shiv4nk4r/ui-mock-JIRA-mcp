@@ -170,6 +170,11 @@ class MockupGenerationStore {
         enableVisualSkill: true,
         model,
         isRefinement: false,
+        persistSession: {
+          sessionId,
+          userId,
+          messages: snap.messages,
+        },
       },
       usageLabel: "Initial mockup generation",
       userRole,
@@ -246,6 +251,11 @@ class MockupGenerationStore {
         isRefinement: true,
         currentHtml,
         attachedFiles,
+        persistSession: {
+          sessionId,
+          userId,
+          messages: snap.messages,
+        },
       },
       usageLabel: `Refinement: "${prompt.slice(0, 45)}${prompt.length > 45 ? "…" : ""}"`,
       userRole,

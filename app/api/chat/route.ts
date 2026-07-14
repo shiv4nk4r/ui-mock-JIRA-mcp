@@ -28,6 +28,12 @@ import {
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 import { injectLogoIntoComponentLibraryContext } from "@lib/utils/mock-branding";
 import { resolveMdRepoRoot } from "@lib/build/resolve-md-repo";
+import {
+  appendTranscriptThinking,
+  beginServerTranscript,
+  finalizeServerTranscript,
+  type PersistSessionMeta,
+} from "@lib/mockup/server-transcript";
 
 export const dynamic = "force-dynamic";
 
@@ -362,6 +368,8 @@ interface ChatRequest {
   currentHtml?: string;
   userRole?: "external" | "internal";
   mockupMode?: "html" | "vue-quasar";
+  /** Optional session identity so the server can persist agent messages if the client disconnects. */
+  persistSession?: PersistSessionMeta;
 }
 
 
@@ -1055,6 +1063,7 @@ function streamClaudeCode(
   userRole: "external" | "internal" = "internal",
   mockupMode: "html" | "vue-quasar" = "html",
   vueComponentLibraryContext = "",
+  persistSession?: PersistSessionMeta,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -1077,10 +1086,31 @@ function streamClaudeCode(
       const mcpConfigFile = join(tmpdir(), `md-mcp-config-${Date.now()}.json`);
       const designOutputDir = join(homedir(), "claude-ui-designs");
 
-      try {
-        send({ thinking: "Starting Claude Code local session…" });
+      const emitThinking = (text: string) => {
+        appendTranscriptThinking(ticketId, text);
+        send({ thinking: text });
+      };
 
+      try {
         mkdirSync(designOutputDir, { recursive: true });
+
+        const chatUserPrompt = isRefinement && additionalPmContext
+          ? additionalPmContext
+          : `Auto-generate UI mockup · ${ticketId}: "${jiraData.summary}"`;
+
+        beginServerTranscript({
+          ticketId,
+          isRefinement: !!isRefinement,
+          model,
+          persist: persistSession,
+          userPrompt: chatUserPrompt,
+          attachedFiles: attachedFiles?.map((f) => ({
+            name: f.name,
+            contentType: f.contentType,
+            sizeLabel: "",
+          })),
+        });
+        emitThinking("Starting Claude Code local session…");
 
         // ── Step 1: build prompts ────────────────────────────────────────
         logger.beginStep();
@@ -1156,13 +1186,13 @@ function streamClaudeCode(
         writeFileSync(mcpConfigFile, JSON.stringify(mcpConfig), "utf8");
 
         if (!isRefinement) {
-          send({ thinking: mcpServerReady ? "MCP server ready (HTTP)" : "MCP server: starting stdio fallback…" });
+          emitThinking(mcpServerReady ? "MCP server ready (HTTP)" : "MCP server: starting stdio fallback…");
         }
 
         // ── Step 2: model inference ──────────────────────────────────────
         logger.beginStep();
         const thinkingStart = Date.now();
-        send({ thinking: `Analysing ticket with model ${model}…` });
+        emitThinking(`Analysing ticket with model ${model}…`);
 
         // Refinement is a pure HTML-edit task — no codebase tools, no MCP server.
         // Initial generation needs the manager-dashboard MCP code tools.
@@ -1232,7 +1262,7 @@ function streamClaudeCode(
                     if (b.thinking) {
                       const snippet = b.thinking.slice(0, 120).replace(/\n/g, " ");
                       logger.recordThinking(snippet);
-                      send({ thinking: `Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}` });
+                      emitThinking(`Thinking: ${snippet}${b.thinking.length > 120 ? "…" : ""}`);
                     }
                   }
 
@@ -1244,7 +1274,7 @@ function streamClaudeCode(
                       const filePath = b.input?.file_path as string | undefined;
                       if (filePath) {
                         savedFiles.push(filePath);
-                        send({ thinking: `Writing file: ${filePath}` });
+                        emitThinking(`Writing file: ${filePath}`);
                       }
                     } else if (b.name?.startsWith("mcp__")) {
                       // Surface MCP tool calls to the UI as thinking messages
@@ -1252,7 +1282,7 @@ function streamClaudeCode(
                       const inputSummary = Object.entries(b.input ?? {})
                         .map(([k, v]) => `${k}=${Array.isArray(v) ? `[${(v as string[]).slice(0, 3).join(",")}]` : String(v).slice(0, 60)}`)
                         .join(", ");
-                      send({ thinking: `Tool: ${toolShort}(${inputSummary})` });
+                      emitThinking(`Tool: ${toolShort}(${inputSummary})`);
                     }
                   }
 
@@ -1289,7 +1319,9 @@ function streamClaudeCode(
         send({ thinkingDone: true, elapsed: (Date.now() - thinkingStart) / 1000 });
 
         if (exitCode !== 0 && exitCode !== null) {
-          send({ error: `Claude Code exited with code ${exitCode}. ${stderrBuf.slice(0, 400)}` });
+          const errText = `Claude Code exited with code ${exitCode}. ${stderrBuf.slice(0, 400)}`;
+          send({ error: errText });
+          finalizeServerTranscript({ ticketId, displayText: "", error: errText });
         } else {
           // ── Step 3: emit accumulated text and extract inline HTML ─────
           let htmlSizeBytes = 0;
@@ -1318,7 +1350,7 @@ function streamClaudeCode(
             // bundle on top would cause specificity conflicts. Skip in vue-quasar mode.
             if (mockupMode !== "vue-quasar" && mockupGrounding?.available && mockupGrounding.cssText) {
               finalHtml = injectGroundingIntoHtml(finalHtml, mockupGrounding.cssText);
-              send({ thinking: `✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.` });
+              emitThinking(`✓ Injected captured Quasar CSS bundle (${mockupGrounding.cssBundleId}) into mockup.`);
               logger.record("Injected captured Quasar CSS into mockup", { detail: mockupGrounding.cssBundleId });
             }
             htmlSizeBytes = Buffer.byteLength(finalHtml, "utf8");
@@ -1368,12 +1400,31 @@ function streamClaudeCode(
             outputTokens: inferenceOutputTokens,
             costUsd:      inferenceCostUsd,
           });
+
+          finalizeServerTranscript({
+            ticketId,
+            displayText,
+            html: finalHtml,
+            effortEstimation: handoff?.effortEstimation,
+            changeLog: handoff?.changeLog,
+            agentPrompt: handoff?.agentPrompt,
+            thinkingElapsed: (Date.now() - thinkingStart) / 1000,
+            usage: {
+              timestamp: Date.now(),
+              label: isRefinement ? "Refinement" : "Initial mockup generation",
+              model,
+              inputTokens: inferenceInputTokens,
+              outputTokens: inferenceOutputTokens,
+              costUsd: inferenceCostUsd,
+            },
+          });
         }
 
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         logger.finish({ error: errMsg });
         send({ error: `Claude Code error: ${errMsg}` });
+        finalizeServerTranscript({ ticketId, displayText: "", error: errMsg });
       } finally {
         try { controller.close(); } catch { /* already closed / cancelled */ }
         try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
@@ -1402,6 +1453,7 @@ export async function POST(request: Request) {
     model, attachedFiles, isRefinement, currentHtml,
     userRole = "internal",
     mockupMode = "html",
+    persistSession,
   } = body;
 
   const isVueMode = mockupMode === "vue-quasar";
@@ -1447,5 +1499,6 @@ export async function POST(request: Request) {
     enableVisualSkill, archContext, designContext, sitemapContext,
     attachedFiles, isRefinement, currentHtml, componentLibraryContext,
     templateSurveyContext, mockupGrounding, userRole, mockupMode, vueComponentLibraryContext,
+    persistSession,
   );
 }
