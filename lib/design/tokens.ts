@@ -39,10 +39,48 @@ export const SESSION_STATUS_COLORS: Record<string, { color: string; bg: string }
   needs_changes: { color: "#ED3324", bg: "rgba(237,51,36,0.1)" },
 };
 
-export function greeting(name: string): string {
+const GREETING_TEMPLATES: Array<(name: string) => string> = [
+  (n) => `Let's jump in, ${n}`,
+  (n) => `What's the vibe, ${n}?`,
+  (n) => `How are you, ${n}?`,
+  (n) => `Hey ${n}`,
+  (n) => `Good to see you, ${n}`,
+  (n) => `Ready when you are, ${n}`,
+  (n) => `Let's make something, ${n}`,
+  (n) => `What's on the board, ${n}?`,
+  (n) => `Hi ${n} — what'll it be?`,
+  (n) => `${n}, shall we mock something up?`,
+  (n) => `Welcome back, ${n}`,
+  (n) => `Alright ${n}, what's next?`,
+  (n) => `Hey ${n}, pick a ticket`,
+  (n) => `Morning energy, ${n}?`,
+  (n) => `Good morning, ${n}`,
+  (n) => `Good afternoon, ${n}`,
+  (n) => `Good evening, ${n}`,
+];
+
+function firstName(name: string): string {
+  const part = name.trim().split(/\s+/)[0];
+  return part || "there";
+}
+
+/** Casual rotating greetings (Gemini / Claude style). Call once per page visit. */
+export function pickGreeting(name: string): string {
+  const n = firstName(name);
   const h = new Date().getHours();
-  const first = name.split(" ")[0];
-  if (h < 12) return `Good morning, ${first}`;
-  if (h < 17) return `Good afternoon, ${first}`;
-  return `Good evening, ${first}`;
+  const pool = GREETING_TEMPLATES.filter((fn) => {
+    const sample = fn(n);
+    if (sample.startsWith("Good morning") && (h < 5 || h >= 12)) return false;
+    if (sample.startsWith("Good afternoon") && (h < 12 || h >= 17)) return false;
+    if (sample.startsWith("Good evening") && h < 17) return false;
+    if (sample.startsWith("Morning energy") && (h < 5 || h >= 12)) return false;
+    return true;
+  });
+  const list = pool.length > 0 ? pool : GREETING_TEMPLATES;
+  return list[Math.floor(Math.random() * list.length)](n);
+}
+
+/** @deprecated Prefer pickGreeting for variety; kept for time-of-day fallback. */
+export function greeting(name: string): string {
+  return pickGreeting(name);
 }

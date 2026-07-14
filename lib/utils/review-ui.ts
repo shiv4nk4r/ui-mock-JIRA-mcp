@@ -12,6 +12,17 @@ export function relativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** Compact list date like Gemini search: "Today", "Yesterday", "Jul 10". */
+export function listDateLabel(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return "Today";
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function formatVersionTime(ts?: number): string {
   if (!ts) return "Unknown time";
   const d = new Date(ts);

@@ -47,7 +47,8 @@ export function InternalReviewsPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
       <div className="space-y-1">
         <h1 style={{ ...F.body, fontSize: 28, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
           Review channels
@@ -79,6 +80,7 @@ export function InternalReviewsPage() {
               : "Approved reviews appear here with Build / PR status"
         }
       />
+      </div>
     </div>
   );
 }

@@ -261,7 +261,11 @@ export function filterHistoryGroups(
 ): TicketHistoryGroup[] {
   const q = query.trim().toUpperCase();
   if (!q) return groups;
-  return groups.filter((g) => g.ticketId.toUpperCase().includes(q));
+  return groups.filter(
+    (g) =>
+      g.ticketId.toUpperCase().includes(q) ||
+      (g.summary ?? "").toUpperCase().includes(q),
+  );
 }
 
 export function sortHistoryGroups(

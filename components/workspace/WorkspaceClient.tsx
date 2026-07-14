@@ -562,7 +562,7 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   if (phase === "loading" || authLoading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-3" style={{ background: COLORS.bg }}>
+      <div className="h-full flex flex-col items-center justify-center gap-3" style={{ background: COLORS.subtle }}>
         <div className="signal-bars"><span /><span /><span /><span /><span /></div>
         <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>Loading ticket…</p>
       </div>
@@ -576,7 +576,7 @@ export function WorkspaceClient({ ticketId }: Props) {
     .pop();
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: COLORS.subtle }}>
       <Toast message={toast} onDone={() => setToast(null)} />
       <SendForReviewModal
         open={reviewModalOpen}
@@ -606,17 +606,8 @@ export function WorkspaceClient({ ticketId }: Props) {
       {/* Slim top bar — identity + version + primary CTA + More */}
       <header
         className="relative z-50 flex-none flex items-center gap-3 px-4 py-2 shrink-0"
-        style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${COLORS.border}` }}
+        style={{ background: COLORS.subtle, borderBottom: `1px solid ${COLORS.border}` }}
       >
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="p-1.5 -ml-1 rounded-full hover:bg-gray-100 transition-colors shrink-0"
-          aria-label="Back to home"
-          style={{ ...F.body, fontSize: 20, color: COLORS.accent, lineHeight: 1 }}
-        >
-          ‹
-        </button>
         <div className="flex-1 min-w-0">
           <div className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
             {ticketData?.summary ?? ticketId}

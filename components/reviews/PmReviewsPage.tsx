@@ -36,7 +36,8 @@ export function PmReviewsPage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 sm:py-14 space-y-8">
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="max-w-3xl mx-auto px-6 py-10 sm:py-14 space-y-8">
       <div className="space-y-1">
         <h1 style={{ ...F.body, fontSize: 32, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
           Review channels
@@ -66,6 +67,7 @@ export function PmReviewsPage() {
           ))}
         </ChannelList>
       )}
+      </div>
     </div>
   );
 }

@@ -1,52 +1,34 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
-import { repository } from "@lib/storage";
-import type { MockupSession } from "@lib/types";
-import { F, COLORS, RADIUS, greeting } from "@lib/design/tokens";
-import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
+import { F, COLORS, RADIUS, pickGreeting } from "@lib/design/tokens";
+import { useHomeChrome } from "@/components/shell/HomeChromeFrame";
 import { DashboardEngagementPanel } from "@/components/feedback/DashboardEngagementPanel";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
+  const { groups, loading, newMockNonce } = useHomeChrome();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [recent, setRecent] = useState<MockupSession | null>(null);
-  const [historyCount, setHistoryCount] = useState(0);
   const [ticketInput, setTicketInput] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [headline, setHeadline] = useState("Welcome");
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        await repository.migrateLegacySessions(user.id);
-        const list = await repository.getSessions(user.id);
-        const withMocks = list.filter(
-          (s) => s.activeHtml || s.messages?.some((m) => m.htmlComponent),
-        );
-        setRecent(withMocks[0] ?? null);
-        setHistoryCount(new Set(withMocks.map((s) => s.ticketId)).size);
-      } catch {
-        setRecent(null);
-        setHistoryCount(0);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user, authLoading]);
+    if (user) setHeadline(pickGreeting(user.name));
+  }, [user]);
 
   useEffect(() => {
+    if (!authLoading && !loading) inputRef.current?.focus();
+  }, [authLoading, loading]);
+
+  useEffect(() => {
+    if (!newMockNonce) return;
+    setTicketInput("");
     inputRef.current?.focus();
-  }, [loading]);
+  }, [newMockNonce]);
 
   function goToTicket(id: string) {
     router.push(`/workspace/${encodeURIComponent(id.trim().toUpperCase())}`);
@@ -58,95 +40,102 @@ export default function DashboardPage() {
     goToTicket(ticketInput);
   }
 
-  const recentSession = recent;
+  const recent = groups.find((g) => !g.building) ?? groups[0] ?? null;
 
   return (
-    <div className="max-w-xl mx-auto px-6 py-12 sm:py-16 space-y-10">
-      <div className="text-center space-y-1">
-        <h1 style={{ ...F.body, fontSize: 32, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
-          {user ? greeting(user.name) : "Welcome"}
-        </h1>
-        <p style={{ ...F.body, fontSize: 16, color: COLORS.muted }}>
-          Paste a JIRA ticket to generate a mockup
-        </p>
+    <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 45% at 50% 42%, rgba(217,119,6,0.07) 0%, transparent 70%)",
+        }}
+      />
+
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-16 sm:pb-24">
+        <div className="w-full max-w-[720px] flex flex-col items-center">
+          <h1
+            className="text-center mb-10 sm:mb-12"
+            style={{
+              ...F.body,
+              fontSize: "clamp(28px, 4.5vw, 44px)",
+              fontWeight: 500,
+              color: COLORS.text,
+              letterSpacing: "-0.035em",
+              lineHeight: 1.15,
+            }}
+          >
+            {headline}
+          </h1>
+
+          <form onSubmit={handleSubmit} className="w-full relative">
+            <div
+              className="flex items-center gap-2 w-full pl-4 pr-2 py-2 transition-shadow focus-within:ring-2 focus-within:ring-amber-500/20"
+              style={{
+                background: COLORS.surface,
+                borderRadius: RADIUS.pill,
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+                minHeight: 56,
+              }}
+            >
+              <span
+                className="flex-none w-9 h-9 flex items-center justify-center rounded-full"
+                style={{ color: COLORS.muted, fontSize: 20 }}
+                aria-hidden
+              >
+                +
+              </span>
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Ask for a mockup — paste a JIRA ticket"
+                value={ticketInput}
+                onChange={(e) => setTicketInput(e.target.value)}
+                className="flex-1 min-w-0 bg-transparent outline-none text-base py-2"
+                style={{
+                  ...F.body,
+                  color: COLORS.text,
+                  caretColor: COLORS.accent,
+                  fontSize: 16,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!ticketInput.trim()}
+                className="flex-none px-5 py-2.5 text-sm font-semibold disabled:opacity-35 transition-opacity"
+                style={{
+                  background: COLORS.accent,
+                  color: "#fff",
+                  borderRadius: RADIUS.pill,
+                }}
+              >
+                Go
+              </button>
+            </div>
+          </form>
+
+          {!loading && recent && (
+            <button
+              type="button"
+              onClick={() => goToTicket(recent.ticketId)}
+              className="mt-6 text-sm hover:underline"
+              style={{ ...F.body, color: COLORS.muted }}
+            >
+              Continue {recent.ticketId}
+            </button>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="GM-294720"
-          value={ticketInput}
-          onChange={(e) => setTicketInput(e.target.value)}
-          className="w-full px-5 py-4 pr-24 text-base outline-none transition-shadow focus:ring-2 focus:ring-amber-500/30"
-          style={{
-            ...F.body,
-            background: COLORS.surface,
-            color: COLORS.text,
-            borderRadius: RADIUS.lg,
-            border: `1px solid ${COLORS.border}`,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-            caretColor: COLORS.accent,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!ticketInput.trim()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 text-sm font-semibold disabled:opacity-30 transition-opacity"
-          style={{ background: COLORS.accent, color: "#fff", borderRadius: RADIUS.pill }}
-        >
-          Go
-        </button>
-      </form>
-
-      {!loading && recentSession && (
-        <button
-          type="button"
-          onClick={() => goToTicket(recentSession.ticketId)}
-          className="w-full text-left p-5 transition-transform active:scale-[0.99]"
-          style={{
-            background: COLORS.surface,
-            borderRadius: RADIUS.lg,
-            border: `1px solid ${COLORS.border}`,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-          }}
-        >
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <span style={{ ...F.body, fontSize: 13, fontWeight: 600, color: COLORS.accent }}>Continue</span>
-            <SessionStatusChip status={recentSession.status} />
+      {(user?.role === "external" || user?.role === "internal") && !loading && (
+        <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-4 pointer-events-none max-h-[28vh] overflow-y-auto">
+          <div className="max-w-[720px] mx-auto pointer-events-auto opacity-75">
+            {user.role === "external" && <DashboardEngagementPanel />}
+            {user.role === "internal" && <FeatureRequestsPanel manageable />}
           </div>
-          <div style={{ ...F.body, fontSize: 17, fontWeight: 600, color: COLORS.text }} className="truncate">
-            {recentSession.ticketData.summary}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span style={{ ...F.mono, fontSize: 13, color: COLORS.muted }}>{recentSession.ticketId}</span>
-            <span style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>·</span>
-            <span style={{ ...F.body, fontSize: 13, color: COLORS.muted }}>
-              {new Date(recentSession.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-            </span>
-          </div>
-        </button>
+        </div>
       )}
-
-      {!loading && historyCount > 0 && (
-        <Link
-          href="/history"
-          className="block text-center py-3 text-sm font-medium hover:underline"
-          style={{ ...F.body, color: COLORS.accent }}
-        >
-          View mock history ({historyCount} {historyCount === 1 ? "ticket" : "tickets"})
-        </Link>
-      )}
-
-      {!loading && !recentSession && (
-        <p className="text-center" style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
-          No mockups yet — enter a ticket above to start
-        </p>
-      )}
-
-      {!loading && user?.role === "external" && <DashboardEngagementPanel />}
-
-      {!loading && user?.role === "internal" && <FeatureRequestsPanel manageable />}
     </div>
   );
 }

@@ -108,17 +108,17 @@ export default function MockupsPage() {
   const effort = analysis?.data ? parseEffortEstimation(analysis.data.displayText ?? "") : null;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#F5F4F2" }}>
+    <div className="h-full min-h-0 flex flex-col overflow-hidden" style={{ background: "#F5F4F2" }}>
 
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 py-3 border-b bg-white flex-none" style={{ borderColor: "#E8E5E0" }}>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/dashboard")}
             className="flex items-center gap-1.5 transition-opacity hover:opacity-60"
             style={{ ...F.condensed, fontSize: 11, color: "#6A6560", letterSpacing: "0.15em", textTransform: "uppercase" }}
           >
-            ← Hub
+            ← Home
           </button>
           <span style={{ color: "#D0CCC6", fontSize: 14 }}>|</span>
           <span style={{ ...F.condensed, fontSize: 14, fontWeight: 700, color: "#1A1510", letterSpacing: "0.15em", textTransform: "uppercase" }}>

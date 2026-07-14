@@ -178,7 +178,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: COLORS.bg }}>
       <header
         className="relative z-50 flex-none px-4 py-3 border-b"
         style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderColor: COLORS.border }}
