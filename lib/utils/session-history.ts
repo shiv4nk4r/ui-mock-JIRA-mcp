@@ -77,12 +77,6 @@ export function buildRevisions(session: MockupSession, userRole: UserRole): Mock
       html: session.activeHtml,
       timestamp: session.savedAt,
     });
-  } else if (revisions.length > 0 && session.activeHtml) {
-    const last = revisions[revisions.length - 1];
-    if (last.html !== session.activeHtml) {
-      last.html = session.activeHtml;
-      last.timestamp = session.savedAt;
-    }
   }
 
   return revisions;

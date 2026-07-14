@@ -465,12 +465,18 @@ class MockupGenerationStore {
                 (finalHtml ? "Updated the mockup based on your request." : "Done.");
               this.updateLastMessage(key, {
                 text: replyText,
-                htmlComponent: finalHtml,
                 isStreaming: false,
+                ...(finalHtml ? { htmlComponent: finalHtml } : {}),
                 ...(effortEstimation ? { effortEstimation } : {}),
                 ...(changeLog ? { changeLog } : {}),
                 ...(agentPrompt ? { agentPrompt } : {}),
               });
+              if (finalHtml) {
+                this.patch(key, (s) => {
+                  s.activeHtml = finalHtml!;
+                  s.sessionStatus = "in_progress";
+                });
+              }
               const inT = (ev.inputTokens as number) ?? 0;
               const outT = (ev.outputTokens as number) ?? 0;
               const cost = (ev.costUsd as number) ?? 0;

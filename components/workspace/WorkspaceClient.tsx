@@ -88,6 +88,7 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   const prevRevisionCountRef = useRef(0);
   const historyWipedRef = useRef(false);
+  const wasBusyRef = useRef(false);
 
   const jiraBaseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? "";
 
@@ -180,17 +181,31 @@ export function WorkspaceClient({ ticketId }: Props) {
       prevRevisionCountRef.current = 0;
       return;
     }
+    const latestId = revisions[revisions.length - 1].id;
     setSelectedRevisionId((prev) => {
+      // New revision(s) arrived — always jump to the newest mock.
       if (revisions.length > prevRevisionCountRef.current) {
-        return revisions[revisions.length - 1].id;
+        return latestId;
       }
       if (!prev || !revisions.some((r) => r.id === prev)) {
-        return revisions[revisions.length - 1].id;
+        return latestId;
       }
       return prev;
     });
     prevRevisionCountRef.current = revisions.length;
   }, [revisions]);
+
+  // After generate/refine finishes, force-select the latest mock version.
+  useEffect(() => {
+    const busy = isStreaming || isGenerating;
+    if (wasBusyRef.current && !busy && revisions.length > 0) {
+      const latest = revisions[revisions.length - 1];
+      setSelectedRevisionId(latest.id);
+      const latestHtml = getLatestMockHtml(messages, latest.html || activeHtml);
+      if (latestHtml) setActiveHtml(latestHtml);
+    }
+    wasBusyRef.current = busy;
+  }, [isStreaming, isGenerating, revisions, messages, activeHtml]);
 
   useEffect(() => {
     if (isStreaming || isGenerating) setChatOpen(true);
@@ -410,7 +425,8 @@ export function WorkspaceClient({ ticketId }: Props) {
 
   async function handleRefine() {
     const prompt = refineInput.trim();
-    if (!prompt || isStreaming || !activeHtml || !ticketData || !user) return;
+    const htmlToRefine = getLatestMockHtml(messages, activeHtml) || previewHtml || activeHtml;
+    if (!prompt || isStreaming || !htmlToRefine || !ticketData || !user) return;
     const filesToSend = attachedFiles.length
       ? attachedFiles.map(({ name, type, content, contentType }) => ({ name, type, content, contentType }))
       : undefined;
@@ -424,7 +440,7 @@ export function WorkspaceClient({ ticketId }: Props) {
         ticket: ticketData,
         prompt,
         model: selectedModel || "claude-haiku-4-5-20251001",
-        currentHtml: activeHtml,
+        currentHtml: htmlToRefine,
         userRole: user.role,
         messages,
         usageRecords,

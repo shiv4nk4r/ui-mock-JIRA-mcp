@@ -35,11 +35,8 @@ export function isValidMockupHtml(html: string): boolean {
   return /^<!DOCTYPE/i.test(n) || /^<html[\s>]/i.test(n);
 }
 
-/** Prefer saved active HTML, then the latest assistant message with a mock component. */
+/** Prefer the newest assistant mock HTML; fall back to saved active HTML. */
 export function getLatestMockHtml(messages: Message[], activeHtml?: string): string {
-  const fromActive = normalizeMockupHtml(activeHtml ?? "");
-  if (fromActive) return fromActive;
-
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg.role !== "assistant") continue;
@@ -56,7 +53,7 @@ export function getLatestMockHtml(messages: Message[], activeHtml?: string): str
     }
   }
 
-  return "";
+  return normalizeMockupHtml(activeHtml ?? "");
 }
 
 export function sessionHasAssistantReply(messages: Message[]): boolean {
