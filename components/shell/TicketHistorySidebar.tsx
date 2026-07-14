@@ -11,9 +11,102 @@ import type { TicketHistoryGroup } from "@lib/utils/session-history";
 import { filterHistoryGroups } from "@lib/utils/session-history";
 import { relativeTime } from "@lib/utils/review-ui";
 import { jiraTicketUrl } from "@lib/utils/jira";
+import { roleTeamLabel, type User } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { GreyOrangeLogo } from "@/components/shared/GreyOrangeLogo";
 import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
+
+function AccountMenuPanel({
+  user,
+  onSignOut,
+  className,
+  style,
+}: {
+  user: User;
+  onSignOut: () => void;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const team = roleTeamLabel(user.role);
+  return (
+    <div
+      role="menu"
+      className={className}
+      style={{
+        width: 260,
+        background: `linear-gradient(180deg, ${COLORS.accentWash} 0%, ${COLORS.surface} 42%)`,
+        borderRadius: 20,
+        border: `1px solid ${COLORS.border}`,
+        boxShadow: "0 16px 48px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06)",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-3">
+          <span
+            className="w-11 h-11 flex items-center justify-center text-base font-semibold shrink-0"
+            style={{
+              background: COLORS.accentSoft,
+              color: COLORS.accent,
+              borderRadius: "50%",
+              boxShadow: `inset 0 0 0 1px ${COLORS.accentBorder}`,
+            }}
+          >
+            {user.name.charAt(0)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p
+              className="truncate"
+              style={{ ...F.body, fontSize: 15, fontWeight: 650, color: COLORS.text, margin: 0 }}
+            >
+              {user.name}
+            </p>
+            <span
+              className="inline-flex items-center mt-1 px-2 py-0.5 text-[11px] font-semibold"
+              style={{
+                background: COLORS.accentSoft,
+                color: COLORS.accent,
+                borderRadius: RADIUS.pill,
+                border: `1px solid ${COLORS.accentBorder}`,
+              }}
+            >
+              {team}
+            </span>
+          </div>
+        </div>
+        <p
+          className="mt-3 truncate px-0.5"
+          style={{ ...F.body, fontSize: 12, color: COLORS.muted, marginBottom: 0 }}
+          title={user.email}
+        >
+          {user.email}
+        </p>
+      </div>
+      <div
+        className="px-3 pb-3 pt-1"
+        style={{ borderTop: `1px solid ${COLORS.border}` }}
+      >
+        <button
+          type="button"
+          role="menuitem"
+          onClick={onSignOut}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-black/[0.05]"
+          style={{
+            ...F.body,
+            color: COLORS.text,
+            background: COLORS.surface,
+            borderRadius: RADIUS.pill,
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export interface TicketHistorySidebarProps {
   groups: TicketHistoryGroup[];
@@ -240,25 +333,42 @@ export function TicketHistorySidebar({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const collapsedAvatarRef = useRef<HTMLButtonElement>(null);
-  const [collapsedMenuPos, setCollapsedMenuPos] = useState<{ bottom: number; left: number } | null>(null);
+  const expandedAccountRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ bottom: number; left: number } | null>(null);
   const jiraBaseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? "";
 
   const expandedWidth = homeChrome ? 300 : 280;
   const collapsedWidth = 72;
 
   useEffect(() => {
-    if (!menuOpen || !collapsed) {
-      setCollapsedMenuPos(null);
+    if (!menuOpen) {
+      setMenuPos(null);
       return;
     }
-    const el = collapsedAvatarRef.current;
+    const el = collapsed ? collapsedAvatarRef.current : expandedAccountRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setCollapsedMenuPos({
-      bottom: window.innerHeight - rect.top + 8,
-      left: rect.right + 8,
-    });
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setMenuPos(
+        collapsed
+          ? { bottom: window.innerHeight - rect.top + 8, left: rect.right + 8 }
+          : { bottom: window.innerHeight - rect.top + 8, left: rect.left },
+      );
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
   }, [menuOpen, collapsed]);
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await signOut();
+    router.push("/login");
+  };
 
   // Close account menu when sidebar expands/collapses
   useEffect(() => {
@@ -397,7 +507,7 @@ export function TicketHistorySidebar({
               </button>
               {menuOpen &&
                 collapsed &&
-                collapsedMenuPos &&
+                menuPos &&
                 typeof document !== "undefined" &&
                 createPortal(
                   <>
@@ -407,38 +517,16 @@ export function TicketHistorySidebar({
                       onClick={() => setMenuOpen(false)}
                       aria-hidden
                     />
-                    <div
-                      role="menu"
-                      className="fixed py-2 min-w-[180px] shadow-lg"
+                    <AccountMenuPanel
+                      user={user}
+                      onSignOut={handleSignOut}
+                      className="fixed"
                       style={{
                         zIndex: 210,
-                        background: COLORS.surface,
-                        borderRadius: RADIUS.md,
-                        border: `1px solid ${COLORS.border}`,
-                        bottom: collapsedMenuPos.bottom,
-                        left: collapsedMenuPos.left,
+                        bottom: menuPos.bottom,
+                        left: menuPos.left,
                       }}
-                    >
-                      <div
-                        className="px-4 py-2 text-xs border-b"
-                        style={{ borderColor: COLORS.border, color: COLORS.muted }}
-                      >
-                        {user.email}
-                      </div>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={async () => {
-                          setMenuOpen(false);
-                          await signOut();
-                          router.push("/login");
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50"
-                        style={{ ...F.body, color: COLORS.text }}
-                      >
-                        Sign out
-                      </button>
-                    </div>
+                    />
                   </>,
                   document.body,
                 )}
@@ -595,18 +683,34 @@ export function TicketHistorySidebar({
 
         {homeChrome && user && (
           <div
-            className="flex-none relative px-3 py-3"
-            style={{ borderTop: `1px solid ${COLORS.border}` }}
+            className="flex-none relative px-3 py-3 z-[2]"
+            style={{
+              borderTop: `1px solid ${COLORS.border}`,
+              background: COLORS.subtle,
+            }}
           >
             <button
+              ref={expandedAccountRef}
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Account menu"
+              aria-expanded={menuOpen}
               className="w-full flex items-center gap-3 px-2 py-2 hover:bg-black/[0.04] transition-colors"
-              style={{ borderRadius: 16 }}
+              style={{
+                borderRadius: 16,
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              }}
             >
               <span
                 className="w-9 h-9 flex items-center justify-center text-sm font-semibold shrink-0"
-                style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: "50%" }}
+                style={{
+                  background: COLORS.accentSoft,
+                  color: COLORS.accent,
+                  borderRadius: "50%",
+                  boxShadow: menuOpen ? `0 0 0 2px ${COLORS.accentBorder}` : undefined,
+                }}
               >
                 {user.name.charAt(0)}
               </span>
@@ -615,34 +719,48 @@ export function TicketHistorySidebar({
                   {user.name}
                 </span>
                 <span className="block truncate" style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
-                  {user.role === "internal" ? "GCC" : "Product"}
+                  {roleTeamLabel(user.role)}
                 </span>
               </span>
-              <span style={{ ...F.body, fontSize: 16, color: COLORS.muted }}>⚙</span>
+              <span
+                className="w-8 h-8 flex items-center justify-center shrink-0"
+                style={{
+                  ...F.body,
+                  fontSize: 14,
+                  color: COLORS.muted,
+                  borderRadius: RADIUS.pill,
+                  background: menuOpen ? "rgba(0,0,0,0.04)" : "transparent",
+                }}
+                aria-hidden
+              >
+                ⚙
+              </span>
             </button>
-            {menuOpen && !collapsed && (
-              <>
-                <div className="fixed inset-0 z-[100]" onClick={() => setMenuOpen(false)} aria-hidden />
-                <div
-                  className="absolute left-3 right-3 bottom-full mb-2 z-[110] py-2 shadow-lg"
-                  style={{ background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}
-                >
-                  <div className="px-4 py-2 text-xs" style={{ color: COLORS.muted }}>{user.email}</div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      await signOut();
-                      router.push("/login");
+            {menuOpen &&
+              !collapsed &&
+              menuPos &&
+              typeof document !== "undefined" &&
+              createPortal(
+                <>
+                  <div
+                    className="fixed inset-0"
+                    style={{ zIndex: 200 }}
+                    onClick={() => setMenuOpen(false)}
+                    aria-hidden
+                  />
+                  <AccountMenuPanel
+                    user={user}
+                    onSignOut={handleSignOut}
+                    className="fixed"
+                    style={{
+                      zIndex: 210,
+                      bottom: menuPos.bottom,
+                      left: menuPos.left,
                     }}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50"
-                    style={{ ...F.body, color: COLORS.text }}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </>
-            )}
+                  />
+                </>,
+                document.body,
+              )}
           </div>
         )}
       </div>

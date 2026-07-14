@@ -8,6 +8,8 @@ export const F = {
 export const COLORS = {
   accent: "#D97706",
   accentSoft: "rgba(217, 119, 6, 0.12)",
+  accentWash: "rgba(217, 119, 6, 0.07)",
+  accentBorder: "rgba(217, 119, 6, 0.22)",
   bg: "#F5F5F7",
   surface: "#FFFFFF",
   border: "#E5E5EA",

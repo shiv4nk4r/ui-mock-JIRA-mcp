@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { formatCostUsd } from "@lib/utils/usage-cost";
+import { MoreMenuItem, MoreMenuPanel, MoreMenuSeparator } from "@/components/shared/MoreMenu";
 
 export interface WorkspaceHeaderMoreMenuProps {
   onFullscreen: () => void;
@@ -20,43 +21,6 @@ export interface WorkspaceHeaderMoreMenuProps {
   shareDisabled?: boolean;
   costDisabled?: boolean;
   deleteDisabled?: boolean;
-}
-
-function MenuItem({
-  label,
-  detail,
-  onClick,
-  disabled,
-  danger,
-}: {
-  label: string;
-  detail?: string;
-  onClick: () => void;
-  disabled?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={disabled}
-      onClick={onClick}
-      className="w-full text-left px-3 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
-      style={{
-        ...F.body,
-        fontSize: 13,
-        fontWeight: 500,
-        color: danger ? "#D70015" : COLORS.text,
-      }}
-    >
-      <span className="block">{label}</span>
-      {detail && (
-        <span className="block mt-0.5" style={{ ...F.mono, fontSize: 11, color: COLORS.muted, fontWeight: 400 }}>
-          {detail}
-        </span>
-      )}
-    </button>
-  );
 }
 
 export function WorkspaceHeaderMoreMenu({
@@ -129,50 +93,37 @@ export function WorkspaceHeaderMoreMenu({
   }
 
   const menu = open ? (
-    <div
-      ref={menuRef}
-      role="menu"
-      className="min-w-[200px] max-w-[260px] shadow-lg overflow-hidden"
-      style={{
-        ...menuStyle,
-        background: COLORS.surface,
-        borderRadius: RADIUS.md,
-        border: `1px solid ${COLORS.border}`,
-      }}
-    >
-      <div className="py-1">
-        <MenuItem
-          label="Full screen"
-          onClick={() => run(onFullscreen)}
-          disabled={fullscreenDisabled}
+    <MoreMenuPanel menuRef={menuRef} style={menuStyle}>
+      <MoreMenuItem
+        label="Full screen"
+        onClick={() => run(onFullscreen)}
+        disabled={fullscreenDisabled}
+      />
+      <MoreMenuItem
+        label="Download HTML"
+        onClick={() => run(onDownload)}
+        disabled={downloadDisabled}
+      />
+      <MoreMenuItem label="Share link" onClick={() => run(onShare)} disabled={shareDisabled} />
+      {showCost && onCost && (
+        <MoreMenuItem
+          label="View cost"
+          detail={formatCostUsd(costUsd)}
+          onClick={() => run(onCost)}
+          disabled={costDisabled}
         />
-        <MenuItem
-          label="Download HTML"
-          onClick={() => run(onDownload)}
-          disabled={downloadDisabled}
-        />
-        <MenuItem label="Share link" onClick={() => run(onShare)} disabled={shareDisabled} />
-        {showCost && onCost && (
-          <MenuItem
-            label="View cost"
-            detail={formatCostUsd(costUsd)}
-            onClick={() => run(onCost)}
-            disabled={costDisabled}
-          />
-        )}
-        {hasReviewChannel && onReviewChannel && (
-          <MenuItem label="Review channel" onClick={() => run(onReviewChannel)} />
-        )}
-      </div>
-      <div style={{ borderTop: `1px solid ${COLORS.border}` }} className="py-1">
-        <MenuItem
-          label="Delete history…"
-          onClick={() => run(onDelete)}
-          disabled={deleteDisabled}
-          danger
-        />
-      </div>
-    </div>
+      )}
+      {hasReviewChannel && onReviewChannel && (
+        <MoreMenuItem label="Review channel" onClick={() => run(onReviewChannel)} />
+      )}
+      <MoreMenuSeparator />
+      <MoreMenuItem
+        label="Delete history…"
+        onClick={() => run(onDelete)}
+        disabled={deleteDisabled}
+        danger
+      />
+    </MoreMenuPanel>
   ) : null;
 
   return (
@@ -185,7 +136,7 @@ export function WorkspaceHeaderMoreMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         title="More actions"
-        className="inline-flex items-center justify-center transition-colors hover:bg-gray-100 disabled:opacity-40"
+        className="inline-flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-40"
         style={{
           ...F.body,
           width: 36,

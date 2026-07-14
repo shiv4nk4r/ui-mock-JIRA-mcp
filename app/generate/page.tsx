@@ -2,6 +2,8 @@
 
 import { useRef, useState, useEffect, FormEvent, KeyboardEvent } from "react";
 
+import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 interface JiraMetadata {
@@ -285,41 +287,6 @@ function ChatMarkdown({ text }: { text: string }) {
         if (/^[-*]\s/.test(t)) return <div key={gi} className="flex items-start gap-2 mb-0.5"><span className="flex-none" style={{ color: "#D97706", fontSize: 7, marginTop: 6 }}>▶</span><span style={{ fontFamily: "'Barlow',sans-serif", fontSize: 13, color: "#0E0A06", lineHeight: "1.65" }}>{renderChatInline(t.slice(2))}</span></div>;
         return <div key={gi} className="mb-1" style={{ fontFamily: "'Barlow',sans-serif", fontSize: 13, color: "#0E0A06", lineHeight: "1.75" }}>{renderChatInline(t)}</div>;
       })}
-    </div>
-  );
-}
-
-// ── ThinkingBlock ─────────────────────────────────────────────────────────────
-
-function ThinkingBlock({ log, done, elapsed }: { log: string[]; done: boolean; elapsed?: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const latest = log[log.length - 1] ?? "Processing…";
-  if (!done) return (
-    <div className="flex items-start gap-3 px-4 py-3 border-l-2 mb-2" style={{ borderLeftColor: "#D0CCC6", background: "#FFFFFF" }}>
-      <div className="signal-bars flex-none" style={{ marginTop: 3 }}><span /><span /><span /><span /><span /></div>
-      <div>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#6A6560", letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 3 }}>Thinking</div>
-        <div style={{ fontFamily: "'Barlow',sans-serif", fontSize: 12, color: "#8A8680", lineHeight: "1.4" }}>{latest}</div>
-      </div>
-    </div>
-  );
-  return (
-    <div className="border-l-2 mb-2 overflow-hidden" style={{ borderLeftColor: "#E2DDD8" }}>
-      <button onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-2 px-4 py-2 text-left" style={{ background: "#FFFFFF" }}>
-        <span style={{ color: "#A8A4A0", fontSize: 9 }}>{expanded ? "▾" : "▸"}</span>
-        <span style={{ fontFamily: "'Fira Code',monospace", fontSize: 10, color: "#8A8680", letterSpacing: "0.05em" }}>Thought for {elapsed?.toFixed(1)}s</span>
-        {log.length > 0 && <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 10, color: "#C4C0BA", letterSpacing: "0.08em" }}>· {log.length} step{log.length !== 1 ? "s" : ""}</span>}
-      </button>
-      {expanded && (
-        <div className="px-4 py-2 space-y-1.5" style={{ background: "#EDEBE8", borderTop: "1px solid #E2DDD8" }}>
-          {log.map((entry, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span style={{ color: "#C4C0BA", fontSize: 10, marginTop: 1, flexShrink: 0 }}>›</span>
-              <span style={{ fontFamily: "'Barlow',sans-serif", fontSize: 11, color: "#706C68", lineHeight: "1.45" }}>{entry}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1059,7 +1026,7 @@ export default function Home() {
                       {msg.role === "assistant" && <span style={{ ...F.mono, color: "#6E6560", fontSize: "9px" }}>MCP</span>}
                     </div>
 
-                    {msg.thinking && <ThinkingBlock log={msg.thinking.log} done={msg.thinking.done} elapsed={msg.thinking.elapsed} />}
+                    {msg.thinking && !msg.thinking.done && <ThinkingBlock done={false} />}
 
                     {(msg.text || msg.isStreaming) && (
                       <div className="px-4 py-3 border-l-2" style={{ borderLeftColor: msg.role === "user" ? "#A8A4A0" : "#D97706", background: msg.role === "user" ? "#ECEAE6" : "rgba(217,119,6,0.06)" }}>

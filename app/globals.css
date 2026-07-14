@@ -54,6 +54,36 @@ html, body {
   50%       { opacity: 0.45; }
 }
 
+@keyframes thinking-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: -100% 50%; }
+}
+
+@keyframes thinking-word-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Claude-style cycling status label while the agent thinks */
+.thinking-status {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    #86868B 0%,
+    #86868B 35%,
+    #1D1D1F 50%,
+    #86868B 65%,
+    #86868B 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    thinking-shimmer 2.4s ease-in-out infinite,
+    thinking-word-in 0.35s ease-out both;
+}
+
 /* ── Background Grid (Gateway) ─────────────────────────────────────── */
 
 .grid-pattern {
