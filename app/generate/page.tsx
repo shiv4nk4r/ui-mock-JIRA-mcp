@@ -24,9 +24,11 @@ interface TicketData {
 }
 interface ContentBlock  { type: string; text: string }
 interface ModelOption   { id: string; label: string; description: string }
+interface FeatureFlags { buildPr: boolean }
 interface ProviderConfig {
   provider: "claude-code" | "claude" | "gemini" | "openai" | "mock";
   providerLabel: string; baseUrl: string; defaultModel: string; models: ModelOption[];
+  features?: FeatureFlags;
 }
 interface AttachedFile {
   name: string; type: string; size: number; sizeLabel: string;
@@ -959,6 +961,15 @@ export default function Home() {
                   title={`Download ${ticketData?.id ?? "mockup"}.html`}>
                   ↓ Download
                 </button>
+                {providerConfig?.features?.buildPr && (
+                  <button
+                    onClick={() => { /* Build PR — to be implemented */ }}
+                    className="flex items-center gap-1.5 px-4 transition-colors duration-150 hover:bg-amber-50"
+                    style={{ ...F.condensed, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#D97706", borderLeft: "1px solid #E2DDD8" }}
+                    title="Create a Pull Request from this mockup">
+                    ⎇ Build PR
+                  </button>
+                )}
               </>
             )}
           </div>

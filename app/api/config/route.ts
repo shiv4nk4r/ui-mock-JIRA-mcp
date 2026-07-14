@@ -9,12 +9,17 @@ export interface ModelOption {
   description: string;
 }
 
+export interface FeatureFlags {
+  buildPr: boolean;
+}
+
 export interface ProviderConfig {
   provider: "claude-code";
   providerLabel: string;
   baseUrl: string;
   defaultModel: string;
   models: ModelOption[];
+  features: FeatureFlags;
 }
 
 const MODELS: ModelOption[] = [
@@ -41,6 +46,9 @@ export function GET() {
     baseUrl: "local",
     defaultModel: "claude-haiku-4-5-20251001",
     models: MODELS,
+    features: {
+      buildPr: process.env.ENABLE_BUILD_PR === "true",
+    },
   };
 
   return NextResponse.json(config);

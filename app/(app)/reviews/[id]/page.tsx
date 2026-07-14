@@ -28,6 +28,7 @@ import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
 import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { IconButton } from "@/components/shared/Toast";
+import { useFeatureFlags } from "@lib/hooks/use-feature-flags";
 import { useBuildPr } from "@lib/hooks/use-build-pr";
 
 function latestEffortMarkdown(session: MockupSession | null): string | undefined {
@@ -53,6 +54,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const [costOpen, setCostOpen] = useState(false);
   const [openBuildConfirm, setOpenBuildConfirm] = useState(false);
   const { startBuild, busy: buildBusy, progress: buildProgress } = useBuildPr(params.id);
+  const { buildPr: buildPrEnabled } = useFeatureFlags();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -237,7 +239,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            {isBuildableReviewStatus(review.status) && (
+            {buildPrEnabled && isBuildableReviewStatus(review.status) && (
               <button
                 type="button"
                 disabled={buildBusy || review.build?.status === "running"}
@@ -348,7 +350,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         />
       )}
 
-      {isBuildableReviewStatus(review.status) && !mockFullscreen && (
+      {buildPrEnabled && isBuildableReviewStatus(review.status) && !mockFullscreen && (
         <>
           <BuildPrFab
             busy={buildBusy}
