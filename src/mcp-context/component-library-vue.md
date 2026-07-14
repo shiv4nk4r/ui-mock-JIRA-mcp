@@ -331,6 +331,14 @@ Full listing page layout. Paste into `template: \`...\``.
     </div>
   </q-header>
 
+  <!-- Left filters — outer layout drawer so it covers the full page under the navbar -->
+  <q-drawer v-model="filterOpen" side="left" bordered overlay :width="280">
+    <div class="q-pa-md">
+      <div class="text-weight-bold q-mb-md" style="font-size:14px;color:#101a5c;">Filters</div>
+      <!-- add q-checkbox or q-radio filter options here -->
+    </div>
+  </q-drawer>
+
   <q-page-container style="padding-top:152px;"><!-- 56 + 44 + 38 + 40 = 178 or adjust -->
     <q-page style="background:#F5F5F5;padding:8px;">
 
@@ -483,15 +491,7 @@ Full listing page layout. Paste into `template: \`...\``.
 
           </div><!-- end col -->
 
-          <!-- ── Left filter drawer ── -->
-          <q-drawer v-model="filterOpen" show-if-above bordered>
-            <div class="q-pa-md">
-              <div class="text-weight-bold q-mb-md" style="font-size:14px;color:#101a5c;">Filters</div>
-              <!-- add q-checkbox or q-radio filter options here -->
-            </div>
-          </q-drawer>
-
-          <!-- ── Right detail drawer ── -->
+          <!-- Right detail drawer stays inside the card layout -->
           <q-drawer v-model="detailOpen" side="right" :width="450" bordered>
             <div style="font-size:13px;display:flex;flex-direction:column;height:100%;">
               <div style="flex-shrink:0;">

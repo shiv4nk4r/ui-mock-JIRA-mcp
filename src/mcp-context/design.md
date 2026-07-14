@@ -23,7 +23,7 @@
 </q-card>
 ```
 
-The outer card is always `flat bordered` (never elevated). The inner `q-layout` with `view="hHh lpr fFf"` enables left/right drawers inside the card.
+The outer card is always `flat bordered` (never elevated). The inner `q-layout` with `view="hHh lpr fFf"` enables the **right** detail drawer inside the card. The **left filters** drawer belongs on the **outer** app `q-layout` (sibling of `q-page-container`) so it covers the full main view under the navbar — not just the table card.
 
 ### Default Table
 

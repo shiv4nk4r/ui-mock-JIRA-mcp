@@ -22,7 +22,7 @@ This file contains two sections:
   - **Footer (pagination-row SNIPPET):** `"N results found"` (left) + rows-per-page select + page buttons (right).
   - The record count appears in TWO places only: toolbar-top stats line AND pagination-row footer. It must NOT appear as standalone text inside the filter-bar row.
 - **LIST/TABLE PAGES — FILTERS ARE MANDATORY:**
-  - **Side filters (filters-sidebar SNIPPET):** ALWAYS include for any list/table page. The Filter button in `filter-bar` MUST call `toggleFilterPanel()`. Show the sidebar open by default (add `.open` class). The sidebar is an **overlay** — it slides over the table from the left via `position: absolute` inside `.content-with-filters { position: relative }`. The table stays full-width underneath; the sidebar does not push it. Adapt filter field names to the ticket's domain.
+  - **Side filters (filters-sidebar SNIPPET):** ALWAYS include for any list/table page. The Filter button in `filter-bar` MUST call `toggleFilterPanel()`. Show the sidebar open by default (add `.open` class). The sidebar is an **overlay** — it slides over the **full main view under the navbar** (toolbar + filter bar + table), via `position: absolute` inside `.content-with-filters { position: relative }`. It must NOT be limited to the table card alone. The navbar/topbar stay uncovered. Adapt filter field names to the ticket's domain.
   - **Top summary filters (top-summary-filters SNIPPET):** Include when the domain has meaningful status categories (e.g., Created / In Progress / Completed). Shows quick-toggle count buttons above the table — sourced from `TopSummaryFilter.vue` pattern. Omit only when the ticket explicitly has no status groupings.
   - **Filter types to use in filters-sidebar:** CHECKBOX (multi-select from known values — most common), RADIO (single-select), INPUT (text/number free entry), DATE_TIME_RANGE (date range picker pair), RANGE (min/max numeric). Pick types that match the field semantics.
 - **WORKING INTERACTIONS — ALL LIST/TABLE PAGES (non-negotiable):**
@@ -482,20 +482,35 @@ body {
 
 /* --- FILTERS SIDEBAR PANEL ---
    Overlay drawer — absolutely positioned inside .content-with-filters.
-   Height matches the content area (not the full viewport). Table stays full-width underneath.
-   Layout: .content-with-filters { position:relative } contains both sidebar + table-section. */
+   .content-with-filters wraps the FULL main view under the navbar (toolbar + filter bar +
+   summary filters + table). Height fills remaining viewport so the panel is not table-only.
+   Navbar / topbar / primary-nav stay outside this wrapper and stay uncovered. */
 .content-with-filters {
   position: relative;
   background: var(--page-bg);
+  /* Fill remaining viewport under chrome (~topbar 56 + primary-nav 44; sub-nav optional) */
+  min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+}
+.page-main {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .table-section {
   width: 100%;
   overflow: hidden;
   display: flex; flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 .filters-sidebar {
   position: absolute; top: 0; left: 0; bottom: 0;
   width: 280px;
+  height: 100%;
   background: #fff;
   box-shadow: 2px 0 12px rgba(0,0,0,0.13);
   border-right: 1px solid var(--border);
@@ -1176,7 +1191,7 @@ function cancelAction() {
 
 // ═══════════════════════════════════════════════════
 // FILTER PANEL CONTROLS
-// Sidebar is inline (flex sibling to table) — no overlay element needed.
+// Sidebar overlays .content-with-filters (full main view under navbar).
 // ═══════════════════════════════════════════════════
 function toggleFilterPanel() {
   var s = document.getElementById('filterSidebar');
@@ -1260,8 +1275,8 @@ render();
 
 ```html
 <!-- SNIPPET: filters-sidebar — Overlay drawer inside .content-with-filters (position:relative).
-     Slides over the table from the left. Height is bounded by the content area, not the viewport.
-     Table stays full-width underneath — the sidebar overlays it, it does not push it.
+     Slides over the FULL main view under the navbar (toolbar + filter bar + table), not the table only.
+     Height is bounded by .content-with-filters which fills the remaining viewport under chrome.
      REAL look sourced from FiltersSidebar.vue (v2) + screenshot analysis:
        - Header: light grey (#F5F5F5 = bg-grey-3), "Filters" bold dark text, chevron_left to close
        - Clear Filters: separate row below header, small orange outlined button (right-aligned)
@@ -1270,7 +1285,8 @@ render();
        - Filter group header: bold, padding 8px, white bg
        - Thin custom scrollbar (5px wide, #d3d3d3)
      ⚠ RULES:
-       - Place inside <div class="content-with-filters"> alongside <div class="table-section">.
+       - Place .content-with-filters IMMEDIATELY after topbar + primary-nav (+ optional sub-nav / section-banner).
+       - Put toolbar-top, filter-bar, top-summary-filters, AND table INSIDE .page-main (sibling of sidebar).
        - Show open by default: class="open" on .filters-sidebar.
        - All logic (clearAllFilters, toggleFilterGroup, onCheckFilter, onInputFilter, toggleFilterPanel)
          lives in data-table-engine SNIPPET — do NOT redefine those functions here.
@@ -1279,12 +1295,20 @@ render();
        - Replace field names/values with the ticket's actual domain. Use find-related-context results.
        - Add class="full" to .filter-check-cell when the label is too long for 2-col layout.
 
-     PAGE LAYOUT (required — toolbar-top + filter-bar go ABOVE this wrapper):
+     PAGE LAYOUT (required — navbar ABOVE; everything else INSIDE the wrapper):
+     [topbar]
+     [primary-nav]
+     [optional sub-nav / section-banner]
      <div class="content-with-filters">
-       [filters-sidebar here — overlays the table]
-       <div class="table-section">
-         <div class="card" style="overflow-x:auto"><table>…</table></div>
-         [pagination-row here]
+       [filters-sidebar here — overlays full main view]
+       <div class="page-main">
+         [toolbar-top]
+         [filter-bar]
+         [optional top-summary-filters]
+         <div class="table-section">
+           <div class="card" style="overflow-x:auto"><table>…</table></div>
+           [pagination-row here]
+         </div>
        </div>
      </div>  -->
 
