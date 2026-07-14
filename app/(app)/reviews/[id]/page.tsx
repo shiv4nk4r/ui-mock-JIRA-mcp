@@ -206,6 +206,20 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   PR{review.build.prNumber ? ` #${review.build.prNumber}` : ""} ↗
                 </a>
               )}
+              {review.build?.jobId && (
+                <Link
+                  href={`/builds/${review.build.jobId}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    background: COLORS.accentSoft,
+                    color: COLORS.accent,
+                    borderRadius: RADIUS.pill,
+                    ...F.body,
+                  }}
+                >
+                  Logs
+                </Link>
+              )}
               {review.build?.status === "running" && (
                 <span
                   className="inline-flex items-center px-2 py-0.5 text-xs font-semibold"

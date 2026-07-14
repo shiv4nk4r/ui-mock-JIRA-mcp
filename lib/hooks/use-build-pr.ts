@@ -149,9 +149,9 @@ export function useBuildPr(reviewId?: string) {
 
   const startBuild = useCallback(
     async ({ review, session, reviewUrl }: StartBuildArgs) => {
-      if (review.status !== "approved") {
-        throw new Error("Review must be approved before building");
-      }
+    if (review.status !== "approved" && review.status !== "reviewed") {
+      throw new Error("Review must be approved before building");
+    }
       const details = buildExecutionDetails(review, session);
       const agentPrompt = buildAgentPrompt(details, review, session);
       if (!agentPrompt.trim()) {

@@ -102,6 +102,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </Link>
+            {user.role === "internal" && (
+              <Link
+                href="/builds"
+                className="px-4 py-1.5 text-sm font-medium transition-colors"
+                style={{
+                  borderRadius: RADIUS.pill,
+                  background: pathname.startsWith("/builds") ? COLORS.surface : "transparent",
+                  color: pathname.startsWith("/builds") ? COLORS.text : COLORS.muted,
+                  boxShadow: pathname.startsWith("/builds") ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                Builds
+              </Link>
+            )}
           </nav>
 
           <div className="relative shrink-0">

@@ -73,6 +73,14 @@ export function BuildStatusBanner({ build, progressMessage, channelOpen = false 
               Open pull request →
             </a>
           )}
+          {build?.jobId && (
+            <a
+              href={`/builds/${build.jobId}`}
+              style={{ ...F.body, fontSize: 13, fontWeight: 600, color: COLORS.accent, display: "block" }}
+            >
+              View build logs →
+            </a>
+          )}
         </div>
       </div>
     </div>

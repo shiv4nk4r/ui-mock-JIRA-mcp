@@ -27,7 +27,11 @@ export function isBuildableReviewStatus(status: ReviewStatus): boolean {
 
 function BuildCell({ build }: { build?: ReviewBuildState }) {
   if (build?.status === "running") {
-    return (
+    return build.jobId ? (
+      <Link href={`/builds/${build.jobId}`} style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.accent }}>
+        Building… →
+      </Link>
+    ) : (
       <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: COLORS.accent }}>
         Building…
       </span>
@@ -35,24 +39,36 @@ function BuildCell({ build }: { build?: ReviewBuildState }) {
   }
   if (build?.prUrl) {
     return (
-      <a
-        href={build.prUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className="inline-flex items-center gap-1 text-xs font-semibold hover:underline"
-        style={{ color: "#248A3D" }}
-      >
-        PR{build.prNumber ? ` #${build.prNumber}` : ""} ↗
-      </a>
+      <div className="flex flex-col gap-0.5">
+        <a
+          href={build.prUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-xs font-semibold hover:underline"
+          style={{ color: "#248A3D" }}
+        >
+          PR{build.prNumber ? ` #${build.prNumber}` : ""} ↗
+        </a>
+        {build.jobId && (
+          <Link href={`/builds/${build.jobId}`} className="text-[11px] font-semibold" style={{ color: COLORS.accent }}>
+            Logs →
+          </Link>
+        )}
+      </div>
     );
   }
   if (build?.status === "failed") {
-    return (
-      <span
+    return build.jobId ? (
+      <Link
+        href={`/builds/${build.jobId}`}
         style={{ ...F.body, fontSize: 12, fontWeight: 600, color: "#FF3B30" }}
         title={build.error}
       >
+        Failed →
+      </Link>
+    ) : (
+      <span style={{ ...F.body, fontSize: 12, fontWeight: 600, color: "#FF3B30" }} title={build.error}>
         Failed
       </span>
     );
