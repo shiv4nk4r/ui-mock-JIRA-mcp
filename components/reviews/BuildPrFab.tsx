@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import type { ReviewBuildState } from "@lib/types";
 
@@ -9,6 +9,8 @@ interface Props {
   busy: boolean;
   build?: ReviewBuildState;
   channelOpen?: boolean;
+  /** Open the confirm panel on mount (e.g. from ?build=1 deep link). */
+  autoOpenConfirm?: boolean;
 }
 
 export function BuildPrIcon({ size = 22 }: { size?: number }) {
@@ -22,9 +24,19 @@ export function BuildPrIcon({ size = 22 }: { size?: number }) {
   );
 }
 
-export function BuildPrFab({ onBuild, busy, build, channelOpen = false }: Props) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+export function BuildPrFab({
+  onBuild,
+  busy,
+  build,
+  channelOpen = false,
+  autoOpenConfirm = false,
+}: Props) {
+  const [confirmOpen, setConfirmOpen] = useState(autoOpenConfirm);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (autoOpenConfirm) setConfirmOpen(true);
+  }, [autoOpenConfirm]);
 
   const fabRight = channelOpen ? "calc(min(100vw, 420px) + 16px)" : 24;
   const hasPr = build?.status === "succeeded" && !!build.prUrl;
@@ -70,9 +82,10 @@ export function BuildPrFab({ onBuild, busy, build, channelOpen = false }: Props)
               {hasPr ? "Rebuild & update PR?" : "Build pull request"}
             </p>
             <p style={{ ...F.body, fontSize: 13, color: COLORS.muted, lineHeight: 1.45 }}>
-              Claude Code will sync <span style={{ ...F.mono, fontSize: 12 }}>develop</span>, create{" "}
-              <span style={{ ...F.mono, fontSize: 12 }}>{"{ticket}-gcc-studio"}</span>, implement the
-              handoff, push, and open a PR.
+              Claude Code runs on the server in the background — you can close this tab.
+              It syncs <span style={{ ...F.mono, fontSize: 12 }}>develop</span>, creates{" "}
+              <span style={{ ...F.mono, fontSize: 12 }}>{"{ticket}-gcc-studio"}</span>, implements
+              the handoff, pushes, and opens a PR. Reopen this page anytime to check status.
             </p>
             {error && (
               <p style={{ ...F.body, fontSize: 12, color: "#FF3B30", lineHeight: 1.4 }}>{error}</p>

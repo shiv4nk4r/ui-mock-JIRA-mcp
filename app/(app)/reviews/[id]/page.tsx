@@ -17,8 +17,9 @@ import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewDecisionFab } from "@/components/reviews/ReviewDecisionFab";
-import { BuildPrFab } from "@/components/reviews/BuildPrFab";
+import { BuildPrFab, BuildPrIcon } from "@/components/reviews/BuildPrFab";
 import { BuildStatusBanner } from "@/components/reviews/BuildStatusBanner";
+import { isBuildableReviewStatus } from "@/components/reviews/InternalReviewsTable";
 import { ReviewHandoffPanel } from "@/components/reviews/ReviewHandoffPanel";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
@@ -50,7 +51,28 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const [channelOpen, setChannelOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [costOpen, setCostOpen] = useState(false);
-  const { startBuild, busy: buildBusy, progress: buildProgress } = useBuildPr();
+  const [openBuildConfirm, setOpenBuildConfirm] = useState(false);
+  const { startBuild, busy: buildBusy, progress: buildProgress } = useBuildPr(params.id);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("build") === "1") setOpenBuildConfirm(true);
+  }, []);
+
+  // Keep review.build in sync while a background job is watched/polled.
+  useEffect(() => {
+    if (!buildProgress?.message && !buildBusy) return;
+    let cancelled = false;
+    (async () => {
+      const r = await repository.getReview(params.id);
+      if (cancelled || !r?.build) return;
+      setReview((prev) => (prev ? { ...prev, build: r.build } : prev));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id, buildProgress?.message, buildProgress?.phase, buildBusy]);
 
   async function load() {
     const r = await repository.getReview(params.id);
@@ -121,8 +143,8 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     if (!review) return;
     const reviewUrl =
       typeof window !== "undefined" ? `${window.location.origin}/reviews/${review.id}` : undefined;
-    await startBuild({ review, session, reviewUrl });
-    await load();
+    const build = await startBuild({ review, session, reviewUrl });
+    setReview((prev) => (prev ? { ...prev, build } : prev));
   }
 
   if (!review) {
@@ -215,6 +237,29 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
             <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {isBuildableReviewStatus(review.status) && (
+              <button
+                type="button"
+                disabled={buildBusy || review.build?.status === "running"}
+                onClick={() => runBuild()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                style={{
+                  ...F.body,
+                  background: COLORS.accent,
+                  color: "#fff",
+                  borderRadius: RADIUS.pill,
+                  border: "none",
+                }}
+                title="Run Claude Code build and open a GitHub PR"
+              >
+                <BuildPrIcon size={16} />
+                {buildBusy || review.build?.status === "running"
+                  ? "Building…"
+                  : review.build?.prUrl
+                    ? "Rebuild PR"
+                    : "Build PR"}
+              </button>
+            )}
             {showCost && (
               <MockCostBadge costUsd={usageTotals.costUsd} onClick={() => setCostOpen(true)} />
             )}
@@ -303,12 +348,13 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
         />
       )}
 
-      {review.status === "approved" && !mockFullscreen && (
+      {isBuildableReviewStatus(review.status) && !mockFullscreen && (
         <>
           <BuildPrFab
             busy={buildBusy}
             build={review.build}
             channelOpen={channelOpen}
+            autoOpenConfirm={openBuildConfirm}
             onBuild={runBuild}
           />
           {(buildBusy || review.build?.status === "running" || review.build?.status === "failed" || review.build?.prUrl) && (

@@ -16,7 +16,9 @@ export interface TicketReviewChannel {
 function previewForComment(comment: Comment | undefined, review: ReviewItem): string {
   if (!comment) {
     if (review.status === "needs_changes") return "Engineering requested changes";
-    if (review.status === "approved") return "Approved for implementation";
+    if (review.status === "approved" || review.status === "reviewed") {
+      return "Approved for implementation";
+    }
     if (review.status === "pending_review") return "Awaiting engineering review";
     if (review.status === "withdrawn") return "Withdrawn from review";
     return "Review channel opened";

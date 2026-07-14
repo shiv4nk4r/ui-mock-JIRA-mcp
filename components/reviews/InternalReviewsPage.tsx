@@ -6,10 +6,10 @@ import { useAuth } from "@lib/auth/auth-context";
 import { repository } from "@lib/storage";
 import type { TicketReviewChannel } from "@lib/utils/review-channels";
 import { loadReviewChannels } from "@lib/utils/review-channels";
-import { F, COLORS, RADIUS } from "@lib/design/tokens";
+import { F, COLORS } from "@lib/design/tokens";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
-import { ChannelList, EmptyState, TabBar } from "@/components/reviews/PmReviewsPage";
-import { TicketReviewChannelCard } from "@/components/reviews/TicketReviewChannelCard";
+import { TabBar } from "@/components/reviews/PmReviewsPage";
+import { InternalReviewsTable } from "@/components/reviews/InternalReviewsTable";
 
 type QueueTab = "pending" | "changes" | "done";
 
@@ -32,7 +32,9 @@ export function InternalReviewsPage() {
 
   const pending = channels.filter((c) => c.review.status === "pending_review");
   const changes = channels.filter((c) => c.review.status === "needs_changes");
-  const done = channels.filter((c) => c.review.status === "approved" || c.review.status === "reviewed");
+  const done = channels.filter(
+    (c) => c.review.status === "approved" || c.review.status === "reviewed",
+  );
 
   const visible = tab === "pending" ? pending : tab === "changes" ? changes : done;
 
@@ -43,13 +45,13 @@ export function InternalReviewsPage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 sm:py-14 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6">
       <div className="space-y-1">
-        <h1 style={{ ...F.body, fontSize: 32, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
+        <h1 style={{ ...F.body, fontSize: 28, fontWeight: 600, color: COLORS.text, letterSpacing: "-0.03em" }}>
           Review channels
         </h1>
-        <p style={{ ...F.body, fontSize: 16, color: COLORS.muted }}>
-          One thread per ticket — review mockups and keep the conversation going
+        <p style={{ ...F.body, fontSize: 14, color: COLORS.muted }}>
+          Queue and completed reviews — open a ticket to approve or run Build
         </p>
       </div>
 
@@ -57,33 +59,24 @@ export function InternalReviewsPage() {
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} highlightTab="pending" />
 
-      {visible.length === 0 ? (
-        <EmptyState
-          title={
-            tab === "pending"
-              ? "All caught up"
-              : tab === "changes"
-                ? "No tickets waiting on PM"
-                : "No completed reviews yet"
-          }
-          body={
-            tab === "pending"
-              ? "New mockups appear here when PMs submit or resubmit"
-              : "Completed reviews and approvals show in this tab"
-          }
-        />
-      ) : (
-        <ChannelList>
-          {visible.map((c) => (
-            <TicketReviewChannelCard
-              key={c.review.id}
-              channel={c}
-              showPm
-              highlight={c.review.status === "pending_review"}
-            />
-          ))}
-        </ChannelList>
-      )}
+      <InternalReviewsTable
+        channels={visible}
+        showBuildColumn={tab === "done"}
+        emptyTitle={
+          tab === "pending"
+            ? "All caught up"
+            : tab === "changes"
+              ? "No tickets waiting on PM"
+              : "No completed reviews yet"
+        }
+        emptyBody={
+          tab === "pending"
+            ? "New mockups appear here when PMs submit or resubmit"
+            : tab === "changes"
+              ? "Tickets needing PM updates show here"
+              : "Approved reviews appear here with Build / PR status"
+        }
+      />
     </div>
   );
 }

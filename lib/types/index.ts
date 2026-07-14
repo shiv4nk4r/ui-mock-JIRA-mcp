@@ -150,12 +150,19 @@ export type ReviewBuildStatus = "idle" | "running" | "succeeded" | "failed";
 
 export interface ReviewBuildState {
   status: ReviewBuildStatus;
+  /** Server-side job id — build continues even if the browser closes. */
+  jobId?: string;
   branchName?: string;
   prUrl?: string;
   prNumber?: number;
+  /** Current phase: git | claude | pr | done */
+  phase?: string;
+  /** Latest human-readable progress line from the server job. */
+  message?: string;
   error?: string;
   startedAt?: number;
   finishedAt?: number;
+  updatedAt?: number;
 }
 
 export interface ReviewItem {

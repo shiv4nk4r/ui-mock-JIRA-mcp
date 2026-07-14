@@ -26,12 +26,12 @@ export function BuildStatusBanner({ build, progressMessage, channelOpen = false 
   const right = channelOpen ? "calc(min(100vw, 420px) + 16px)" : 24;
 
   const label = isRunning
-    ? progressMessage || "Building with Claude Code…"
+    ? progressMessage || build?.message || "Building with Claude Code (background)…"
     : isOk
       ? build?.prUrl
         ? "PR ready"
         : "Build succeeded"
-      : build?.error || progressMessage || "Build failed";
+      : build?.error || build?.message || progressMessage || "Build failed";
 
   return (
     <div
@@ -52,7 +52,7 @@ export function BuildStatusBanner({ build, progressMessage, channelOpen = false 
         />
         <div className="min-w-0 space-y-1">
           <p style={{ ...F.body, fontSize: 13, fontWeight: 600, color: COLORS.text }}>
-            {isRunning ? "Build in progress" : isOk ? "Build complete" : "Build failed"}
+            {isRunning ? "Build running on server" : isOk ? "Build complete" : "Build failed"}
           </p>
           <p
             className="line-clamp-3"

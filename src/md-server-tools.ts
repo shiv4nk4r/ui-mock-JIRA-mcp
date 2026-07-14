@@ -22,10 +22,27 @@ import {
   getPageTemplatesBatchText,
 } from "./capture-catalog.js";
 import type { PageArchetype } from "./crawler/capture-store.js";
+import { existsSync } from "fs";
+import { join as pathJoin } from "path";
 
 // ── Repo paths ────────────────────────────────────────────────────────────────
 
-const REPO_ROOT = process.env.MD_REPO_ROOT ?? "/Users/manish.c/workplace/manager-dashboard";
+function resolveMdRepoRoot(): string {
+  const fromEnv = process.env.MD_REPO_ROOT?.trim();
+  if (fromEnv) return fromEnv;
+  const bundled = pathJoin(process.cwd(), "pm-mcp", ".repos", "manager-dashboard");
+  if (existsSync(bundled)) return bundled;
+  const home = process.env.HOME ?? "";
+  for (const c of [
+    pathJoin(home, "workplace", "manager-dashboard"),
+    pathJoin(home, "gor", "manager-dashboard"),
+  ]) {
+    if (c && existsSync(c)) return c;
+  }
+  return bundled;
+}
+
+const REPO_ROOT = resolveMdRepoRoot();
 const MDUI      = path.join(REPO_ROOT, "mdui/src");
 const MDBFF     = path.join(REPO_ROOT, "mdbff/src");
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MockupSession, ReviewBuildState, ReviewItem } from "@lib/types";
 import { repository } from "@lib/storage";
 import { buildAgentPrompt, buildExecutionDetails } from "@lib/utils/execution-details";
@@ -17,42 +17,155 @@ interface StartBuildArgs {
   reviewUrl?: string;
 }
 
-export function useBuildPr() {
+type BuildServerPayload = ReviewBuildState & {
+  active?: boolean;
+  files?: string[];
+  model?: string;
+};
+
+const POLL_MS = 2000;
+
+function toBuildState(payload: BuildServerPayload): ReviewBuildState {
+  return {
+    status: payload.status,
+    jobId: payload.jobId,
+    branchName: payload.branchName,
+    prUrl: payload.prUrl,
+    prNumber: payload.prNumber,
+    phase: payload.phase,
+    message: payload.message,
+    error: payload.error,
+    startedAt: payload.startedAt,
+    finishedAt: payload.finishedAt,
+    updatedAt: payload.updatedAt,
+  };
+}
+
+async function fetchBuildStatus(reviewId: string): Promise<BuildServerPayload | null> {
+  const res = await fetch(`/api/build?reviewId=${encodeURIComponent(reviewId)}`);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { build: BuildServerPayload | null };
+  return data.build ?? null;
+}
+
+export function useBuildPr(reviewId?: string) {
   const [progress, setProgress] = useState<BuildProgress | null>(null);
   const [busy, setBusy] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onUpdateRef = useRef<((build: ReviewBuildState) => void) | null>(null);
 
-  const startBuild = useCallback(async ({ review, session, reviewUrl }: StartBuildArgs) => {
-    if (review.status !== "approved") {
-      throw new Error("Review must be approved before building");
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
-    const details = buildExecutionDetails(review, session);
-    const agentPrompt = buildAgentPrompt(details, review, session);
-    if (!agentPrompt.trim()) {
-      throw new Error("No implementation prompt available — open the plan and ensure handoff was generated");
-    }
+  }, []);
 
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    setBusy(true);
-    setProgress({ phase: "git", message: "Starting build…" });
+  const applyServerBuild = useCallback(
+    async (reviewIdToUpdate: string, payload: BuildServerPayload) => {
+      const build = toBuildState(payload);
+      await repository.updateReview(reviewIdToUpdate, { build });
+      setProgress({
+        phase: build.phase,
+        message: build.message || build.error,
+        branchName: build.branchName,
+      });
+      onUpdateRef.current?.(build);
+      setBusy(build.status === "running");
+      if (build.status !== "running") {
+        stopPolling();
+      }
+      return build;
+    },
+    [stopPolling],
+  );
 
-    const runningPatch: ReviewBuildState = {
-      status: "running",
-      branchName: `${review.ticketId}-gcc-studio`,
-      startedAt: Date.now(),
-      error: undefined,
-      prUrl: review.build?.prUrl,
-      prNumber: review.build?.prNumber,
+  const startPolling = useCallback(
+    (id: string) => {
+      stopPolling();
+      setBusy(true);
+      pollRef.current = setInterval(async () => {
+        try {
+          const payload = await fetchBuildStatus(id);
+          if (!payload) return;
+          await applyServerBuild(id, payload);
+        } catch {
+          /* keep polling */
+        }
+      }, POLL_MS);
+    },
+    [applyServerBuild, stopPolling],
+  );
+
+  /** Resume watching a server job (e.g. after reopening the review page). */
+  const watchBuild = useCallback(
+    async (id: string, onUpdate?: (build: ReviewBuildState) => void) => {
+      onUpdateRef.current = onUpdate ?? null;
+      const payload = await fetchBuildStatus(id);
+      if (!payload) return null;
+      const build = await applyServerBuild(id, payload);
+      if (build.status === "running") {
+        startPolling(id);
+      }
+      return build;
+    },
+    [applyServerBuild, startPolling],
+  );
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // If the review was left mid-build, resume polling when the hook mounts with an id.
+  useEffect(() => {
+    if (!reviewId) return;
+    let cancelled = false;
+    (async () => {
+      const local = await repository.getReview(reviewId);
+      const server = await fetchBuildStatus(reviewId);
+      if (cancelled) return;
+      if (server) {
+        await applyServerBuild(reviewId, server);
+        if (server.status === "running") startPolling(reviewId);
+        return;
+      }
+      if (local?.build?.status === "running") {
+        // Client thinks it's running but server has nothing — clear stale state
+        const failed: ReviewBuildState = {
+          ...local.build,
+          status: "failed",
+          error: "Build status lost. Retry Build.",
+          message: "Build status lost. Retry Build.",
+          finishedAt: Date.now(),
+          phase: "done",
+        };
+        await repository.updateReview(reviewId, { build: failed });
+        setBusy(false);
+        onUpdateRef.current?.(failed);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    await repository.updateReview(review.id, { build: runningPatch });
+  }, [reviewId, applyServerBuild, startPolling]);
 
-    try {
+  const startBuild = useCallback(
+    async ({ review, session, reviewUrl }: StartBuildArgs) => {
+      if (review.status !== "approved") {
+        throw new Error("Review must be approved before building");
+      }
+      const details = buildExecutionDetails(review, session);
+      const agentPrompt = buildAgentPrompt(details, review, session);
+      if (!agentPrompt.trim()) {
+        throw new Error(
+          "No implementation prompt available — open the plan and ensure handoff was generated",
+        );
+      }
+
+      setBusy(true);
+      setProgress({ phase: "queued", message: "Starting background build…" });
+
       const res = await fetch("/api/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: ac.signal,
         body: JSON.stringify({
           reviewId: review.id,
           ticketId: review.ticketId,
@@ -65,100 +178,43 @@ export function useBuildPr() {
         }),
       });
 
-      if (!res.ok || !res.body) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.error || `Build request failed (${res.status})`);
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        build?: BuildServerPayload;
+        message?: string;
+      } | null;
+
+      if (!res.ok) {
+        setBusy(false);
+        throw new Error(data?.error || `Build request failed (${res.status})`);
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let finalBuild: ReviewBuildState = { ...runningPatch };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const chunks = buf.split("\n\n");
-        buf = chunks.pop() ?? "";
-
-        for (const chunk of chunks) {
-          const line = chunk.split("\n").find((l) => l.startsWith("data: "));
-          if (!line) continue;
-          let data: Record<string, unknown>;
-          try {
-            data = JSON.parse(line.slice(6));
-          } catch {
-            continue;
-          }
-
-          if (typeof data.message === "string") {
-            setProgress({
-              phase: typeof data.phase === "string" ? data.phase : undefined,
-              message: data.message,
-              branchName: typeof data.branchName === "string" ? data.branchName : undefined,
-            });
-          }
-
-          if (data.done) {
-            if (data.status === "succeeded" && typeof data.prUrl === "string") {
-              finalBuild = {
-                status: "succeeded",
-                branchName: typeof data.branchName === "string" ? data.branchName : runningPatch.branchName,
-                prUrl: data.prUrl,
-                prNumber: typeof data.prNumber === "number" ? data.prNumber : undefined,
-                startedAt: runningPatch.startedAt,
-                finishedAt: Date.now(),
-              };
-            } else {
-              finalBuild = {
-                status: "failed",
-                branchName: typeof data.branchName === "string" ? data.branchName : runningPatch.branchName,
-                error: typeof data.error === "string" ? data.error : "Build failed",
-                startedAt: runningPatch.startedAt,
-                finishedAt: Date.now(),
-                prUrl: runningPatch.prUrl,
-                prNumber: runningPatch.prNumber,
-              };
-            }
-          }
-        }
-      }
-
-      await repository.updateReview(review.id, { build: finalBuild });
-      setProgress(
-        finalBuild.status === "succeeded"
-          ? { phase: "done", message: "PR ready", branchName: finalBuild.branchName }
-          : { phase: "done", message: finalBuild.error || "Build failed", branchName: finalBuild.branchName },
-      );
-      return finalBuild;
-    } catch (err) {
-      if ((err as Error).name === "AbortError") {
-        const aborted: ReviewBuildState = {
-          status: "failed",
-          branchName: runningPatch.branchName,
-          error: "Build cancelled",
-          startedAt: runningPatch.startedAt,
-          finishedAt: Date.now(),
+      if (data?.build) {
+        await applyServerBuild(review.id, data.build);
+      } else {
+        const running: ReviewBuildState = {
+          status: "running",
+          branchName: `${review.ticketId}-gcc-studio`,
+          startedAt: Date.now(),
+          phase: "queued",
+          message: data?.message || "Build queued…",
         };
-        await repository.updateReview(review.id, { build: aborted });
-        return aborted;
+        await repository.updateReview(review.id, { build: running });
+        setProgress({ phase: "queued", message: running.message });
       }
-      const message = err instanceof Error ? err.message : String(err);
-      const failed: ReviewBuildState = {
-        status: "failed",
-        branchName: runningPatch.branchName,
-        error: message,
-        startedAt: runningPatch.startedAt,
-        finishedAt: Date.now(),
-      };
-      await repository.updateReview(review.id, { build: failed });
-      setProgress({ phase: "done", message });
-      throw err;
-    } finally {
-      setBusy(false);
-    }
-  }, []);
 
-  return { startBuild, busy, progress, setProgress };
+      startPolling(review.id);
+      // Kick an immediate poll so UI updates without waiting 2s
+      const immediate = await fetchBuildStatus(review.id);
+      if (immediate) {
+        return applyServerBuild(review.id, immediate);
+      }
+      return (
+        data?.build ? toBuildState(data.build) : ({ status: "running" } as ReviewBuildState)
+      );
+    },
+    [applyServerBuild, startPolling],
+  );
+
+  return { startBuild, watchBuild, busy, progress, setProgress, stopPolling };
 }

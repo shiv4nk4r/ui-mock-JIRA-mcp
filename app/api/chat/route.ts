@@ -27,11 +27,12 @@ import {
 } from "@lib/utils/parse-chat";
 import { normalizeMockupHtml } from "@lib/utils/mockup-html";
 import { injectLogoIntoComponentLibraryContext } from "@lib/utils/mock-branding";
+import { resolveMdRepoRoot } from "@lib/build/resolve-md-repo";
 
 export const dynamic = "force-dynamic";
 
 // Path to the manager-dashboard source repo indexed by the MCP server.
-const MD_REPO_ROOT = process.env.MD_REPO_ROOT ?? "/Users/manish.c/workplace/manager-dashboard";
+const MD_REPO_ROOT = resolveMdRepoRoot();
 
 // URL of the persistent HTTP MCP server (src/mcp-http-server.ts).
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://127.0.0.1:3100/mcp";
