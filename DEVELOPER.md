@@ -71,12 +71,18 @@ The **actual MCP tools** Claude calls at inference time are served by `src/mcp-h
 
 ### Prerequisites
 
+See **[README.md](./README.md#prerequisites)** for the full install list (`node`, `git`, Claude Code, `gh`, `MD_REPO_ROOT`).
+
+Short version:
+
 - Node.js 18+
 - [Claude Code CLI](https://docs.anthropic.com/claude-code) installed and authenticated:
   ```bash
   npm install -g @anthropic-ai/claude-code
   claude login
   ```
+- GitHub CLI for Build → PR (`brew install gh && gh auth login`), **or** `GH_TOKEN` in `.env.local`
+- Local `manager-dashboard` clone via `MD_REPO_ROOT`
 
 ### Steps
 
