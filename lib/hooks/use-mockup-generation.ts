@@ -119,10 +119,10 @@ export function useMockupGeneration() {
                 updateLastMessage({
                   text: parsed.text,
                   htmlComponent: finalHtml,
-                  effortEstimation,
-                  changeLog,
-                  agentPrompt,
                   isStreaming: false,
+                  ...(effortEstimation ? { effortEstimation } : {}),
+                  ...(changeLog ? { changeLog } : {}),
+                  ...(agentPrompt ? { agentPrompt } : {}),
                 });
                 const inT = (ev.inputTokens as number) ?? 0;
                 const outT = (ev.outputTokens as number) ?? 0;
@@ -201,12 +201,26 @@ export function useMockupGeneration() {
           isRefinement: true,
           currentHtml,
           attachedFiles,
+          priorHandoff: (() => {
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const m = messages[i];
+              if (m.role !== "assistant") continue;
+              if (m.changeLog || m.effortEstimation || m.agentPrompt) {
+                return {
+                  effortEstimation: m.effortEstimation,
+                  changeLog: m.changeLog,
+                  agentPrompt: m.agentPrompt,
+                };
+              }
+            }
+            return undefined;
+          })(),
         },
         `Refinement: "${prompt.slice(0, 45)}${prompt.length > 45 ? "…" : ""}"`,
         { userRole, onHtml },
       );
     },
-    [streamChat],
+    [streamChat, messages],
   );
 
   return {

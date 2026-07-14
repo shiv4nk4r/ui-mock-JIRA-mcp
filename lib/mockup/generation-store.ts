@@ -241,6 +241,21 @@ class MockupGenerationStore {
     this.jobs.set(key, snap);
     this.emit(key);
 
+    const prior = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.role !== "assistant") continue;
+        if (m.changeLog || m.effortEstimation || m.agentPrompt) {
+          return {
+            effortEstimation: m.effortEstimation,
+            changeLog: m.changeLog,
+            agentPrompt: m.agentPrompt,
+          };
+        }
+      }
+      return undefined;
+    })();
+
     await this.streamChat(key, {
       requestBody: {
         jiraTicketId: ticket.id,
@@ -251,6 +266,7 @@ class MockupGenerationStore {
         isRefinement: true,
         currentHtml,
         attachedFiles,
+        priorHandoff: prior,
         persistSession: {
           sessionId,
           userId,
@@ -447,10 +463,10 @@ class MockupGenerationStore {
               this.updateLastMessage(key, {
                 text: parsed.text,
                 htmlComponent: finalHtml,
-                effortEstimation,
-                changeLog,
-                agentPrompt,
                 isStreaming: false,
+                ...(effortEstimation ? { effortEstimation } : {}),
+                ...(changeLog ? { changeLog } : {}),
+                ...(agentPrompt ? { agentPrompt } : {}),
               });
               const inT = (ev.inputTokens as number) ?? 0;
               const outT = (ev.outputTokens as number) ?? 0;

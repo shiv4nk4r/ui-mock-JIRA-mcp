@@ -368,6 +368,12 @@ interface ChatRequest {
   currentHtml?: string;
   userRole?: "external" | "internal";
   mockupMode?: "html" | "vue-quasar";
+  /** Prior handoff so refinements can rewrite the plan instead of dropping it. */
+  priorHandoff?: {
+    effortEstimation?: string;
+    changeLog?: string;
+    agentPrompt?: string;
+  };
   /** Optional session identity so the server can persist agent messages if the client disconnects. */
   persistSession?: PersistSessionMeta;
 }
@@ -908,11 +914,95 @@ function buildUserMessage(
 
 // ── Refinement prompt helpers ─────────────────────────────────────────────────
 
+/** Shared OUTPUT FORMAT for effort + change log + agent prompt (exact headings for parse-chat). */
+function buildHandoffOutputFormat(mode: "initial" | "refinement"): string {
+  const preface =
+    mode === "refinement"
+      ? [
+          "OUTPUT FORMAT — REQUIRED AFTER THE HTML:",
+          "1) Updated HTML mockup wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.",
+          "2) Then REVAMP the internal engineering handoff for this UPDATED mock — do not omit these sections.",
+          "Rewrite effort, change log, and agent prompt to match the current mock (after this refinement).",
+          "Do not copy stale prior plan rows unchanged when the UI/scope changed — update, add, or remove rows as needed.",
+          "",
+        ]
+      : [
+          "OUTPUT FORMAT — REQUIRED (internal engineering handoff):",
+          "After your product analysis, include the HTML mockup markers, then append these EXACT sections in order.",
+          "",
+          "1) HTML mockup (required):",
+          "RAW_HTML_COMPONENT_START",
+          "<!DOCTYPE html>...complete HTML...",
+          "RAW_HTML_COMPONENT_END",
+          "",
+        ];
+
+  const effortHeading =
+    mode === "refinement"
+      ? "2) Effort estimation — EXACT heading (do not change):"
+      : "2) Effort estimation — EXACT heading (do not change):";
+
+  return [
+    ...preface,
+    effortHeading,
+    "### 📊 Engineering Effort Estimation Summary [TICKET_ID]",
+    "Replace TICKET_ID with the actual ticket number. Then include:",
+    "- **T-Shirt Size:** [S / M / L / XL based on complexity]",
+    "- **Estimated Story Points:** [2 / 3 / 5 / 8 / 13] Points",
+    "- **Breakdown Analysis:**",
+    "  * [Affected layer or component]: [X] Days — [specific reason from ticket]",
+    "  * (add as many lines as needed)",
+    "- **Architecture Risk Factor:** [Low / Medium / High] — [one-sentence reason]",
+    "",
+    "3) Implementation change log — EXACT heading:",
+    CHANGE_LOG_MARKER + " [TICKET_ID]",
+    "Exhaustive file-level inventory of EVERY addition and modification to implement the mock in manager-dashboard (mdui/ + mdbff/). Use this EXACT markdown table:",
+    "",
+    "| # | File / route | Change type | What to add or change | Acceptance criteria |",
+    "|---|--------------|-------------|------------------------|---------------------|",
+    "| 1 | mdui/src/pages/... | add/modify/delete/configure | Precise implementation detail | How to verify |",
+    "",
+    "Change log rules:",
+    "- List EVERY UI element in the mock that is new or different from current product",
+    "- Name exact Vue paths, GraphQL operations/resolvers, hash routes (/#/...), Vuex modules, i18n keys",
+    "- No vague rows — each must be implementable in one focused PR slice",
+    "- Include nav tabs, columns, filters, modals, status chips, API fields, permissions",
+    "- Minimum 5 rows for non-trivial tickets; more for large scope",
+    mode === "refinement"
+      ? "- Reflect THIS revision of the mock — remove obsolete rows and add rows for newly introduced UI"
+      : "",
+    "",
+    "4) Standalone agent prompt — EXACT heading (must be LAST section in response):",
+    AGENT_PROMPT_MARKER,
+    "Write a COMPLETE self-contained prompt (800–2000 words) for a coding agent with NO access to this chat.",
+    "The agent will run in the manager-dashboard repository using mcp__md__* tools. The prompt MUST include:",
+    "",
+    "- **Repository:** Vue 2.7 + Quasar 1.20.1 (mdui/src/), Apollo GraphQL BFF (mdbff/src/), hash routes",
+    "- **Ticket ID and summary** (inline — do not say 'see above')",
+    "- **Goal:** one paragraph on user-facing outcome",
+    "- **Mockup layout:** top-to-bottom description of the HTML mock (structure, components, columns, states, interactions)",
+    "- **Numbered file-level tasks:** mirror the change log with exact paths and edit instructions",
+    "- **MCP tool sequence:** which mcp__md__* tools to call, keywords/routes, read-source-file paths",
+    "- **Implementation rules:** reuse Quasar patterns, i18n keys, existing store/graphql patterns; no new UI libraries",
+    "- **Acceptance checks:** bullet list of done-when criteria",
+    "",
+    "Agent prompt rules:",
+    "- Do NOT reference 'the mockup above', 'this conversation', or 'as discussed'",
+    "- Be precise enough that an engineer can paste it into Cursor/Claude Code and implement without re-reading the ticket",
+    "- Include concrete file paths (from prior plan and/or mock structure)",
+    "",
+    "Make effort estimation and change log SPECIFIC to this ticket and the CURRENT mock — not generic.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function buildRefinementSystemPrompt(
   designContext = "",
   componentLibraryContext = "",
   mockupMode: "html" | "vue-quasar" = "html",
   vueComponentLibraryContext = "",
+  includeHandoff = true,
 ): string {
   const isVue = mockupMode === "vue-quasar";
   const base = isVue
@@ -920,18 +1010,17 @@ function buildRefinementSystemPrompt(
 
 IMPORTANT — WEB API MODE:
 - You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
-- This is a pure HTML/Vue template editing task. Do NOT call any tools.
-- The full HTML to edit is provided in the user message. Edit the Vue template and data only. Return the complete file.
-- Preserve the Vue instance structure (data, methods, template root). Edit ONLY what the refinement request asks.
-- Your FIRST and ONLY action is to output the complete updated HTML wrapped in the required markers.`
+- Do NOT call Atlassian, MCP, codebase, or filesystem tools. Do NOT ask the user to run /mcp or authenticate.
+- The full HTML to edit is provided in the user message. Edit the Vue template and data for the refinement request.
+- Then append the required engineering handoff sections for the UPDATED mock.`
     : `You are a UI refinement assistant for GreyOrange's Manager Dashboard. You will receive an existing HTML mockup and a refinement request. Return the COMPLETE updated HTML file — never return partial snippets.
 
 IMPORTANT — WEB API MODE:
 - You are running as a subprocess of a Next.js API route, NOT an interactive CLI session.
-- This is a pure HTML-editing task. Do NOT call any tools. Do NOT read or follow any CLAUDE.md files.
+- Do NOT call any tools. Do NOT read or follow any CLAUDE.md files.
 - Do NOT call Atlassian, MCP, codebase, or filesystem tools. Do NOT ask the user to run /mcp or authenticate.
-- The full HTML to edit is provided in the user message. Edit it directly and return it — nothing else is needed.
-- Your FIRST and ONLY action is to output the complete updated HTML wrapped in the required markers.`;
+- The full HTML to edit is provided in the user message. Edit it for the refinement request.
+- Then append the required engineering handoff sections for the UPDATED mock.`;
 
   const parts: string[] = [base];
 
@@ -973,13 +1062,17 @@ IMPORTANT — WEB API MODE:
     }
   }
 
-  parts.push(
-    "REQUIRED OUTPUT: Wrap the complete HTML in these exact markers (do not omit):",
-    "RAW_HTML_COMPONENT_START",
-    "<!DOCTYPE html>...complete updated HTML...",
-    "RAW_HTML_COMPONENT_END",
-    "Preserve everything not mentioned in the refinement request. Return the full document."
-  );
+  if (includeHandoff) {
+    parts.push(buildHandoffOutputFormat("refinement"));
+  } else {
+    parts.push(
+      "REQUIRED OUTPUT: Wrap the complete HTML in these exact markers (do not omit):",
+      "RAW_HTML_COMPONENT_START",
+      "<!DOCTYPE html>...complete updated HTML...",
+      "RAW_HTML_COMPONENT_END",
+      "Preserve everything not mentioned in the refinement request. Return the full document."
+    );
+  }
   return parts.join("\n\n");
 }
 
@@ -987,6 +1080,7 @@ function buildRefinementUserMessage(
   currentHtml: string,
   request?: string,
   attachedFiles?: UserAttachedFile[],
+  priorHandoff?: { effortEstimation?: string; changeLog?: string; agentPrompt?: string },
 ): string {
   const parts: string[] = [
     "Current HTML mockup to refine:",
@@ -997,6 +1091,24 @@ function buildRefinementUserMessage(
     "",
     `Refinement request: ${request || "Improve the mockup quality and visual fidelity."}`,
   ];
+
+  if (priorHandoff?.changeLog || priorHandoff?.effortEstimation || priorHandoff?.agentPrompt) {
+    parts.push(
+      "",
+      "=== PREVIOUS ENGINEERING HANDOFF (revise for the UPDATED mock — do not ignore) ===",
+      "Use this as a starting point. After refining the HTML, rewrite a fresh handoff that matches the new mock.",
+    );
+    if (priorHandoff.effortEstimation) {
+      parts.push("", priorHandoff.effortEstimation);
+    }
+    if (priorHandoff.changeLog) {
+      parts.push("", priorHandoff.changeLog);
+    }
+    if (priorHandoff.agentPrompt) {
+      parts.push("", priorHandoff.agentPrompt.slice(0, 6_000) + (priorHandoff.agentPrompt.length > 6_000 ? "\n[truncated prior prompt]" : ""));
+    }
+    parts.push("=== END PREVIOUS ENGINEERING HANDOFF ===");
+  }
 
   if (attachedFiles?.length) {
     const textFiles  = attachedFiles.filter((f) => f.contentType === "text" || f.contentType === "html");
@@ -1012,8 +1124,6 @@ function buildRefinementUserMessage(
     }
 
     if (imageFiles.length) {
-      // Browser reads images as placeholder strings — actual pixels aren't available in this flow.
-      // Acknowledge them so Claude knows visual context was intended.
       parts.push(
         "",
         `Attached reference image(s): ${imageFiles.map((f) => f.name).join(", ")}`,
@@ -1022,7 +1132,11 @@ function buildRefinementUserMessage(
     }
   }
 
-  parts.push("", "Return the complete updated HTML wrapped in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END.");
+  parts.push(
+    "",
+    "Return: (1) complete updated HTML in RAW_HTML_COMPONENT_START / RAW_HTML_COMPONENT_END,",
+    "(2) then the full revamped effort estimation, implementation change log table, and standalone agent prompt.",
+  );
   return parts.join("\n");
 }
 
@@ -1064,6 +1178,7 @@ function streamClaudeCode(
   mockupMode: "html" | "vue-quasar" = "html",
   vueComponentLibraryContext = "",
   persistSession?: PersistSessionMeta,
+  priorHandoff?: ChatRequest["priorHandoff"],
 ): Response {
   const encoder = new TextEncoder();
 
@@ -1120,8 +1235,20 @@ function streamClaudeCode(
         if (isRefinement && currentHtml) {
           // Strip injected CSS before sending to Claude — it gets re-injected after
           const htmlForRefinement = stripInjectedCaptureCss(currentHtml);
-          systemPrompt = buildRefinementSystemPrompt(designContext, componentLibraryContext, mockupMode, vueComponentLibraryContext);
-          userMessage  = buildRefinementUserMessage(htmlForRefinement, additionalPmContext, attachedFiles);
+          const includeHandoff = true;
+          systemPrompt = buildRefinementSystemPrompt(
+            designContext,
+            componentLibraryContext,
+            mockupMode,
+            vueComponentLibraryContext,
+            includeHandoff,
+          );
+          userMessage = buildRefinementUserMessage(
+            htmlForRefinement,
+            additionalPmContext,
+            attachedFiles,
+            priorHandoff,
+          );
         } else {
           // Initial generation: full context + visual skill instructions + MCP code tools
           systemPrompt = buildSystemPrompt(enableVisualSkill, archContext, designContext, sitemapContext, true, componentLibraryContext, templateSurveyContext, mockupGrounding, userRole, mockupMode, vueComponentLibraryContext);
@@ -1454,6 +1581,7 @@ export async function POST(request: Request) {
     userRole = "internal",
     mockupMode = "html",
     persistSession,
+    priorHandoff,
   } = body;
 
   const isVueMode = mockupMode === "vue-quasar";
@@ -1500,5 +1628,6 @@ export async function POST(request: Request) {
     attachedFiles, isRefinement, currentHtml, componentLibraryContext,
     templateSurveyContext, mockupGrounding, userRole, mockupMode, vueComponentLibraryContext,
     persistSession,
+    priorHandoff,
   );
 }

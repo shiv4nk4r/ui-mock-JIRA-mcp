@@ -81,6 +81,21 @@ function latestAssistantHandoff(messages: Message[]): {
   agentPrompt?: string;
 } {
   const enriched = enrichMessagesWithHandoff(messages);
+
+  // Prefer the latest assistant turn with a complete handoff (change log + effort).
+  for (let i = enriched.length - 1; i >= 0; i--) {
+    const m = enriched[i];
+    if (m.role !== "assistant") continue;
+    if (m.changeLog && m.effortEstimation) {
+      return {
+        effortText: m.effortEstimation,
+        changeLog: m.changeLog,
+        agentPrompt: m.agentPrompt,
+      };
+    }
+  }
+
+  // Fall back: latest turn that has any handoff field (legacy / partial messages).
   for (let i = enriched.length - 1; i >= 0; i--) {
     const m = enriched[i];
     if (m.role !== "assistant") continue;
@@ -103,6 +118,15 @@ function latestAssistantHandoff(messages: Message[]): {
     }
   }
   return {};
+}
+
+/** Latest engineering handoff fields from session chat (prefers complete latest turn). */
+export function getLatestAssistantHandoff(messages: Message[]): {
+  effortText?: string;
+  changeLog?: string;
+  agentPrompt?: string;
+} {
+  return latestAssistantHandoff(messages);
 }
 
 export function getSessionAgentPrompt(session: MockupSession | null): string | undefined {
