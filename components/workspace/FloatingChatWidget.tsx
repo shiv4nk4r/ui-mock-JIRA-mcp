@@ -63,6 +63,13 @@ export function FloatingChatWidget({
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 20), 96)}px`;
+  }, [refineInput, open]);
+
   function handleRefineKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -312,24 +319,26 @@ export function FloatingChatWidget({
               }}
             />
             {attachedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2 px-1">
+              <div className="flex flex-wrap gap-1.5 mb-2 px-0.5">
                 {attachedFiles.map((f, i) => (
                   <span
                     key={`${f.name}-${i}`}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs"
+                    className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 text-xs max-w-full"
                     style={{
                       background: COLORS.subtle,
                       borderRadius: RADIUS.pill,
-                      color: COLORS.muted,
+                      color: COLORS.text,
                       border: `1px solid ${COLORS.border}`,
                       ...F.body,
+                      fontWeight: 520,
                     }}
                   >
-                    {f.name}
+                    <span className="truncate min-w-0">{f.name}</span>
                     <button
                       type="button"
                       onClick={() => onAttachedFilesChange(attachedFiles.filter((_, j) => j !== i))}
-                      style={{ color: COLORS.muted, lineHeight: 1 }}
+                      className="w-5 h-5 flex items-center justify-center shrink-0 hover:bg-black/5 transition-colors"
+                      style={{ color: COLORS.muted, borderRadius: "50%", lineHeight: 1 }}
                       aria-label={`Remove ${f.name}`}
                     >
                       ×
@@ -339,23 +348,34 @@ export function FloatingChatWidget({
               </div>
             )}
             <div
-              className="flex items-end gap-2 pl-3 pr-2 py-2"
+              className="flex items-end gap-1 px-1.5 py-1.5"
               style={{
                 background: COLORS.subtle,
-                borderRadius: RADIUS.pill,
+                borderRadius: 22,
                 border: `1px solid ${COLORS.border}`,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
               }}
             >
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming}
-                className="p-1.5 rounded-full hover:bg-black/5 disabled:opacity-30 transition-colors"
+                className="w-8 h-8 flex items-center justify-center shrink-0 hover:bg-black/[0.06] disabled:opacity-30 transition-colors"
                 aria-label="Attach file"
-                style={{ color: COLORS.muted, fontSize: 16, lineHeight: 1 }}
+                title="Attach file"
+                style={{
+                  borderRadius: RADIUS.pill,
+                  color: COLORS.muted,
+                }}
               >
-                📎
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M21.44 11.05l-8.49 8.49a6 6 0 0 1-8.49-8.49l8.49-8.49a4 4 0 0 1 5.66 5.66l-8.49 8.49a2 2 0 0 1-2.83-2.83l7.78-7.78"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
               <textarea
                 ref={inputRef}
@@ -365,35 +385,46 @@ export function FloatingChatWidget({
                 onChange={(e) => onRefineInputChange(e.target.value)}
                 onKeyDown={handleRefineKeyDown}
                 disabled={isStreaming || !canRefine}
-                className="flex-1 bg-transparent text-sm outline-none resize-none max-h-24 py-1.5 disabled:opacity-50"
+                className="flex-1 bg-transparent text-sm outline-none resize-none overflow-y-auto disabled:opacity-50 self-center"
                 style={{
                   ...F.body,
                   color: COLORS.text,
                   caretColor: COLORS.accent,
-                  lineHeight: 1.5,
+                  lineHeight: 1.35,
+                  minHeight: 20,
+                  maxHeight: 96,
+                  padding: "6px 4px",
+                  margin: 0,
                 }}
               />
               <button
                 type="button"
                 onClick={onRefine}
                 disabled={!canSend}
-                className="shrink-0 disabled:opacity-35 transition-opacity"
+                className="shrink-0 disabled:opacity-35 transition-all"
                 aria-label="Send"
                 style={{
-                  background: canSend ? COLORS.accent : "transparent",
+                  background: canSend ? COLORS.accent : "rgba(0,0,0,0.06)",
                   color: canSend ? "#fff" : COLORS.muted,
                   borderRadius: "50%",
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 15,
-                  fontWeight: 600,
+                  marginBottom: 0,
                   boxShadow: canSend ? "0 4px 12px rgba(217,119,6,0.28)" : "none",
                 }}
               >
-                ↑
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 19V5M5 12l7-7 7 7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             </div>
           </div>

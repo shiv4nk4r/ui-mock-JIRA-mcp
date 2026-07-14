@@ -34,15 +34,24 @@ function AccountMenuPanel({
       className={className}
       style={{
         width: 260,
-        background: `linear-gradient(180deg, ${COLORS.accentWash} 0%, ${COLORS.surface} 42%)`,
         borderRadius: 20,
         border: `1px solid ${COLORS.border}`,
         boxShadow: "0 16px 48px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.06)",
         overflow: "hidden",
+        isolation: "isolate",
         ...style,
+        // Opaque fill — keep after `style` so translucent washes never win
+        background: COLORS.surface,
       }}
     >
-      <div className="px-4 pt-4 pb-3">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-28"
+        style={{
+          background:
+            "radial-gradient(ellipse 90% 120% at 50% 0%, rgba(217,119,6,0.12) 0%, transparent 70%)",
+        }}
+      />
+      <div className="relative px-4 pt-4 pb-3">
         <div className="flex items-center gap-3">
           <span
             className="w-11 h-11 flex items-center justify-center text-base font-semibold shrink-0"
@@ -84,8 +93,8 @@ function AccountMenuPanel({
         </p>
       </div>
       <div
-        className="px-3 pb-3 pt-1"
-        style={{ borderTop: `1px solid ${COLORS.border}` }}
+        className="relative px-3 pb-3 pt-1"
+        style={{ borderTop: `1px solid ${COLORS.border}`, background: COLORS.surface }}
       >
         <button
           type="button"
@@ -95,7 +104,7 @@ function AccountMenuPanel({
           style={{
             ...F.body,
             color: COLORS.text,
-            background: COLORS.surface,
+            background: COLORS.subtle,
             borderRadius: RADIUS.pill,
             border: `1px solid ${COLORS.border}`,
             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
