@@ -21,6 +21,26 @@ This file contains two sections:
   - **Row 2 (filter-bar SNIPPET):** Filter pill + segmented search (field dropdown + input) + spacer + tune + export. **NEVER put "N results found" text here.**
   - **Footer (pagination-row SNIPPET):** `"N results found"` (left) + rows-per-page select + page buttons (right).
   - The record count appears in TWO places only: toolbar-top stats line AND pagination-row footer. It must NOT appear as standalone text inside the filter-bar row.
+- **LIST/TABLE PAGES — FILTERS ARE MANDATORY:**
+  - **Side filters (filters-sidebar SNIPPET):** ALWAYS include for any list/table page. The Filter button in `filter-bar` MUST call `toggleFilterPanel()`. Show the sidebar open by default (add `.open` class). The sidebar is an **overlay** — it slides over the table from the left via `position: absolute` inside `.content-with-filters { position: relative }`. The table stays full-width underneath; the sidebar does not push it. Adapt filter field names to the ticket's domain.
+  - **Top summary filters (top-summary-filters SNIPPET):** Include when the domain has meaningful status categories (e.g., Created / In Progress / Completed). Shows quick-toggle count buttons above the table — sourced from `TopSummaryFilter.vue` pattern. Omit only when the ticket explicitly has no status groupings.
+  - **Filter types to use in filters-sidebar:** CHECKBOX (multi-select from known values — most common), RADIO (single-select), INPUT (text/number free entry), DATE_TIME_RANGE (date range picker pair), RANGE (min/max numeric). Pick types that match the field semantics.
+- **WORKING INTERACTIONS — ALL LIST/TABLE PAGES (non-negotiable):**
+  - **Data in JS, never hardcoded HTML rows.** Declare `const ALL_ROWS = [...]` with **15–25 objects** covering every combination of filter values (all statuses, all priorities, all categories) so every filter option returns at least 2 non-empty rows. Never write `<tr>` elements directly in HTML for table data.
+  - **Single render pipeline.** Every interaction (filter, sort, page, search, top-filter) must update a shared state object and call `render()`. `render()` derives `filtered → sorted → paged` from `ALL_ROWS` each time and rebuilds the `<tbody>`, pagination, summary counts, and toolbar stats in one pass.
+  - **Side filters are live.** Each checkbox/radio `onchange` → `onCheckFilter(field, value, checked)` → `render()`. Active filter count badge on the Filter button updates automatically.
+  - **Top summary filters are live.** Each button `onclick` → `setTopFilter(label)` → `render()`. Button counts recompute from `ALL_ROWS` each render so they reflect current sidebar-filter state.
+  - **Column sorting is live.** Sortable `<th>` elements carry `data-sort="fieldKey"` and `onclick="sortBy('fieldKey')"`. Sort triangles toggle active class. Clicking the same column reverses direction.
+  - **Pagination is live.** `renderPagination(totalCount)` builds page buttons dynamically. Prev/next buttons respect bounds. Rows-per-page select updates `S.pageSize` and re-renders.
+  - **Search is live.** Search input + field dropdown trigger `onSearch()` → `render()` on every `input` event.
+  - **Action buttons perform their actions.** Every action button mentioned in the JIRA ticket must DO something in the mockup:
+    - "View details" → open a detail side-panel or navigate to `#detail`
+    - "Cancel / Reject" → call `cancelRow(id)` which sets `row.status = 'Cancelled'` and re-renders
+    - "Approve / Release" → `approveRow(id)` → status transition → re-render
+    - "Hold / Unhold" → toggle status → re-render
+    - "Change priority" → open a small inline modal with radio options → on confirm update row → re-render
+    - Any other ticket-specific action → implement the correct state change or modal
+  - **Use `data-table-engine` SNIPPET as the base.** Copy it, then fill in: `ALL_ROWS` data, `rowHtml(r)` template function, filter group HTML, and any action modals required by the ticket.
 - The `<head>` MUST include these CDN links (the real app self-hosts Source Sans Pro + uses Material Symbols icons):
 
 ```html
@@ -460,6 +480,162 @@ body {
 }
 .modal-proceed-btn:hover { background: #0d1648; }
 
+/* --- FILTERS SIDEBAR PANEL ---
+   Overlay drawer — absolutely positioned inside .content-with-filters.
+   Height matches the content area (not the full viewport). Table stays full-width underneath.
+   Layout: .content-with-filters { position:relative } contains both sidebar + table-section. */
+.content-with-filters {
+  position: relative;
+  background: var(--page-bg);
+}
+.table-section {
+  width: 100%;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.filters-sidebar {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 280px;
+  background: #fff;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.13);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+}
+.filters-sidebar.open { transform: translateX(0); }
+.filters-sidebar-hdr {
+  /* REAL: bg-grey-3 header — light grey, NOT navy */
+  display: flex; align-items: center;
+  padding: 6px 8px;                  /* q-py-sm q-px-sm */
+  background: #F5F5F5;               /* bg-grey-3 — matches real app */
+  border-bottom: 1px solid var(--border);
+}
+.filters-sidebar-title {
+  font-size: 14px; font-weight: 700;
+  color: var(--body-text);           /* #4D5055 — text-custom-grey */
+  flex: 1;
+}
+.filters-sidebar-close {
+  /* REAL: q-icon chevron_left, color="primary" */
+  background: none; border: none; cursor: pointer;
+  color: var(--primary);             /* #101a5c */
+  display: flex; align-items: center;
+  padding: 2px;
+}
+/* Clear Filters — separate row below header, right-aligned orange outlined button */
+.filters-clear-row {
+  display: flex; justify-content: flex-end;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+.filters-clear-btn {
+  /* REAL: q-btn flat no-caps size="xs" color="secondary" */
+  background: none;
+  border: 1px solid var(--secondary);
+  border-radius: 2px;
+  color: var(--secondary);           /* #FE8400 */
+  font-size: 12px; font-weight: 600;
+  padding: 2px 8px; cursor: pointer;
+  line-height: 1.5;
+}
+.filters-clear-btn:hover { background: rgba(254,132,0,0.06); }
+.filters-sidebar-body { flex: 1; overflow-y: auto; }
+
+/* Thin custom scrollbar — matches thumbStyle in FiltersSidebar.vue */
+.filters-sidebar-body::-webkit-scrollbar { width: 5px; }
+.filters-sidebar-body::-webkit-scrollbar-thumb {
+  background: #d3d3d3; border-radius: 5px;
+}
+
+.filter-group { border-bottom: 1px solid var(--border); }
+.filter-group-hdr {
+  /* REAL: q-expansion-item header-class="text-weight-bold q-pa-sm" */
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px;                      /* q-pa-sm = 0.5rem */
+  cursor: pointer; background: #fff; user-select: none;
+}
+.filter-group-hdr:hover { background: #fafafa; }
+.filter-group-label { font-size: 13px; font-weight: 700; color: var(--body-text); }
+.filter-group-arrow {
+  font-size: 18px; color: var(--dark); transition: transform 0.15s;
+}
+.filter-group-arrow.expanded { transform: rotate(180deg); }
+.filter-group-body { padding: 0 0 4px; display: none; }
+.filter-group-body.open { display: block; }
+
+/* REAL: CheckFilter uses row flex with min-width:50% — 2-column grid */
+.filter-check-grid { display: flex; flex-wrap: wrap; }
+.filter-check-cell {
+  min-width: 50%;                    /* 2-column layout — matches real app */
+  padding: 4px 8px;                  /* q-pa-xs + q-px-sm */
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 13px; color: var(--body-text);
+}
+.filter-check-cell input[type="checkbox"] {
+  cursor: pointer; accent-color: var(--primary);
+  width: 14px; height: 14px;        /* q-checkbox size="sm" */
+  flex-shrink: 0;
+}
+/* Full-width cell — for labels too long for 2-col (e.g. "Staging In Progress") */
+.filter-check-cell.full { min-width: 100%; }
+
+/* Radio items (single-select groups) — also 2-col where appropriate */
+.filter-radio-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; cursor: pointer; font-size: 13px; color: var(--body-text);
+}
+.filter-radio-item input[type="radio"] {
+  cursor: pointer; accent-color: var(--primary);
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+
+/* INPUT filter inside sidebar */
+.filter-sidebar-input {
+  height: 32px; width: 100%;
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 0 8px; font-size: 13px; color: var(--body-text);
+  background: #fff; outline: none; margin: 4px 8px; width: calc(100% - 16px);
+}
+.filter-sidebar-input:focus { border-color: var(--secondary); }
+.filter-date-pair { display: flex; gap: 6px; padding: 4px 8px; }
+.filter-date-pair input[type="date"] {
+  flex: 1; height: 32px;
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 0 6px; font-size: 12px; color: var(--body-text);
+  background: #fff; outline: none;
+}
+.filter-group-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 16px; min-width: 18px; padding: 0 4px;
+  background: #ffe0b2; color: #4D5055;
+  font-size: 11px; font-weight: 600; border-radius: 8px;
+}
+
+/* --- TOP SUMMARY FILTERS ---
+   Status-count quick-filter bar (TopSummaryFilter.vue). Shows above the table on list pages. */
+.top-summary-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; background: #fff;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.summary-filter-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border); border-radius: 2px;
+  background: #fff; cursor: pointer;
+  font-size: 13px; color: var(--body-text); font-weight: 600;
+}
+.summary-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.summary-count {
+  font-size: 12px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px;
+  background: #ffe0b2; color: #4D5055;
+}
+.summary-filter-btn.active .summary-count { background: rgba(255,255,255,0.25); color: #fff; }
+
 /* --- CARD / CONTENT AREA --- */
 .content-area { padding: 16px; }
 .card { background: var(--card-bg); border-radius: 4px; overflow: hidden; }
@@ -617,22 +793,22 @@ body {
      Right (after spacer): column-config gear (tune) · export (file_download).
      ⚠ RULE: NO record count here. "N results found" belongs ONLY in pagination-row (footer). -->
 <div class="filter-bar">
-  <!-- Filter button: no record count here — only the filter pill -->
-  <button class="filter-toggle-btn" style="position:relative">
+  <!-- Filter button: opens filters-sidebar panel; no record count here -->
+  <button class="filter-toggle-btn" style="position:relative" onclick="toggleFilterPanel()">
     <span class="material-symbols-outlined" style="font-size:18px">filter_list</span>
     Filter
     <!-- Badge only when filters are applied: -->
     <span style="display:inline-flex; align-items:center; justify-content:center; height:16px; min-width:18px; padding:0 4px; margin-left:4px; background:#ffe0b2; color:#4D5055; font-size:11px; font-weight:600; border-radius:8px">2</span>
   </button>
 
-  <!-- Segmented search: field dropdown joined to search input -->
-  <select class="custom-dropdown" aria-label="Search field">
-    <option>Order ID</option>
-    <option>SKU ID</option>
-    <option>Route ID</option>
-    <option>Shipping ID</option>
+  <!-- Segmented search: field dropdown + input wired to onSearch() from data-table-engine -->
+  <select class="custom-dropdown" id="searchField" aria-label="Search field" onchange="onSearch()">
+    <option value="id">Order ID</option>
+    <option value="station">Station</option>
+    <option value="type">Order Type</option>
   </select>
-  <input type="text" class="smaller-input smaller-input-joined" placeholder="Search...">
+  <input type="text" class="smaller-input smaller-input-joined" id="searchInput"
+         placeholder="Search..." oninput="onSearch()">
 
   <div class="filter-spacer"></div>
 
@@ -649,30 +825,622 @@ body {
 
 ---
 
+### SNIPPET: top-summary-filters
+
+```html
+<!-- SNIPPET: top-summary-filters — Status-count quick-filter bar (TopSummaryFilter.vue pattern).
+     Appears between section-banner and toolbar-top on list pages.
+     ⚠ RULES:
+       - Add data-filter="<StatusLabel>" to every button (used by renderSummaryCounts()).
+       - onclick calls setTopFilter() from data-table-engine — do NOT inline onclick logic here.
+       - "All" is always the first button and starts active.
+       - Counts are recomputed by renderSummaryCounts() on every render(); do not hardcode them. -->
+<div class="top-summary-bar">
+  <button class="summary-filter-btn active" data-filter="All"         onclick="setTopFilter(this.dataset.filter)">
+    All <span class="summary-count">20</span>
+  </button>
+  <button class="summary-filter-btn" data-filter="Created"            onclick="setTopFilter(this.dataset.filter)">
+    Created <span class="summary-count">5</span>
+  </button>
+  <button class="summary-filter-btn" data-filter="In Progress"        onclick="setTopFilter(this.dataset.filter)">
+    In Progress <span class="summary-count">6</span>
+  </button>
+  <button class="summary-filter-btn" data-filter="Completed"          onclick="setTopFilter(this.dataset.filter)">
+    Completed <span class="summary-count">5</span>
+  </button>
+  <button class="summary-filter-btn" data-filter="Cancelled"          onclick="setTopFilter(this.dataset.filter)">
+    Cancelled <span class="summary-count">4</span>
+  </button>
+</div>
+```
+
+---
+
+### SNIPPET: data-table-engine
+
+```html
+<!-- SNIPPET: data-table-engine — Complete JS engine for every list/table mockup.
+     Copy this block, then customise the three labelled zones:
+       ZONE 1: ALL_ROWS — fill with 15-25 domain objects covering every filter value
+       ZONE 2: rowHtml(r) — one <tr> per row using the ticket's real columns
+       ZONE 3: Filter group checkboxes — match fields and values to the domain
+     The engine wires side filters, top summary filters, column sort, pagination,
+     search, and action buttons through a single render() call.
+     ⚠ NEVER write <tr> elements directly in HTML for table body data. -->
+
+<!-- Place just before </body> -->
+<script>
+// ═══════════════════════════════════════════════════
+// ZONE 1 — DATASET  (customise for the ticket domain)
+// Rules: 15-25 rows · every status value appears ≥3 times
+//        every priority/type/category value appears ≥2 times
+//        use realistic IDs, timestamps, and field values
+// ═══════════════════════════════════════════════════
+const ALL_ROWS = [
+  { id:'ORD-0001', status:'In Progress', type:'B2B',          priority:'Critical', station:'PPS-01', qty:8,  pat:'14:30', pbt:'18:00', created:'2024-07-01' },
+  { id:'ORD-0002', status:'Created',     type:'B2C',          priority:'Normal',   station:'PPS-02', qty:3,  pat:'10:00', pbt:'14:00', created:'2024-07-01' },
+  { id:'ORD-0003', status:'Completed',   type:'B2B',          priority:'High',     station:'PPS-03', qty:15, pat:'09:00', pbt:'12:00', created:'2024-06-30' },
+  { id:'ORD-0004', status:'Cancelled',   type:'Multi-Channel',priority:'Normal',   station:'PPS-04', qty:1,  pat:'11:30', pbt:'15:30', created:'2024-06-30' },
+  { id:'ORD-0005', status:'In Progress', type:'B2C',          priority:'High',     station:'PPS-01', qty:22, pat:'13:00', pbt:'17:00', created:'2024-06-29' },
+  { id:'ORD-0006', status:'Created',     type:'B2B',          priority:'Critical', station:'PPS-05', qty:5,  pat:'16:00', pbt:'20:00', created:'2024-06-29' },
+  { id:'ORD-0007', status:'Completed',   type:'B2C',          priority:'Normal',   station:'PPS-02', qty:9,  pat:'08:00', pbt:'11:00', created:'2024-06-28' },
+  { id:'ORD-0008', status:'In Progress', type:'B2B',          priority:'High',     station:'PPS-03', qty:14, pat:'12:00', pbt:'16:00', created:'2024-06-28' },
+  { id:'ORD-0009', status:'Created',     type:'Multi-Channel',priority:'Normal',   station:'PPS-06', qty:7,  pat:'15:00', pbt:'19:00', created:'2024-06-27' },
+  { id:'ORD-0010', status:'Completed',   type:'B2B',          priority:'Critical', station:'PPS-01', qty:20, pat:'07:30', pbt:'10:30', created:'2024-06-27' },
+  { id:'ORD-0011', status:'Cancelled',   type:'B2C',          priority:'High',     station:'PPS-04', qty:2,  pat:'14:00', pbt:'18:00', created:'2024-06-26' },
+  { id:'ORD-0012', status:'In Progress', type:'Multi-Channel',priority:'Normal',   station:'PPS-02', qty:11, pat:'10:30', pbt:'14:30', created:'2024-06-26' },
+  { id:'ORD-0013', status:'Created',     type:'B2B',          priority:'High',     station:'PPS-05', qty:6,  pat:'09:30', pbt:'13:30', created:'2024-06-25' },
+  { id:'ORD-0014', status:'Completed',   type:'B2C',          priority:'Normal',   station:'PPS-03', qty:18, pat:'11:00', pbt:'15:00', created:'2024-06-25' },
+  { id:'ORD-0015', status:'In Progress', type:'B2B',          priority:'Critical', station:'PPS-06', qty:4,  pat:'16:30', pbt:'20:30', created:'2024-06-24' },
+  { id:'ORD-0016', status:'Created',     type:'B2C',          priority:'Normal',   station:'PPS-01', qty:13, pat:'08:30', pbt:'12:30', created:'2024-06-24' },
+  { id:'ORD-0017', status:'Cancelled',   type:'B2B',          priority:'High',     station:'PPS-02', qty:3,  pat:'13:30', pbt:'17:30', created:'2024-06-23' },
+  { id:'ORD-0018', status:'Completed',   type:'Multi-Channel',priority:'Critical', station:'PPS-04', qty:25, pat:'10:00', pbt:'14:00', created:'2024-06-23' },
+  { id:'ORD-0019', status:'In Progress', type:'B2C',          priority:'Normal',   station:'PPS-05', qty:10, pat:'15:30', pbt:'19:30', created:'2024-06-22' },
+  { id:'ORD-0020', status:'Created',     type:'B2B',          priority:'High',     station:'PPS-03', qty:8,  pat:'12:30', pbt:'16:30', created:'2024-06-22' },
+];
+
+// ═══════════════════════════════════════════════════
+// STATE — shared across all interactions
+// ═══════════════════════════════════════════════════
+const S = {
+  // side filter state — field → Set of selected values (empty Set = show all)
+  checkFilters: { status: new Set(), type: new Set(), priority: new Set() },
+  inputFilters: {},     // field → string value (for INPUT-type sidebar filters)
+  dateFilters:  {},     // field → { from: string, to: string }
+  topFilter:    'All',  // active top-summary label ('All' | status value)
+  searchField:  'id',
+  searchValue:  '',
+  sortCol:      null,
+  sortDir:      'asc',
+  page:         1,
+  pageSize:     10,
+};
+
+// ═══════════════════════════════════════════════════
+// PIPELINE — filter → sort → page
+// ═══════════════════════════════════════════════════
+function getFiltered() {
+  return ALL_ROWS.filter(function(r) {
+    // top summary filter
+    if (S.topFilter !== 'All' && r.status !== S.topFilter) return false;
+    // side checkbox filters (each Set: empty = no restriction)
+    for (var f in S.checkFilters) {
+      if (S.checkFilters[f].size > 0 && !S.checkFilters[f].has(r[f])) return false;
+    }
+    // side input filters (substring match)
+    for (var fi in S.inputFilters) {
+      var fv = S.inputFilters[fi];
+      if (fv && !String(r[fi] || '').toLowerCase().includes(fv.toLowerCase())) return false;
+    }
+    // search bar
+    if (S.searchValue) {
+      var hay = String(r[S.searchField] || '').toLowerCase();
+      if (!hay.includes(S.searchValue.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+
+function getSorted(rows) {
+  if (!S.sortCol) return rows;
+  return rows.slice().sort(function(a, b) {
+    var av = a[S.sortCol], bv = b[S.sortCol];
+    if (av < bv) return S.sortDir === 'asc' ? -1 :  1;
+    if (av > bv) return S.sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER — single entry point for all state changes
+// ═══════════════════════════════════════════════════
+function render() {
+  var filtered = getFiltered();
+  var sorted   = getSorted(filtered);
+  var start    = (S.page - 1) * S.pageSize;
+  var paged    = sorted.slice(start, start + S.pageSize);
+
+  // 1. table body
+  var tbody = document.getElementById('tableBody');
+  tbody.innerHTML = paged.length === 0
+    ? '<tr><td colspan="100" style="text-align:center;padding:32px;color:#888">No records match the current filters.</td></tr>'
+    : paged.map(rowHtml).join('');
+
+  // 2. pagination
+  renderPagination(sorted.length);
+
+  // 3. toolbar stats line (toolbar-top)
+  var statsEl = document.getElementById('toolbarStats');
+  if (statsEl) statsEl.textContent = sorted.length;
+
+  // 4. top summary filter counts
+  renderSummaryCounts();
+
+  // 5. filter badge on Filter button
+  var anyActive = Object.values(S.checkFilters).some(function(s) { return s.size > 0; })
+               || Object.values(S.inputFilters).some(function(v) { return v; })
+               || Object.values(S.dateFilters).some(function(v) { return v && (v.from || v.to); });
+  var badge = document.getElementById('filterBadge');
+  if (badge) {
+    badge.style.display = anyActive ? 'inline-flex' : 'none';
+    var totalActive = 0;
+    Object.values(S.checkFilters).forEach(function(s){ totalActive += s.size; });
+    badge.textContent = totalActive || '';
+  }
+}
+
+function renderPagination(total) {
+  var totalPages = Math.max(1, Math.ceil(total / S.pageSize));
+  if (S.page > totalPages) S.page = totalPages;
+
+  var el = document.getElementById('resultsCount');
+  if (el) el.textContent = total + ' results found';
+
+  var container = document.getElementById('pageButtons');
+  if (!container) return;
+  var html = '<button class="pg-btn" onclick="goToPage(' + (S.page-1) + ')">&#8249;</button>';
+  var max = Math.min(totalPages, 6);
+  for (var i = 1; i <= max; i++) {
+    html += '<button class="pg-btn' + (i === S.page ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+  }
+  if (totalPages > 6) html += '<span style="padding:0 4px">…</span>'
+    + '<button class="pg-btn" onclick="goToPage(' + totalPages + ')">' + totalPages + '</button>';
+  html += '<button class="pg-btn" onclick="goToPage(' + (S.page+1) + ')">&#8250;</button>';
+  container.innerHTML = html;
+}
+
+function renderSummaryCounts() {
+  // count by status across ALL_ROWS (unfiltered by top-filter, but apply side filters)
+  var sideFiltered = ALL_ROWS.filter(function(r) {
+    for (var f in S.checkFilters) {
+      if (S.checkFilters[f].size > 0 && !S.checkFilters[f].has(r[f])) return false;
+    }
+    return true;
+  });
+  var counts = { All: sideFiltered.length };
+  sideFiltered.forEach(function(r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+
+  document.querySelectorAll('.summary-filter-btn[data-filter]').forEach(function(btn) {
+    var lbl = btn.dataset.filter;
+    var cnt = btn.querySelector('.summary-count');
+    if (cnt) cnt.textContent = counts[lbl] || 0;
+    btn.classList.toggle('active', S.topFilter === lbl);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// ZONE 2 — ROW TEMPLATE  (customise for the ticket's columns)
+// Return a <tr> string for one data row.
+// Use chip classes for status, priority-* for priority text.
+// Wire each action button to its handler function below.
+// ═══════════════════════════════════════════════════
+function rowHtml(r) {
+  var statusClass = {
+    'In Progress': 'chip-inprogress', 'Created': 'chip-created',
+    'Completed': 'chip-completed',    'Cancelled': 'chip-cancelled',
+  }[r.status] || 'chip-created';
+
+  return '<tr data-id="' + r.id + '">'
+    + '<td><input type="checkbox"></td>'
+    + '<td style="font-weight:600;color:var(--primary)">' + r.id + '</td>'
+    + '<td><span class="chip ' + statusClass + '">' + r.status + '</span></td>'
+    + '<td>' + r.type + '</td>'
+    + (r.priority === 'Critical'
+        ? '<td><span class="priority-critical">Critical</span></td>'
+        : '<td><span class="priority-normal">' + r.priority + '</span></td>')
+    + '<td>' + r.station + '</td>'
+    + '<td>' + r.qty + '</td>'
+    + '<td>' + r.pat + '</td>'
+    + '<td>' + r.pbt + '</td>'
+    + '<td class="td-actions"><span class="row-actions-cell">'
+    +   '<button class="row-action-btn" title="View details" onclick="viewDetails(\'' + r.id + '\')">'
+    +     '<span class="material-symbols-outlined">description</span></button>'
+    +   (r.status !== 'Cancelled' && r.status !== 'Completed'
+        ? '<button class="row-action-btn" title="Cancel" onclick="cancelRow(\'' + r.id + '\')">'
+          + '<span class="material-symbols-outlined">cancel</span></button>'
+        : '')
+    +   (r.status === 'Created'
+        ? '<button class="row-action-btn" title="Release" onclick="releaseRow(\'' + r.id + '\')">'
+          + '<span class="material-symbols-outlined">play_arrow</span></button>'
+        : '')
+    + '</span></td>'
+    + '</tr>';
+}
+
+// ═══════════════════════════════════════════════════
+// INTERACTION HANDLERS
+// ═══════════════════════════════════════════════════
+
+// Top summary filter
+function setTopFilter(label) { S.topFilter = label; S.page = 1; render(); }
+
+// Column sort
+function sortBy(col) {
+  S.sortDir = (S.sortCol === col && S.sortDir === 'asc') ? 'desc' : 'asc';
+  S.sortCol = col;
+  document.querySelectorAll('[data-sort]').forEach(function(th) {
+    var c = th.dataset.sort;
+    th.querySelector && th.querySelectorAll('.sort-ico .up,.sort-ico .dn').forEach(function(span) {
+      var isUp = span.classList.contains('up');
+      span.classList.toggle('active', c === col && (isUp ? S.sortDir === 'asc' : S.sortDir === 'desc'));
+    });
+  });
+  render();
+}
+
+// Pagination
+function goToPage(n) {
+  var total = Math.max(1, Math.ceil(getFiltered().length / S.pageSize));
+  if (n < 1 || n > total) return;
+  S.page = n; render();
+}
+
+// Rows-per-page
+function setPageSize(n) { S.pageSize = parseInt(n); S.page = 1; render(); }
+
+// Search bar
+function onSearch() {
+  S.searchValue = (document.getElementById('searchInput') || {}).value || '';
+  S.searchField = (document.getElementById('searchField') || {}).value || S.searchField;
+  S.page = 1; render();
+}
+
+// Side checkbox filter
+function onCheckFilter(field, value, checked) {
+  if (!S.checkFilters[field]) S.checkFilters[field] = new Set();
+  if (checked) S.checkFilters[field].add(value);
+  else S.checkFilters[field].delete(value);
+  S.page = 1; render();
+}
+
+// Side input filter
+function onInputFilter(field, value) {
+  S.inputFilters[field] = value; S.page = 1; render();
+}
+
+// ═══════════════════════════════════════════════════
+// ACTION BUTTON HANDLERS
+// Implement every action from the JIRA ticket here.
+// Each handler should: find the row in ALL_ROWS by id,
+// mutate the relevant field(s), then call render().
+// For destructive actions, confirm with the action modal first.
+// ═══════════════════════════════════════════════════
+function viewDetails(id) {
+  var r = ALL_ROWS.find(function(x){ return x.id === id; });
+  if (!r) return;
+  document.getElementById('detailTitle').textContent = 'Order Details — ' + r.id;
+  document.getElementById('detailBody').innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + Object.entries(r).map(function(kv) {
+        return '<tr><td style="padding:6px 8px;font-weight:600;color:var(--dark);width:140px">'
+          + kv[0] + '</td><td style="padding:6px 8px;color:var(--body-text)">' + kv[1] + '</td></tr>';
+      }).join('')
+    + '</table>';
+  document.getElementById('detailPanel').style.display = 'flex';
+}
+
+function cancelRow(id) {
+  openActionModal('Cancel Order', 'Are you sure you want to cancel order <strong>' + id + '</strong>?',
+    function() {
+      var r = ALL_ROWS.find(function(x){ return x.id === id; });
+      if (r) r.status = 'Cancelled';
+      render();
+    });
+}
+
+function releaseRow(id) {
+  openActionModal('Release Order', 'Release order <strong>' + id + '</strong> to picking?',
+    function() {
+      var r = ALL_ROWS.find(function(x){ return x.id === id; });
+      if (r) r.status = 'In Progress';
+      render();
+    });
+}
+
+// Generic confirmation modal
+var _pendingAction = null;
+function openActionModal(title, body, onConfirm) {
+  _pendingAction = onConfirm;
+  document.getElementById('actionModalTitle').textContent = title;
+  document.getElementById('actionModalBody').innerHTML = body;
+  document.getElementById('actionModal').style.display = 'flex';
+}
+function confirmAction() {
+  document.getElementById('actionModal').style.display = 'none';
+  if (_pendingAction) { _pendingAction(); _pendingAction = null; }
+}
+function cancelAction() {
+  document.getElementById('actionModal').style.display = 'none';
+  _pendingAction = null;
+}
+
+// ═══════════════════════════════════════════════════
+// FILTER PANEL CONTROLS
+// Sidebar is inline (flex sibling to table) — no overlay element needed.
+// ═══════════════════════════════════════════════════
+function toggleFilterPanel() {
+  var s = document.getElementById('filterSidebar');
+  if (s) s.classList.toggle('open');
+}
+function closeFilterPanel() {
+  var s = document.getElementById('filterSidebar');
+  if (s) s.classList.remove('open');
+}
+function clearAllFilters() {
+  Object.keys(S.checkFilters).forEach(function(f){ S.checkFilters[f].clear(); });
+  S.inputFilters = {}; S.dateFilters = {}; S.page = 1;
+  var panel = document.getElementById('filterSidebar');
+  if (panel) {
+    panel.querySelectorAll('input[type="checkbox"],input[type="radio"]').forEach(function(el){ el.checked = false; });
+    panel.querySelectorAll('input[type="text"],input[type="number"],input[type="date"]').forEach(function(el){ el.value=''; });
+  }
+  render();
+}
+function toggleFilterGroup(hdr) {
+  var body  = hdr.nextElementSibling;
+  var arrow = hdr.querySelector('.filter-group-arrow');
+  var open  = body && body.classList.contains('open');
+  if (body)  body.classList.toggle('open', !open);
+  if (arrow) arrow.classList.toggle('expanded', !open);
+}
+
+// ═══════════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════════
+function closeDetailPanel() {
+  document.getElementById('detailPanel').style.display = 'none';
+}
+
+// ══════════════════
+// BOOT
+// ══════════════════
+render();
+</script>
+
+<!-- Action confirmation modal (always present) -->
+<div class="modal-backdrop" id="actionModal" style="display:none">
+  <div class="modal-card">
+    <div class="modal-hdr">
+      <span class="modal-title" id="actionModalTitle">Confirm</span>
+      <button class="modal-close" onclick="cancelAction()">&#215;</button>
+    </div>
+    <div class="modal-body" id="actionModalBody" style="font-size:14px;color:var(--body-text)"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel-btn" onclick="cancelAction()">CANCEL</button>
+      <button class="modal-proceed-btn" onclick="confirmAction()">PROCEED</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail side-panel (always present; shown on View Details) -->
+<div id="detailPanel" style="display:none;position:fixed;inset:0;z-index:180;justify-content:flex-end">
+  <div style="background:rgba(0,0,0,0.18);flex:1" onclick="closeDetailPanel()"></div>
+  <div style="width:480px;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,0.14);display:flex;flex-direction:column">
+    <div class="modal-hdr">
+      <span class="modal-title" id="detailTitle">Details</span>
+      <button class="modal-close" onclick="closeDetailPanel()">&#215;</button>
+    </div>
+    <div id="detailBody" style="flex:1;overflow-y:auto;padding:16px"></div>
+  </div>
+</div>
+```
+
+> **How to customise for a ticket:**
+> 1. **ZONE 1** — Replace `ALL_ROWS` objects with the ticket's domain fields. Keep ≥15 rows with full value coverage.
+> 2. **ZONE 2** — Rewrite `rowHtml(r)` to match the ticket's columns. Wire each action `<button>` to its handler.
+> 3. **Filter groups** (in `filters-sidebar` SNIPPET) — Add `onchange="onCheckFilter('field','value',this.checked)"` to each checkbox. Add `oninput="onInputFilter('field',this.value)"` to INPUT filters.
+> 4. **Action handlers** — Add one function per ticket action (approve, hold, reassign, etc.) following the `cancelRow`/`releaseRow` pattern.
+> 5. **`data-sort` attributes** — Add `data-sort="fieldKey" onclick="sortBy('fieldKey')"` to every sortable `<th>`.
+> 6. **Pagination wiring** — Use `id="pageButtons"` on the page-buttons container, `id="resultsCount"` on the count span, `onchange="setPageSize(this.value)"` on the rows-per-page select.
+> 7. **Top summary buttons** — Add `data-filter="StatusLabel"` to every `.summary-filter-btn` and `onclick="setTopFilter(this.dataset.filter)"`.
+
+---
+
+### SNIPPET: filters-sidebar
+
+```html
+<!-- SNIPPET: filters-sidebar — Overlay drawer inside .content-with-filters (position:relative).
+     Slides over the table from the left. Height is bounded by the content area, not the viewport.
+     Table stays full-width underneath — the sidebar overlays it, it does not push it.
+     REAL look sourced from FiltersSidebar.vue (v2) + screenshot analysis:
+       - Header: light grey (#F5F5F5 = bg-grey-3), "Filters" bold dark text, chevron_left to close
+       - Clear Filters: separate row below header, small orange outlined button (right-aligned)
+       - Checkboxes: 2-column grid (min-width:50% per cell), size sm (14px), padding 4px
+       - Labels too long for 2-col get class="full" (min-width:100%)
+       - Filter group header: bold, padding 8px, white bg
+       - Thin custom scrollbar (5px wide, #d3d3d3)
+     ⚠ RULES:
+       - Place inside <div class="content-with-filters"> alongside <div class="table-section">.
+       - Show open by default: class="open" on .filters-sidebar.
+       - All logic (clearAllFilters, toggleFilterGroup, onCheckFilter, onInputFilter, toggleFilterPanel)
+         lives in data-table-engine SNIPPET — do NOT redefine those functions here.
+       - Every checkbox: onchange="onCheckFilter('fieldKey','value',this.checked)"
+       - Every INPUT:    oninput="onInputFilter('fieldKey',this.value)"
+       - Replace field names/values with the ticket's actual domain. Use find-related-context results.
+       - Add class="full" to .filter-check-cell when the label is too long for 2-col layout.
+
+     PAGE LAYOUT (required — toolbar-top + filter-bar go ABOVE this wrapper):
+     <div class="content-with-filters">
+       [filters-sidebar here — overlays the table]
+       <div class="table-section">
+         <div class="card" style="overflow-x:auto"><table>…</table></div>
+         [pagination-row here]
+       </div>
+     </div>  -->
+
+<div class="filters-sidebar open" id="filterSidebar">
+
+  <!-- Header: light grey bg, "Filters" bold dark text, chevron_left close -->
+  <div class="filters-sidebar-hdr">
+    <span class="filters-sidebar-title">Filters</span>
+    <button class="filters-sidebar-close" onclick="closeFilterPanel()" title="Close">
+      <span class="material-symbols-outlined" style="font-size:18px">chevron_left</span>
+    </button>
+  </div>
+
+  <!-- Clear Filters row — shown always; button triggers clearAllFilters() -->
+  <div class="filters-clear-row">
+    <button class="filters-clear-btn" onclick="clearAllFilters()">Clear Filters</button>
+  </div>
+
+  <div class="filters-sidebar-body">
+
+    <!-- CHECKBOX group — Status (2-column grid) -->
+    <div class="filter-group">
+      <div class="filter-group-hdr" onclick="toggleFilterGroup(this)">
+        <span class="filter-group-label">Order Status</span>
+        <span class="material-symbols-outlined filter-group-arrow expanded">expand_more</span>
+      </div>
+      <div class="filter-group-body open">
+        <div class="filter-check-grid">
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('status','Created',this.checked)"> Created
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('status','Completed',this.checked)"> Completed
+          </label>
+          <label class="filter-check-cell full">
+            <input type="checkbox" onchange="onCheckFilter('status','Staging In Progress',this.checked)"> Staging In Progress
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('status','In Progress',this.checked)"> In Progress
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('status','Cancelled',this.checked)"> Cancelled
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHECKBOX group — Type (2-column grid) -->
+    <div class="filter-group">
+      <div class="filter-group-hdr" onclick="toggleFilterGroup(this)">
+        <span class="filter-group-label">Order Type</span>
+        <span class="material-symbols-outlined filter-group-arrow expanded">expand_more</span>
+      </div>
+      <div class="filter-group-body open">
+        <div class="filter-check-grid">
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('type','B2B',this.checked)"> B2B
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('type','B2C',this.checked)"> B2C
+          </label>
+          <label class="filter-check-cell full">
+            <input type="checkbox" onchange="onCheckFilter('type','Multi-Channel',this.checked)"> Multi-Channel
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHECKBOX group — Priority (2-column grid) -->
+    <div class="filter-group">
+      <div class="filter-group-hdr" onclick="toggleFilterGroup(this)">
+        <span class="filter-group-label">Priority</span>
+        <span class="material-symbols-outlined filter-group-arrow">expand_more</span>
+      </div>
+      <div class="filter-group-body">
+        <div class="filter-check-grid">
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('priority','Critical',this.checked)"> Critical
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('priority','High',this.checked)"> High
+          </label>
+          <label class="filter-check-cell">
+            <input type="checkbox" onchange="onCheckFilter('priority','Normal',this.checked)"> Normal
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- INPUT group — numeric (full width) -->
+    <div class="filter-group">
+      <div class="filter-group-hdr" onclick="toggleFilterGroup(this)">
+        <span class="filter-group-label">Order Quantity</span>
+        <span class="material-symbols-outlined filter-group-arrow">expand_more</span>
+      </div>
+      <div class="filter-group-body">
+        <input type="number" class="filter-sidebar-input" placeholder="Enter quantity"
+               oninput="onInputFilter('qty',this.value)">
+      </div>
+    </div>
+
+    <!-- DATE_TIME_RANGE group -->
+    <div class="filter-group">
+      <div class="filter-group-hdr" onclick="toggleFilterGroup(this)">
+        <span class="filter-group-label">Created Date &amp; Time</span>
+        <span class="material-symbols-outlined filter-group-arrow">expand_more</span>
+      </div>
+      <div class="filter-group-body">
+        <div class="filter-date-pair">
+          <input type="date" placeholder="From">
+          <input type="date" placeholder="To">
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /filters-sidebar-body -->
+</div><!-- /filters-sidebar -->
+```
+
+---
+
 ### SNIPPET: table-header
 
 ```html
 <!-- SNIPPET: table-header — REAL outbound v2 order-list columns.
      Col 1 = select+expand (sticky 75px), Col 2 = Order Info (sticky). Sort triangles on sortable cols.
+     ⚠ WORKING SORT: every sortable <th> needs data-sort="fieldKey" + onclick="sortBy('fieldKey')".
+        The sort triangle active class is managed by sortBy() from data-table-engine.
      NOTE: when find-related-context returns the real :columns array for THIS ticket, use THOSE labels
      instead of these outbound defaults. -->
 <thead>
   <tr>
     <th class="th-select-expand"><input type="checkbox"></th>
-    <th>Order Info</th>
-    <th>Status</th>
-    <th>Station Info</th>
-    <th>Priority
-      <span class="sort-ico"><span class="up active"></span><span class="dn"></span></span>
-    </th>
-    <th>PAT
+    <th data-sort="id" onclick="sortBy('id')" style="cursor:pointer">
+      Order Info
       <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
     </th>
-    <th>PBT
+    <th>Status</th>
+    <th>Station Info</th>
+    <th data-sort="priority" onclick="sortBy('priority')" style="cursor:pointer">
+      Priority
+      <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+    </th>
+    <th data-sort="pat" onclick="sortBy('pat')" style="cursor:pointer">
+      PAT
+      <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+    </th>
+    <th data-sort="pbt" onclick="sortBy('pbt')" style="cursor:pointer">
+      PBT
       <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
     </th>
     <th>Order Type</th>
-    <th>Shipping ID</th>
+    <th data-sort="qty" onclick="sortBy('qty')" style="cursor:pointer">
+      Qty
+      <span class="sort-ico"><span class="up"></span><span class="dn"></span></span>
+    </th>
     <th class="th-actions">Action</th>
   </tr>
 </thead>
@@ -911,23 +1679,21 @@ function toggleExpand(btn) {
 ### SNIPPET: pagination-row
 
 ```html
-<!-- SNIPPET: pagination-row — REAL outbound bottom bar: results-found (left), Results per page [50/100/200]
-     + page buttons (right). Bottom bar border-top #e0e0e0, max 6 page buttons, active = secondary. -->
+<!-- SNIPPET: pagination-row — REAL outbound bottom bar: results-found (left), Results per page + page buttons (right).
+     ⚠ WORKING PAGINATION: use id="resultsCount", id="pageButtons", onchange="setPageSize(this.value)".
+        renderPagination() from data-table-engine rebuilds page buttons dynamically every render(). -->
 <div class="custom-pagination">
-  <span class="text-custom-grey" style="font-weight:600">184 results found</span>
+  <span class="text-custom-grey" style="font-weight:600" id="resultsCount">20 results found</span>
   <div class="pg-spacer"></div>
   <span class="pagination-label">Results per page:</span>
-  <select class="pg-rows-select">
-    <option>50</option>
-    <option>100</option>
-    <option>200</option>
+  <select class="pg-rows-select" onchange="setPageSize(this.value)">
+    <option value="10">10</option>
+    <option value="25">25</option>
+    <option value="50">50</option>
+    <option value="100">100</option>
   </select>
-  <button class="pg-btn">&#8249;</button><!-- < -->
-  <button class="pg-btn active">1</button>
-  <button class="pg-btn">2</button>
-  <button class="pg-btn">3</button>
-  <button class="pg-btn">4</button>
-  <button class="pg-btn">&#8250;</button><!-- > -->
+  <!-- page buttons injected here by renderPagination() -->
+  <span id="pageButtons" style="display:contents"></span>
 </div>
 ```
 
