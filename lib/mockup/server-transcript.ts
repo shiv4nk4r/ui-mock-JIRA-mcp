@@ -3,7 +3,7 @@
  * Survives client disconnect so agent messages / thinking / HTML remain recoverable.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { Message, UsageRecord } from "@lib/types";
@@ -61,6 +61,32 @@ export function writeServerTranscript(transcript: ServerTranscript): void {
   } catch {
     /* best-effort */
   }
+}
+
+/** Remove on-disk mock + transcript (+ analysis) so a history wipe cannot resurrect the UI. */
+export function purgeTicketDiskArtifacts(ticketId: string): string[] {
+  const raw = ticketId.trim();
+  if (!raw) return [];
+  const safe = safeTicketId(raw);
+  const bases = Array.from(new Set([raw, safe]));
+
+  const deleted: string[] = [];
+  const suffixes = [".transcript.json", ".html", ".analysis.json"] as const;
+
+  for (const base of bases) {
+    for (const suffix of suffixes) {
+      const path = join(DESIGN_DIR, `${base}${suffix}`);
+      try {
+        if (!existsSync(path)) continue;
+        unlinkSync(path);
+        deleted.push(path);
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
+  return deleted;
 }
 
 export function patchServerTranscript(

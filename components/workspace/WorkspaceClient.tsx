@@ -14,6 +14,7 @@ import {
   shouldPreferTranscript,
   waitForTranscriptSettled,
 } from "@lib/mockup/recover-transcript";
+import { wipeTicketHistory } from "@lib/mockup/wipe-ticket-history";
 import type {
   AttachedFile,
   Message,
@@ -86,8 +87,13 @@ export function WorkspaceClient({ ticketId }: Props) {
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
 
   const prevRevisionCountRef = useRef(0);
+  const historyWipedRef = useRef(false);
 
   const jiraBaseUrl = process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? "";
+
+  useEffect(() => {
+    historyWipedRef.current = false;
+  }, [ticketId]);
 
   const applySnapshot = useCallback((snap: GenerationSnapshot) => {
     setSessionId(snap.sessionId);
@@ -383,6 +389,7 @@ export function WorkspaceClient({ ticketId }: Props) {
   }, [user, authLoading, ticketId, router]);
 
   useEffect(() => {
+    if (historyWipedRef.current) return;
     if (!user || !ticketData || phase !== "ready" || !sessionId) return;
     // Store owns persistence while a job is active.
     if (mockupGenerationStore.isRunning(user.id, ticketId)) return;
@@ -535,15 +542,14 @@ export function WorkspaceClient({ ticketId }: Props) {
     setDeletingHistory(true);
     try {
       const id = ticketData?.id ?? ticketId;
-      mockupGenerationStore.cancel(user.id, id);
-      await repository.resetTicketHistory(user.id, id);
+      await wipeTicketHistory(user.id, id);
+      historyWipedRef.current = true;
+      setActiveHtml("");
+      setMessages([]);
+      setUsageRecords([]);
+      setSessionId("");
       setDeleteHistoryOpen(false);
-      // Leave the cleared workspace so we don't auto-start a fresh generation.
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-      } else {
-        router.push("/dashboard");
-      }
+      router.replace("/dashboard");
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not delete ticket history");
       setDeletingHistory(false);

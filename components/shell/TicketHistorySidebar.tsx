@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@lib/auth/auth-context";
-import { repository } from "@lib/storage";
-import { mockupGenerationStore } from "@lib/mockup/generation-store";
+import { wipeTicketHistory } from "@lib/mockup/wipe-ticket-history";
 import type { TicketHistoryGroup } from "@lib/utils/session-history";
 import { filterHistoryGroups } from "@lib/utils/session-history";
 import { relativeTime } from "@lib/utils/review-ui";
@@ -394,12 +393,11 @@ export function TicketHistorySidebar({
     setDeleting(true);
     setDeleteError("");
     try {
-      mockupGenerationStore.cancel(user.id, deleteTarget.ticketId);
-      await repository.resetTicketHistory(user.id, deleteTarget.ticketId);
+      await wipeTicketHistory(user.id, deleteTarget.ticketId);
       setDeleteTarget(null);
       onDeleted?.();
       if (activeTicketId && activeTicketId.toUpperCase() === deleteTarget.ticketId.toUpperCase()) {
-        router.push("/dashboard");
+        router.replace("/dashboard");
       }
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Could not delete ticket history");

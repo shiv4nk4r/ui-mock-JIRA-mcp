@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
 import { useAuth } from "@lib/auth/auth-context";
-import { repository } from "@lib/storage";
+import { wipeTicketHistory } from "@lib/mockup/wipe-ticket-history";
 import type { HistorySort, TicketHistoryGroup } from "@lib/utils/session-history";
 import { filterHistoryGroups, sortHistoryGroups } from "@lib/utils/session-history";
 import { formatCostUsd, shortModelName } from "@lib/utils/usage-cost";
@@ -12,7 +12,6 @@ import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { SessionStatusChip } from "@/components/shared/SessionStatusChip";
 import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 import { jiraTicketUrl } from "@lib/utils/jira";
-import { mockupGenerationStore } from "@lib/mockup/generation-store";
 
 const SORT_OPTIONS: { value: HistorySort; label: string }[] = [
   { value: "time_desc", label: "Newest" },
@@ -253,8 +252,7 @@ export function MockHistoryTimeline({
     setDeleting(true);
     setDeleteError("");
     try {
-      await repository.resetTicketHistory(user.id, deleteTarget.ticketId);
-      mockupGenerationStore.cancel(user.id, deleteTarget.ticketId);
+      await wipeTicketHistory(user.id, deleteTarget.ticketId);
       setDeleteTarget(null);
       if (expandedId === deleteTarget.ticketId) setExpandedId(null);
       onRefresh?.();
