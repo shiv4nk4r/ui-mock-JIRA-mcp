@@ -237,7 +237,7 @@ Pagination lives **outside** the `q-table` (which has `hide-pagination`). The co
   <!-- Right: rows-per-page + page nav -->
   <div class="row items-center">
     <span class="q-mr-sm text-body2">Results per page:</span>
-    <q-select v-model="rowsPerPage" :options="[50, 100, 200]"
+    <q-select v-model="rowsPerPage" :options="[10, 25, 50, 100]"
               dense flat borderless emit-value map-options
               style="width: 55px; min-width: 0;" />
     <q-pagination :value="currentPage" :max="maxPages" :max-pages="6"
@@ -874,7 +874,7 @@ Used in Outbound Order Listing, Inbound, and Exception Listing pages. The parent
   <div class="text-weight-medium text-custom-grey">{{ totalRecords }} results found</div>
   <div class="row items-center">
     <span class="q-mr-sm text-body2">Results per page:</span>
-    <q-select v-model="rowsPerPage" :options="[50, 100, 200]"
+    <q-select v-model="rowsPerPage" :options="[10, 25, 50, 100]"
               dense flat borderless emit-value map-options
               style="width: 55px;" />
     <q-pagination :value="currentPage" :max="maxPages" :max-pages="6"

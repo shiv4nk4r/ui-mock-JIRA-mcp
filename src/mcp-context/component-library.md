@@ -22,7 +22,7 @@ This file contains two sections:
   - **Footer (pagination-row SNIPPET):** `"N results found"` (left) + rows-per-page select + page buttons (right).
   - The record count appears in TWO places only: toolbar-top stats line AND pagination-row footer. It must NOT appear as standalone text inside the filter-bar row.
 - **LIST/TABLE PAGES — FILTERS ARE MANDATORY:**
-  - **Side filters (filters-sidebar SNIPPET):** ALWAYS include for any list/table page. The Filter button in `filter-bar` MUST call `toggleFilterPanel()`. Show the sidebar open by default (add `.open` class). The sidebar is an **overlay** — it slides over the **full main view under the navbar** (toolbar + filter bar + table), via `position: absolute` inside `.content-with-filters { position: relative }`. It must NOT be limited to the table card alone. The navbar/topbar stay uncovered. Adapt filter field names to the ticket's domain.
+  - **Side filters (filters-sidebar SNIPPET):** ALWAYS include for any list/table page. The Filter button in `filter-bar` MUST call `toggleFilterPanel()`. **Keep the sidebar CLOSED by default** (do NOT add `.open`). Only add `class="open"` when the JIRA ticket **explicitly** requires the filter panel to start open / expanded / visible on load. The sidebar is an **overlay** — it slides over the **full main view under the navbar** (toolbar + filter bar + table), via `position: absolute` inside `.content-with-filters { position: relative }`. It must NOT be limited to the table card alone. The navbar/topbar stay uncovered. Adapt filter field names to the ticket's domain.
   - **Top summary filters (top-summary-filters SNIPPET):** Include when the domain has meaningful status categories (e.g., Created / In Progress / Completed). Shows quick-toggle count buttons above the table — sourced from `TopSummaryFilter.vue` pattern. Omit only when the ticket explicitly has no status groupings.
   - **Filter types to use in filters-sidebar:** CHECKBOX (multi-select from known values — most common), RADIO (single-select), INPUT (text/number free entry), DATE_TIME_RANGE (date range picker pair), RANGE (min/max numeric). Pick types that match the field semantics.
 - **WORKING INTERACTIONS — ALL LIST/TABLE PAGES (non-negotiable):**
@@ -31,7 +31,7 @@ This file contains two sections:
   - **Side filters are live.** Each checkbox/radio `onchange` → `onCheckFilter(field, value, checked)` → `render()`. Active filter count badge on the Filter button updates automatically.
   - **Top summary filters are live.** Each button `onclick` → `setTopFilter(label)` → `render()`. Button counts recompute from `ALL_ROWS` each render so they reflect current sidebar-filter state.
   - **Column sorting is live.** Sortable `<th>` elements carry `data-sort="fieldKey"` and `onclick="sortBy('fieldKey')"`. Sort triangles toggle active class. Clicking the same column reverses direction.
-  - **Pagination is live.** `renderPagination(totalCount)` builds page buttons dynamically. Prev/next buttons respect bounds. Rows-per-page select updates `S.pageSize` and re-renders.
+  - **Pagination is live.** `renderPagination(totalCount)` builds page buttons dynamically. Prev/next buttons respect bounds. Rows-per-page select updates `S.pageSize` and re-renders. **Default `S.pageSize` MUST be `10`**, and the rows-per-page `<select>` MUST have `selected` on the `10` option.
   - **Search is live.** Search input + field dropdown trigger `onSearch()` → `render()` on every `input` event.
   - **Action buttons perform their actions.** Every action button mentioned in the JIRA ticket must DO something in the mockup:
     - "View details" → open a detail side-panel or navigate to `#detail`
@@ -928,7 +928,7 @@ const S = {
   sortCol:      null,
   sortDir:      'asc',
   page:         1,
-  pageSize:     10,
+  pageSize:     10,   // DEFAULT — always 10 unless ticket specifies otherwise
 };
 
 // ═══════════════════════════════════════════════════
@@ -1010,6 +1010,9 @@ function renderPagination(total) {
 
   var el = document.getElementById('resultsCount');
   if (el) el.textContent = total + ' results found';
+
+  var sel = document.querySelector('.pg-rows-select');
+  if (sel) sel.value = String(S.pageSize || 10);
 
   var container = document.getElementById('pageButtons');
   if (!container) return;
@@ -1287,7 +1290,8 @@ render();
      ⚠ RULES:
        - Place .content-with-filters IMMEDIATELY after topbar + primary-nav (+ optional sub-nav / section-banner).
        - Put toolbar-top, filter-bar, top-summary-filters, AND table INSIDE .page-main (sibling of sidebar).
-       - Show open by default: class="open" on .filters-sidebar.
+       - Show CLOSED by default: do NOT add class="open" on .filters-sidebar.
+       - Only add class="open" when the ticket explicitly requires the filter panel open on load.
        - All logic (clearAllFilters, toggleFilterGroup, onCheckFilter, onInputFilter, toggleFilterPanel)
          lives in data-table-engine SNIPPET — do NOT redefine those functions here.
        - Every checkbox: onchange="onCheckFilter('fieldKey','value',this.checked)"
@@ -1300,7 +1304,7 @@ render();
      [primary-nav]
      [optional sub-nav / section-banner]
      <div class="content-with-filters">
-       [filters-sidebar here — overlays full main view]
+       [filters-sidebar here — overlays full main view; closed unless ticket says open]
        <div class="page-main">
          [toolbar-top]
          [filter-bar]
@@ -1312,7 +1316,7 @@ render();
        </div>
      </div>  -->
 
-<div class="filters-sidebar open" id="filterSidebar">
+<div class="filters-sidebar" id="filterSidebar">
 
   <!-- Header: light grey bg, "Filters" bold dark text, chevron_left close -->
   <div class="filters-sidebar-hdr">
@@ -1705,13 +1709,14 @@ function toggleExpand(btn) {
 ```html
 <!-- SNIPPET: pagination-row — REAL outbound bottom bar: results-found (left), Results per page + page buttons (right).
      ⚠ WORKING PAGINATION: use id="resultsCount", id="pageButtons", onchange="setPageSize(this.value)".
-        renderPagination() from data-table-engine rebuilds page buttons dynamically every render(). -->
+        renderPagination() from data-table-engine rebuilds page buttons dynamically every render().
+     ⚠ DEFAULT: S.pageSize = 10 and the 10 option MUST be selected. -->
 <div class="custom-pagination">
   <span class="text-custom-grey" style="font-weight:600" id="resultsCount">20 results found</span>
   <div class="pg-spacer"></div>
   <span class="pagination-label">Results per page:</span>
   <select class="pg-rows-select" onchange="setPageSize(this.value)">
-    <option value="10">10</option>
+    <option value="10" selected>10</option>
     <option value="25">25</option>
     <option value="50">50</option>
     <option value="100">100</option>

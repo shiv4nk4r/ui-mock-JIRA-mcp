@@ -109,7 +109,7 @@ Copy this skeleton verbatim. Fill in only `data()`, `computed`, `methods`, and `
           rows: [],           // table rows — fill with ticket-specific data
           loading: false,
           selected: [],       // multi-select
-          pagination: { page: 1, rowsPerPage: 50, rowsNumber: 0 },
+          pagination: { page: 1, rowsPerPage: 10, rowsNumber: 0 },
           totalRecords: 0,
           filterOpen: false,
           detailOpen: false,
@@ -475,7 +475,7 @@ Full listing page layout. Paste into `template: \`...\``.
               </div>
               <div class="row items-center">
                 <span class="q-mr-sm text-body2">Results per page:</span>
-                <q-select v-model="pagination.rowsPerPage" :options="[50, 100, 200]"
+                <q-select v-model="pagination.rowsPerPage" :options="[10, 25, 50, 100]"
                           dense flat borderless emit-value map-options
                           style="width:55px;min-width:0;" />
                 <q-pagination :value="pagination.page"
