@@ -13,6 +13,7 @@ import { jiraTicketUrl } from "@lib/utils/jira";
 import { roleTeamLabel, type User } from "@lib/types";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { GreyOrangeLogo } from "@/components/shared/GreyOrangeLogo";
+import { BuildingStatusLabel } from "@/components/shared/BuildingStatusLabel";
 import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 
 function AccountMenuPanel({
@@ -245,7 +246,7 @@ function TicketRow({
     >
       <div className="flex-1 min-w-0">
         <div
-          className="truncate"
+          className="flex items-baseline gap-2 min-w-0"
           style={{
             ...F.body,
             fontSize: 14,
@@ -255,8 +256,8 @@ function TicketRow({
           }}
           title={group.summary}
         >
-          {group.building ? "Building… " : ""}
-          {group.summary || group.ticketId}
+          <span className="truncate min-w-0">{group.summary || group.ticketId}</span>
+          {group.building && <BuildingStatusLabel />}
         </div>
         <div className="truncate mt-0.5" style={{ ...F.body, fontSize: 12, color: COLORS.muted }}>
           {group.ticketId}

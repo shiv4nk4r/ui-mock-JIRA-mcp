@@ -6,6 +6,7 @@ import { filterHistoryGroups } from "@lib/utils/session-history";
 import type { TicketHistoryGroup } from "@lib/utils/session-history";
 import { listDateLabel } from "@lib/utils/review-ui";
 import { F, COLORS, RADIUS } from "@lib/design/tokens";
+import { BuildingStatusLabel } from "@/components/shared/BuildingStatusLabel";
 
 export function SearchMocksView({
   groups,
@@ -130,7 +131,7 @@ export function SearchMocksView({
                       style={{ borderRadius: 12 }}
                     >
                       <span
-                        className="flex-1 min-w-0 truncate"
+                        className="flex-1 min-w-0 flex items-baseline gap-2"
                         style={{
                           ...F.body,
                           fontSize: 15,
@@ -140,8 +141,10 @@ export function SearchMocksView({
                         }}
                         title={group.summary || group.ticketId}
                       >
-                        {group.building ? "Building… " : ""}
-                        {group.summary || group.ticketId}
+                        <span className="truncate min-w-0">
+                          {group.summary || group.ticketId}
+                        </span>
+                        {group.building && <BuildingStatusLabel />}
                       </span>
                       <span
                         className="flex-none tabular-nums"

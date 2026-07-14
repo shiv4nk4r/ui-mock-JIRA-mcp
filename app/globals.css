@@ -84,6 +84,26 @@ html, body {
     thinking-word-in 0.35s ease-out both;
 }
 
+/* Building status — same motion, GreyOrange accent amber */
+.building-status {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    rgba(217, 119, 6, 0.45) 0%,
+    rgba(217, 119, 6, 0.55) 35%,
+    #D97706 50%,
+    rgba(217, 119, 6, 0.55) 65%,
+    rgba(217, 119, 6, 0.45) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    thinking-shimmer 2.4s ease-in-out infinite,
+    thinking-word-in 0.35s ease-out both;
+}
+
 /* ── Background Grid (Gateway) ─────────────────────────────────────── */
 
 .grid-pattern {
