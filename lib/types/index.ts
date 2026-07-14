@@ -145,6 +145,19 @@ export interface ReviewHandoffSnapshot {
   fileChangeCount?: number;
 }
 
+/** Claude Code → GitHub PR build job on an approved review. */
+export type ReviewBuildStatus = "idle" | "running" | "succeeded" | "failed";
+
+export interface ReviewBuildState {
+  status: ReviewBuildStatus;
+  branchName?: string;
+  prUrl?: string;
+  prNumber?: number;
+  error?: string;
+  startedAt?: number;
+  finishedAt?: number;
+}
+
 export interface ReviewItem {
   id: string;
   sessionId: string;
@@ -160,6 +173,8 @@ export interface ReviewItem {
   internalNotes?: string;
   /** Frozen at submit/resubmit so internal reviewers see sizing without reloading session. */
   handoff?: ReviewHandoffSnapshot;
+  /** Set when internal eng runs Build (Claude Code → PR). */
+  build?: ReviewBuildState;
 }
 
 export interface SharedMock {

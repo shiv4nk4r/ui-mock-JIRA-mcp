@@ -17,6 +17,8 @@ import { F, COLORS, RADIUS } from "@lib/design/tokens";
 import { ImplementationPlanModal, ImplementationPlanIcon } from "@/components/reviews/ImplementationPlanModal";
 import { PmReviewDetailView } from "@/components/reviews/PmReviewDetailView";
 import { ReviewDecisionFab } from "@/components/reviews/ReviewDecisionFab";
+import { BuildPrFab } from "@/components/reviews/BuildPrFab";
+import { BuildStatusBanner } from "@/components/reviews/BuildStatusBanner";
 import { ReviewHandoffPanel } from "@/components/reviews/ReviewHandoffPanel";
 import { ReviewCommunicationPanel } from "@/components/reviews/ReviewCommunicationPanel";
 import { ReviewChannelDrawer, ReviewChannelChatIcon } from "@/components/reviews/ReviewChannelDrawer";
@@ -25,6 +27,7 @@ import { ReviewStatusChip } from "@/components/reviews/ReviewStatusChip";
 import { MockupFullscreenOverlay } from "@/components/shared/MockupFullscreenOverlay";
 import { DownloadIcon } from "@/components/shared/DownloadIcon";
 import { IconButton } from "@/components/shared/Toast";
+import { useBuildPr } from "@lib/hooks/use-build-pr";
 
 function latestEffortMarkdown(session: MockupSession | null): string | undefined {
   if (!session) return undefined;
@@ -47,6 +50,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const [channelOpen, setChannelOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [costOpen, setCostOpen] = useState(false);
+  const { startBuild, busy: buildBusy, progress: buildProgress } = useBuildPr();
 
   async function load() {
     const r = await repository.getReview(params.id);
@@ -113,6 +117,14 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
     }
   }
 
+  async function runBuild() {
+    if (!review) return;
+    const reviewUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/reviews/${review.id}` : undefined;
+    await startBuild({ review, session, reviewUrl });
+    await load();
+  }
+
   if (!review) {
     return (
       <div className="py-20 flex justify-center" style={{ background: COLORS.bg }}>
@@ -155,6 +167,50 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                 {review.ticketSummary}
               </p>
               <ReviewStatusChip status={review.status} />
+              {review.build?.prUrl && (
+                <a
+                  href={review.build.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    background: "rgba(52,199,89,0.12)",
+                    color: "#248A3D",
+                    borderRadius: RADIUS.pill,
+                    border: "1px solid rgba(52,199,89,0.25)",
+                    ...F.body,
+                  }}
+                >
+                  PR{review.build.prNumber ? ` #${review.build.prNumber}` : ""} ↗
+                </a>
+              )}
+              {review.build?.status === "running" && (
+                <span
+                  className="inline-flex items-center px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    background: COLORS.accentSoft,
+                    color: COLORS.accent,
+                    borderRadius: RADIUS.pill,
+                    ...F.body,
+                  }}
+                >
+                  Building…
+                </span>
+              )}
+              {review.build?.status === "failed" && !review.build.prUrl && (
+                <span
+                  className="inline-flex items-center px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    background: "rgba(255,59,48,0.1)",
+                    color: "#FF3B30",
+                    borderRadius: RADIUS.pill,
+                    ...F.body,
+                  }}
+                  title={review.build.error}
+                >
+                  Build failed
+                </span>
+              )}
             </div>
             <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{review.ticketId}</p>
           </div>
@@ -245,6 +301,28 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           onApprove={(note) => finalize("approved", note)}
           onRequestChanges={(msg) => finalize("needs_changes", msg)}
         />
+      )}
+
+      {review.status === "approved" && !mockFullscreen && (
+        <>
+          <BuildPrFab
+            busy={buildBusy}
+            build={review.build}
+            channelOpen={channelOpen}
+            onBuild={runBuild}
+          />
+          {(buildBusy || review.build?.status === "running" || review.build?.status === "failed" || review.build?.prUrl) && (
+            <BuildStatusBanner
+              build={
+                buildBusy
+                  ? { ...(review.build ?? { status: "running" }), status: "running" }
+                  : review.build
+              }
+              progressMessage={buildProgress?.message}
+              channelOpen={channelOpen}
+            />
+          )}
+        </>
       )}
 
       <ImplementationPlanModal

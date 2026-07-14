@@ -51,6 +51,33 @@ export function TicketReviewChannelCard({
             {channel.ticketSummary}
           </p>
           <ReviewStatusChip status={review.status} />
+          {review.build?.prUrl && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (review.build?.prUrl) window.open(review.build.prUrl, "_blank", "noopener,noreferrer");
+              }}
+              className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold"
+              style={{
+                background: "rgba(52,199,89,0.12)",
+                color: "#248A3D",
+                borderRadius: RADIUS.pill,
+                border: "1px solid rgba(52,199,89,0.25)",
+              }}
+            >
+              PR{review.build.prNumber ? ` #${review.build.prNumber}` : ""} ↗
+            </button>
+          )}
+          {review.build?.status === "running" && (
+            <span
+              className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: COLORS.accentSoft, color: COLORS.accent, borderRadius: RADIUS.pill }}
+            >
+              Building…
+            </span>
+          )}
         </div>
         <p style={{ ...F.mono, fontSize: 12, color: COLORS.muted }}>{channel.ticketId}</p>
         {review.handoff && (review.handoff.tshirtSize || review.handoff.storyPoints) && (

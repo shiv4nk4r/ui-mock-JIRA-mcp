@@ -4,19 +4,19 @@ overview: Add an internal-only Build button on approved reviews that runs Claude
 todos:
   - id: types-build
     content: Add ReviewItem.build fields + types
-    status: pending
+    status: completed
   - id: git-pr-helpers
     content: Implement worktree sync, branch, commit, push, gh pr create helpers
-    status: pending
+    status: completed
   - id: api-build
     content: Add POST /api/build SSE route spawning Claude Code in worktree
-    status: pending
+    status: completed
   - id: build-ui
     content: Build button + progress + PR link on approved review (internal)
-    status: pending
+    status: completed
   - id: env-docs
     content: Document GH_TOKEN / BUILD_WORKTREE_ROOT in .env.example
-    status: pending
+    status: completed
 isProject: false
 ---
 
