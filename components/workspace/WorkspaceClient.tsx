@@ -22,7 +22,8 @@ import { RetractReviewModal } from "@/components/workspace/RetractReviewModal";
 import { DeleteTicketHistoryModal } from "@/components/workspace/DeleteTicketHistoryModal";
 import { MockVersionPicker } from "@/components/workspace/MockVersionPicker";
 import { FloatingChatWidget } from "@/components/workspace/FloatingChatWidget";
-import { MockCostBreakdownModal, MockCostBadge } from "@/components/workspace/MockCostBreakdownModal";
+import { MockCostBreakdownModal } from "@/components/workspace/MockCostBreakdownModal";
+import { WorkspaceHeaderMoreMenu } from "@/components/workspace/WorkspaceHeaderMoreMenu";
 import { buildRevisions } from "@lib/utils/session-history";
 import { sumUsageRecords } from "@lib/utils/usage-cost";
 
@@ -496,15 +497,15 @@ export function WorkspaceClient({ ticketId }: Props) {
         onConfirm={handleDeleteTicketHistory}
       />
 
-      {/* Minimal top bar */}
+      {/* Slim top bar — identity + version + primary CTA + More */}
       <header
-        className="relative z-50 flex-none flex items-center gap-3 px-4 py-2.5 shrink-0"
+        className="relative z-50 flex-none flex items-center gap-3 px-4 py-2 shrink-0"
         style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${COLORS.border}` }}
       >
         <button
           type="button"
           onClick={() => router.push("/dashboard")}
-          className="p-2 -ml-1 rounded-full hover:bg-gray-100 transition-colors"
+          className="p-1.5 -ml-1 rounded-full hover:bg-gray-100 transition-colors shrink-0"
           aria-label="Back to home"
           style={{ ...F.body, fontSize: 20, color: COLORS.accent, lineHeight: 1 }}
         >
@@ -514,74 +515,50 @@ export function WorkspaceClient({ ticketId }: Props) {
           <div className="truncate" style={{ ...F.body, fontSize: 15, fontWeight: 600, color: COLORS.text }}>
             {ticketData?.summary ?? ticketId}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <JiraTicketLink ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} className="hover:underline" />
+          <div className="flex items-center gap-2 mt-0.5 min-w-0">
+            <JiraTicketLink ticketId={ticketData?.id ?? ticketId} jiraBaseUrl={jiraBaseUrl} className="hover:underline shrink-0" />
             <SessionStatusChip status={sessionStatus} />
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {(usageRecords.length > 0 || revisions.some((r) => r.usage)) && (
-            <MockCostBadge
-              costUsd={usageTotals.costUsd}
-              onClick={() => setCostOpen(true)}
-              disabled={isStreaming || isGenerating}
-            />
-          )}
+        <div className="flex items-center gap-1.5 shrink-0">
           {revisions.length > 0 && (
             <MockVersionPicker
               revisions={revisions}
               selectedId={selectedRevisionId}
               onSelect={setSelectedRevisionId}
               disabled={!previewHtml || isStreaming || isGenerating}
+              compact
             />
           )}
-          <IconButton
-            label="Download mockup as HTML"
-            onClick={() => downloadHtmlFile(previewHtml, `${ticketData?.id ?? ticketId}.html`)}
-            disabled={!previewHtml || isStreaming || isGenerating}
-          >
-            <DownloadIcon />
-          </IconButton>
-          <IconButton
-            label="Full screen"
-            onClick={() => setMockFullscreen(true)}
-            disabled={!previewHtml || isStreaming || isGenerating}
-          >
-            ⛶
-          </IconButton>
-          <IconButton label="Share" onClick={handleShare} disabled={!previewHtml}>
-            ↗
-          </IconButton>
-          <IconButton
-            label="Delete ticket history and start fresh"
-            onClick={() => setDeleteHistoryOpen(true)}
-            disabled={isStreaming || isGenerating || deletingHistory}
-          >
-            🗑
-          </IconButton>
-          {reviewId && (
-            <IconButton label="Review channel" onClick={() => router.push(`/reviews/${reviewId}`)}>
-              💬
-            </IconButton>
-          )}
           {(reviewStatus === "pending_review" || sessionStatus === "pending_review") ? (
-            <>
-              <span style={{ ...F.body, fontSize: 13, color: "#f9b115", fontWeight: 500 }}>In review</span>
-              <IconButton label="Retract from review" onClick={() => setRetractModalOpen(true)}>
-                ↩
-              </IconButton>
-            </>
+            <IconButton label="Retract from review" onClick={() => setRetractModalOpen(true)}>
+              Retract
+            </IconButton>
           ) : reviewStatus === "needs_changes" || reviewStatus === "withdrawn" ? (
             <IconButton label="Resubmit for review" onClick={() => openReviewModal(true)} disabled={!previewHtml} primary>
               Resubmit
             </IconButton>
-          ) : reviewStatus === "approved" || sessionStatus === "reviewed" ? (
-            <span style={{ ...F.body, fontSize: 13, color: "#34C759", fontWeight: 500 }}>✓ Approved</span>
-          ) : (
+          ) : reviewStatus === "approved" || sessionStatus === "reviewed" ? null : (
             <IconButton label="Send to review" onClick={() => openReviewModal(false)} disabled={!previewHtml} primary>
               Review
             </IconButton>
           )}
+          <WorkspaceHeaderMoreMenu
+            onFullscreen={() => setMockFullscreen(true)}
+            onDownload={() => downloadHtmlFile(previewHtml, `${ticketData?.id ?? ticketId}.html`)}
+            onShare={handleShare}
+            onCost={() => setCostOpen(true)}
+            onReviewChannel={reviewId ? () => router.push(`/reviews/${reviewId}`) : undefined}
+            onDelete={() => setDeleteHistoryOpen(true)}
+            showCost={usageRecords.length > 0 || revisions.some((r) => r.usage)}
+            costUsd={usageTotals.costUsd}
+            hasReviewChannel={!!reviewId}
+            fullscreenDisabled={!previewHtml || isStreaming || isGenerating}
+            downloadDisabled={!previewHtml || isStreaming || isGenerating}
+            shareDisabled={!previewHtml}
+            costDisabled={isStreaming || isGenerating}
+            deleteDisabled={isStreaming || isGenerating || deletingHistory}
+          />
         </div>
       </header>
 
