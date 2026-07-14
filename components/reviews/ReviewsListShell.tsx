@@ -124,13 +124,13 @@ export function ReviewsListShell({
           </div>
         )}
 
-        {headerExtra}
-
         {subtitle && (
           <p style={{ ...F.body, fontSize: 14, color: COLORS.muted, lineHeight: 1.5 }}>
             {subtitle}
           </p>
         )}
+
+        {headerExtra}
       </div>
     </div>
   );

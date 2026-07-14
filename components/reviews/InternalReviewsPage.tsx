@@ -9,6 +9,7 @@ import { loadReviewChannels } from "@lib/utils/review-channels";
 import { FeatureRequestsPanel } from "@/components/feedback/FeatureRequestsPanel";
 import { ReviewsListShell, ReviewsTabBar } from "@/components/reviews/ReviewsListShell";
 import { useFeatureFlags } from "@lib/hooks/use-feature-flags";
+import { COLORS } from "@lib/design/tokens";
 
 type QueueTab = "pending" | "changes" | "done";
 
@@ -67,7 +68,13 @@ export function InternalReviewsPage() {
             : "Approved reviews appear here with Build / PR status"
       }
       headerExtra={
-        <div className="opacity-80">
+        <div
+          className="pt-4 mt-2"
+          style={{
+            opacity: 0.35,
+            borderTop: `1px solid ${COLORS.border}`,
+          }}
+        >
           <FeatureRequestsPanel compact manageable />
         </div>
       }
